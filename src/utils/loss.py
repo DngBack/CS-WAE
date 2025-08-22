@@ -1,32 +1,75 @@
 import torch
-from .utils import rbf_kernel
+import torch.nn.functional as F
+import lpips
+from .utils import mmd_loss, sample_uniform_sphere, mobius_reparam
+from ..config import config
 
 """
-Loss functions for CS-WAE, including Maximum Mean Discrepancy (MMD) loss.
+Loss functions for CS-WAE, including combined reconstruction and regularization losses.
 """
 
-def mmd_loss(q_samples, p_samples, device='cuda', sigma=None):
+
+def calculate_cs_wae_loss(x, y, x_hat, z_q, model, loss_fn_vgg, sup_mmd_weight, unsup_mmd_weight):
     """
-    Compute the Maximum Mean Discrepancy (MMD) loss between two sets of samples using the RBF kernel.
+    Calculate the complete CS-WAE loss with LPIPS and MMD components.
+    
     Args:
-        q_samples (torch.Tensor): Samples from the model distribution.
-        p_samples (torch.Tensor): Samples from the prior distribution.
-        device (str): Device to place the tensor on.
-        sigma (float, optional): Kernel bandwidth. If None, estimated from data.
+        x (torch.Tensor): Original input images
+        y (torch.Tensor): Class labels
+        x_hat (torch.Tensor): Reconstructed images
+        z_q (torch.Tensor): Encoded latent vectors
+        model: The CS-WAE model
+        loss_fn_vgg: LPIPS loss function
+        sup_mmd_weight (float): Weight for supervised MMD loss
+        unsup_mmd_weight (float): Weight for unsupervised MMD loss
+        
     Returns:
-        torch.Tensor: Scalar MMD loss value.
+        tuple: (total_loss, recon_loss, supervised_mmd_loss, unsupervised_mmd_loss)
     """
-    # Return zero if not enough samples to compute pairwise distances
-    if q_samples.shape[0] < 2 or p_samples.shape[0] < 2:
-        return torch.tensor(0.0, device=device)
-    # Estimate kernel bandwidth if not provided
-    if sigma is None:
-        with torch.no_grad():
-            dists = torch.pdist(torch.cat([q_samples, p_samples], dim=0))
-            sigma = dists.median()
-    # Compute kernel values
-    k_qq = rbf_kernel(q_samples, q_samples, sigma).mean()
-    k_pp = rbf_kernel(p_samples, p_samples, sigma).mean()
-    k_qp = rbf_kernel(q_samples, p_samples, sigma).mean()
-    # MMD loss formula
-    return k_qq + k_pp - 2 * k_qp
+    # --- Reconstruction Loss Components ---
+    bce_loss = F.binary_cross_entropy(x_hat, x, reduction='mean')
+
+    # Convert image scale from [0, 1] to [-1, 1] for LPIPS
+    x_rescaled = (x * 2) - 1
+    x_hat_rescaled = (x_hat * 2) - 1
+    # LPIPS requires 3-channel images, repeat grayscale 3 times
+    x_rescaled_rgb = x_rescaled.repeat(1, 3, 1, 1)
+    x_hat_rescaled_rgb = x_hat_rescaled.repeat(1, 3, 1, 1)
+
+    lpips_loss = loss_fn_vgg(x_hat_rescaled_rgb, x_rescaled_rgb).mean()
+
+    # Combine reconstruction losses
+    recon_loss = config.bce_weight * bce_loss + config.lpips_weight * lpips_loss
+
+    # --- MMD Loss Components ---
+    supervised_mmd_loss = 0.0
+    normalized_prior_mus = F.normalize(model.prior_mus, p=2, dim=1)
+    
+    for c in range(config.n_classes):
+        class_mask = (y == c)
+        if class_mask.sum() > 1:
+            supervised_mmd_loss += mmd_loss(
+                z_q[class_mask],
+                mobius_reparam(
+                    sample_uniform_sphere(class_mask.sum(), config.latent_dim),
+                    normalized_prior_mus[c].expand(class_mask.sum(), -1),
+                    torch.full((class_mask.sum(),), model.rho_p, device=config.device)
+                )
+            )
+    supervised_mmd_loss /= config.n_classes
+
+    # Unsupervised MMD loss
+    random_classes = torch.randint(0, config.n_classes, (x.size(0),), device=config.device)
+    z_p_unsupervised = mobius_reparam(
+        sample_uniform_sphere(x.size(0), config.latent_dim),
+        normalized_prior_mus[random_classes],
+        torch.full((x.size(0),), model.rho_p, device=config.device)
+    )
+    unsupervised_mmd_loss = mmd_loss(z_q, z_p_unsupervised)
+
+    # --- Total Loss ---
+    total_loss = recon_loss + \
+                 (sup_mmd_weight * supervised_mmd_loss) + \
+                 (unsup_mmd_weight * unsupervised_mmd_loss)
+
+    return total_loss, recon_loss, supervised_mmd_loss, unsupervised_mmd_loss
