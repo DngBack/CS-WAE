@@ -9,4 +9,5 @@ tqdm>=4.65.0
 pyyaml>=6.0
 pytorch-fid>=0.3.0
 torchmetrics>=1.0.0
+lpips==0.1.4
 umap-learn>=0.5.0  # Cho UMAP
