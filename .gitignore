@@ -211,3 +211,6 @@ __marimo__/
 
 # Data
 data/
+
+# Ablation Study
+ablation_results/

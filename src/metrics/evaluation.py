@@ -23,6 +23,10 @@ except ImportError:
     print("Warning: Some evaluation libraries are missing. Please install: pytorch-fid, lpips, torchmetrics")
 
 from ..config import config
+try:
+    from ..config_ablation import ablation_config
+except ImportError:
+    ablation_config = None
 from ..utils.utils import sample_uniform_sphere, mobius_reparam
 
 
@@ -51,8 +55,14 @@ class ModelEvaluator:
                 
                 # Get reconstructions
                 if hasattr(model, 'encode_to_distribution'):
-                    # CS-WAE model
-                    reconstructed_images, _ = model(images)
+                    # CS-WAE model (both ablation and regular)
+                    model_output = model(images)
+                    if len(model_output) == 4:
+                        # Ablation model returns (x_hat, z_q, mu_q, param_q)
+                        reconstructed_images = model_output[0]
+                    else:
+                        # Regular CS-WAE returns (x_hat, other_stuff)
+                        reconstructed_images = model_output[0]
                 else:
                     # Baseline models
                     if hasattr(model, 'reparameterize'):  # VAE or VaDE
@@ -86,7 +96,8 @@ class ModelEvaluator:
                 images = images.to(self.device)
                 
                 # Extract latent representations
-                if model_name == 'CS-WAE':
+                if model_name == 'CS-WAE' or hasattr(model, 'encode_to_distribution'):
+                    # CS-WAE models (both regular and ablation)
                     mu_q, _ = model.encode_to_distribution(images)
                     latent_vectors = mu_q
                 elif model_name in ['VAE', 'VaDE']:
@@ -105,12 +116,15 @@ class ModelEvaluator:
         labels_np = np.concatenate(all_labels, axis=0)
         
         # Perform K-means clustering
+        current_config = ablation_config if ablation_config else config
+        n_clusters = current_config.n_classes
+        
         if model_name == 'VaDE' and hasattr(model, 'mu_c'):
             # Use VaDE cluster centers as initialization
             cluster_centers = model.mu_c.detach().cpu().numpy()
-            kmeans = KMeans(n_clusters=config.n_classes, init=cluster_centers, n_init=1)
+            kmeans = KMeans(n_clusters=n_clusters, init=cluster_centers, n_init=1)
         else:
-            kmeans = KMeans(n_clusters=config.n_classes, random_state=42, n_init='auto')
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init='auto')
         
         cluster_preds = kmeans.fit_predict(latents_np)
         
@@ -119,7 +133,7 @@ class ModelEvaluator:
         ari_score = adjusted_rand_score(labels_np, cluster_preds)
         
         # Calculate clustering accuracy using Hungarian algorithm
-        contingency_matrix = np.zeros((config.n_classes, config.n_classes), dtype=np.int64)
+        contingency_matrix = np.zeros((n_clusters, n_clusters), dtype=np.int64)
         for i in range(len(labels_np)):
             contingency_matrix[cluster_preds[i], labels_np[i]] += 1
         
@@ -148,7 +162,8 @@ class ModelEvaluator:
             test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
             
             for i, (img, _) in enumerate(tqdm(test_dataset, desc="Saving real images")):
-                if i >= config.num_images_for_fid:
+                current_config = ablation_config if ablation_config else config
+                if i >= current_config.num_images_for_fid:
                     break
                 torchvision.utils.save_image(img.repeat(3, 1, 1), 
                                            os.path.join(real_img_dir, f"real_{i}.png"))
@@ -158,17 +173,30 @@ class ModelEvaluator:
         generated_count = 0
         
         with torch.no_grad():
-            while generated_count < config.num_images_for_fid:
-                num_to_gen = min(config.batch_size, config.num_images_for_fid - generated_count)
+            current_config = ablation_config if ablation_config else config
+            while generated_count < current_config.num_images_for_fid:
+                num_to_gen = min(current_config.batch_size, current_config.num_images_for_fid - generated_count)
                 
                 # Generate samples based on model type
-                if model_name == 'CS-WAE':
-                    # Sample from CS-WAE priors
-                    random_classes = torch.randint(0, config.n_classes, (num_to_gen,), device=self.device)
-                    normalized_prior_mus = torch.nn.functional.normalize(model.prior_mus, p=2, dim=1)
-                    eps = sample_uniform_sphere(num_to_gen, config.latent_dim, device=self.device)
-                    z_p = mobius_reparam(eps, normalized_prior_mus[random_classes], 
-                                       torch.full((num_to_gen,), model.rho_p, device=self.device))
+                if model_name == 'CS-WAE' or hasattr(model, 'encode_to_distribution'):
+                    # Sample from CS-WAE priors (both regular and ablation)
+                    # Use appropriate config based on model type
+                    current_config = ablation_config if hasattr(model, 'variant_config') else config
+                    random_classes = torch.randint(0, current_config.n_classes, (num_to_gen,), device=self.device)
+                    
+                    if hasattr(model, 'sample_from_prior'):
+                        # Ablation model with sample_from_prior method
+                        z_p_list = []
+                        for i, class_idx in enumerate(random_classes):
+                            z_sample = model.sample_from_prior(class_idx.item(), 1, self.device)
+                            z_p_list.append(z_sample)
+                        z_p = torch.cat(z_p_list, dim=0)
+                    else:
+                        # Regular CS-WAE model
+                        normalized_prior_mus = torch.nn.functional.normalize(model.prior_mus, p=2, dim=1)
+                        eps = sample_uniform_sphere(num_to_gen, current_config.latent_dim, device=self.device)
+                        z_p = mobius_reparam(eps, normalized_prior_mus[random_classes], 
+                                           torch.full((num_to_gen,), model.rho_p, device=self.device))
                     generated_images = model.decoder(z_p)
                 elif model_name in ['VAE', 'WAE-MMD']:
                     # Sample from standard Gaussian
@@ -193,7 +221,7 @@ class ModelEvaluator:
                 
                 # Save generated images
                 for i in range(generated_images.size(0)):
-                    if generated_count >= config.num_images_for_fid:
+                    if generated_count >= current_config.num_images_for_fid:
                         break
                     image_rgb = generated_images[i].cpu().repeat(3, 1, 1)
                     torchvision.utils.save_image(image_rgb, 
