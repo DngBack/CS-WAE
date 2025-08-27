@@ -50,6 +50,16 @@ def main():
     plot_results(history, model, test_loader, save_dir=save_dir)
     plot_slerp(model, save_dir=save_dir)
     
+    # Generate advanced visual tests
+    print("Generating advanced visual analysis...")
+    from src.visualization.advanced_tests import run_all_advanced_tests
+    run_all_advanced_tests(
+        model=model,
+        test_dataset=test_loader.dataset,
+        test_loader=test_loader,
+        save_dir=save_dir
+    )
+    
     # Evaluate model
     print("Starting comprehensive evaluation...")
     evaluator = ModelEvaluator()
