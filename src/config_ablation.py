@@ -18,7 +18,7 @@ class AblationConfig:
 
         # Training parameters
         self.batch_size = 128
-        self.epochs = 1  # Reduced for ablation speed
+        self.epochs = 50  # Reduced for ablation speed
         self.lr = 1e-3
 
         # CS-WAE specific parameters

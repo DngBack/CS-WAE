@@ -1,0 +1,39 @@
+CS-WAE Ablation Study Configuration
+==================================================
+
+Timestamp: 20250828_023331
+Device: cuda:2
+Epochs: 50
+Batch Size: 128
+Learning Rate: 0.001
+Latent Dimension: 32
+
+Ablation Variants:
+
+no_sup_mmd:
+  name: CS-WAE w/o Supervised MMD
+  use_supervised_mmd: False
+  use_spherical_space: True
+  prior_type: spherical_cauchy
+  description: CS-WAE without supervised MMD loss - tests clustering importance
+
+euclidean:
+  name: CS-WAE (Euclidean)
+  use_supervised_mmd: True
+  use_spherical_space: False
+  prior_type: gaussian
+  description: CS-WAE in Euclidean space instead of spherical - tests manifold benefits
+
+vmf_prior:
+  name: CS-WAE (von Mises-Fisher)
+  use_supervised_mmd: True
+  use_spherical_space: True
+  prior_type: von_mises_fisher
+  description: CS-WAE with vMF prior instead of spherical Cauchy - tests heavy-tail benefits
+
+minimal:
+  name: Minimal CS-WAE
+  use_supervised_mmd: False
+  use_spherical_space: False
+  prior_type: gaussian
+  description: Minimal variant: no supervised MMD, Euclidean space, Gaussian prior

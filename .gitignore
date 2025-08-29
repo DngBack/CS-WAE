@@ -213,4 +213,7 @@ __marimo__/
 data/
 
 # Ablation Study
-ablation_results/
+# ablation_results/
+
+# Ignore image generate file
+fid_images_*/
