@@ -8,7 +8,8 @@ class Config:
     
     def __init__(self):
         # Device configuration
-        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        # src/config.py — dòng 11
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         # Model parameters
         self.latent_dim = 32

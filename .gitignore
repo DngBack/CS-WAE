@@ -213,4 +213,5 @@ __marimo__/
 data/
 
 # Ablation Study
-ablation_results/
+ablation_results/*
+results_cs_wae/fid_images_CS-WAE/*
