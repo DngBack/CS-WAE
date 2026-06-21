@@ -42,28 +42,30 @@ def calculate_cs_wae_loss(x, y, x_hat, z_q, model, loss_fn_vgg, sup_mmd_weight, 
     recon_loss = config.bce_weight * bce_loss + config.lpips_weight * lpips_loss
 
     # --- MMD Loss Components ---
+    device = x.device
     supervised_mmd_loss = 0.0
     normalized_prior_mus = F.normalize(model.prior_mus, p=2, dim=1)
     
     for c in range(config.n_classes):
         class_mask = (y == c)
         if class_mask.sum() > 1:
+            n = class_mask.sum().item()
             supervised_mmd_loss += mmd_loss(
                 z_q[class_mask],
                 mobius_reparam(
-                    sample_uniform_sphere(class_mask.sum(), config.latent_dim),
-                    normalized_prior_mus[c].expand(class_mask.sum(), -1),
-                    torch.full((class_mask.sum(),), model.rho_p, device=config.device)
+                    sample_uniform_sphere(n, config.latent_dim, device=device),
+                    normalized_prior_mus[c].expand(n, -1),
+                    torch.full((n,), model.rho_p, device=device),
                 )
             )
     supervised_mmd_loss /= config.n_classes
 
     # Unsupervised MMD loss
-    random_classes = torch.randint(0, config.n_classes, (x.size(0),), device=config.device)
+    random_classes = torch.randint(0, config.n_classes, (x.size(0),), device=device)
     z_p_unsupervised = mobius_reparam(
-        sample_uniform_sphere(x.size(0), config.latent_dim),
+        sample_uniform_sphere(x.size(0), config.latent_dim, device=device),
         normalized_prior_mus[random_classes],
-        torch.full((x.size(0),), model.rho_p, device=config.device)
+        torch.full((x.size(0),), model.rho_p, device=device),
     )
     unsupervised_mmd_loss = mmd_loss(z_q, z_p_unsupervised)
 

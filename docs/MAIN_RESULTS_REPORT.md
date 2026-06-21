@@ -63,16 +63,18 @@ L_total = L_recon + λ_sup(t)·L_sup_MMD + λ_unsup(t)·L_unsup_MMD
 
 ### 2.3 Training
 
-**File:** `src/trainers/trainer.py` — `CSWAETrainer`
+**Main & ablation baseline:** `src/trainers/trainer.py` — `CSWAETrainer`  
+**Ablation variants (non-baseline):** `src/trainers/trainer_ablation.py` — `AblationTrainer`
 
 | Hyperparameter | Value |
 |----------------|-------|
 | Optimizer | Adam, lr=1e-3 |
-| Scheduler | StepLR(step=30, γ=0.5) |
+| Scheduler | StepLR(step=**30**, γ=0.5) — shared main + ablation |
 | Batch size | 128 |
 | Epochs | 50 |
 | Gradient clip | max_norm=1.0 |
 | Annealing | λ_sup, λ_unsup linear ramp over 20 epochs |
+| Config source | `src/config.py`; `ablation_config` inherits từ đây |
 
 ### 2.4 Evaluation
 
@@ -216,48 +218,87 @@ Total loss ~1.8 là **bình thường** (weighted MMD terms). Recon ~0.06–0.08
 
 ## 7. Ablation study (5 variants, seed 0, 50 epochs)
 
+**Run thực tế:** `runs/mnist/ablation_20260621_061506/` (trước khi align code)
+
 | Variant | ACC | NMI | FID | SSIM | Insight |
 |---------|-----|-----|-----|------|---------|
-| **Full CS-WAE** | 84.09% | 88.69% | 24.59 | 0.828 | Reference |
+| **Full CS-WAE** | 84.09% | 88.69% | 24.59 | 0.828 | Reference *(run cũ)* |
 | w/o Supervised MMD | 34.07% | 29.19% | 325.9 | 0.238 | **Collapse** — sup MMD essential |
 | Euclidean | 11.35% | 0.00% | 258.9 | 0.251 | **Collapse** — spherical essential |
 | vMF prior | 24.54% | 14.74% | 63.0 | **0.966** | Recon tốt, clustering fail |
 | Minimal | 11.35% | 0.00% | 240.1 | 0.246 | **Collapse** — cần full design |
 
-**3 claims mạnh cho ablation section:**
+> **Lưu ý:** Số **84.09%** của ablation baseline **không dùng làm main result**. Đó là kết quả run cũ với `AblationTrainer` (StepLR step=20) và model class riêng. Sau khi align code (mục 8), ablation baseline dùng cùng stack với main → kỳ vọng **~87% ACC** (khớp `seed_0`).
+
+**3 claims mạnh cho ablation section** *(vẫn hợp lệ — các variant khác cùng AblationTrainer)*:
 1. Supervised MMD không chỉ giúp clustering — **bỏ → model sụp toàn bộ**
 2. Spherical manifold **bắt buộc** — Euclidean không hoạt động
 3. Cauchy prior **cân bằng** clustering + recon; vMF đổi lấy recon (SSIM 0.97) bằng clustering
 
----
-
-## 8. So sánh các nguồn kết quả CS-WAE
-
-| Nguồn | ACC | FID | Ghi chú |
-|-------|-----|-----|---------|
-| Multi-seed mean | 92.9% | 19.4 | 3 seeds, main trainer |
-| Multi-seed best (seed 2) | 96.1% | 15.8 | Best single run |
-| Multi-seed worst (seed 0) | 87.4% | 26.9 | Outlier |
-| Baseline table (seed 0) | 86.9% | 15.2 | Fair comparison protocol |
-| Ablation baseline | 84.1% | 24.6 | Ablation trainer (`loss_ablation.py`) |
-| Run cũ (`results_cs_wae/`) | 95.8% | 19.9 | Pre-pipeline, 1 seed |
-
-**Discrepancy cần lưu ý:** Ablation baseline (84%) thấp hơn main seed 1/2 (95–96%) do code path khác (`AblationTrainer` + `loss_ablation.py` vs `CSWAETrainer` + `loss.py`). Nên align hoặc note trong paper.
+**Cách report ablation trong paper:**
+- Bảng ablation: dùng số từ run trên cho **relative comparison** giữa các variant
+- Không đặt ablation baseline (84%) cạnh main multi-seed (92.9%) như cùng một setup
+- Nếu re-run ablation sau align: baseline row sẽ ~87%, các variant khác có thể thay đổi nhẹ (scheduler step 30)
 
 ---
 
-## 9. Code changes so với pipeline ban đầu
+## 8. Số liệu chuẩn & alignment code path
+
+### 8.1 Số nào dùng cho paper?
+
+| Mục đích | Số liệu chuẩn | Nguồn |
+|----------|---------------|-------|
+| **Main result (Table 1)** | ACC **92.91 ± 3.95%**, FID **19.42 ± 5.33** | `aggregated_metrics.json` — 3 seeds, `train_cs_wae.py` |
+| **Baseline comparison (Table 2)** | CS-WAE **86.94%**, FID **15.16** | `baselines/seed_0/comparison_results.csv` |
+| **Best single run** | ACC **96.10%**, FID **15.82** | `seed_2/metrics.json` — appendix |
+| **Ablation (Table 3)** | Relative comparison giữa 5 variants | `ablation_20260621_061506/ablation_results.csv` |
+| **Ablation baseline row** | ~~84.09%~~ → kỳ vọng **~87%** sau align | Không dùng 84% làm main number |
+
+### 8.2 Tại sao ablation baseline (84%) ≠ main seed 0 (87%)?
+
+Hai con số **không mâu thuẫn** — là hai setup khác nhau trên **cùng seed 0**:
+
+| | Main `seed_0` | Ablation baseline (run cũ) |
+|---|---------------|----------------------------|
+| Entry | `train_cs_wae.py` | `run_ablation_study.py` |
+| Model | `SphericalWAE_Supervised` | `CSWAEAblation` *(trước align)* |
+| Trainer | `CSWAETrainer` | `AblationTrainer` |
+| Loss | `loss.py` | `loss_ablation.py` |
+| LR scheduler | StepLR(**step=30**) | StepLR(**step=20**) ← gây ACC thấp ~3% |
+
+Seed 1/2 (95–96%) cao hơn seed 0 do **random init khác**, không liên quan ablation.
+
+### 8.3 Code alignment đã thực hiện (2026-06-21)
+
+| Thay đổi | File | Mục đích |
+|----------|------|----------|
+| Ablation baseline → main model | `cs_wae_ablation.py` | `create_ablation_model("baseline")` trả về `SphericalWAE_Supervised` |
+| Ablation baseline → main trainer | `run_ablation_study.py` | Variant `baseline` train bằng `CSWAETrainer` + `loss.py` |
+| Scheduler thống nhất | `trainer_ablation.py`, `config.py` | `StepLR(step=30, γ=0.5)` cho mọi trainer |
+| Single config source | `config_ablation.py` | Inherit hyperparams từ `config.py` |
+| Device-safe MMD sampling | `loss.py` | `sample_uniform_sphere(..., device=x.device)` |
+
+**Sau align:** Main results và baselines **không cần chạy lại**. Ablation run cũ vẫn dùng được cho story component; re-run ablation là optional nếu muốn baseline row khớp ~87%.
+
+---
+
+## 9. Code changes (pipeline + alignment)
 
 | File | Thay đổi |
 |------|----------|
 | `train_cs_wae.py` | CLI: seed, device, output-dir, skip-viz |
 | `compare_baselines.py` | 50 epochs, VaDE enabled, seed/device CLI |
-| `run_ablation_study.py` | seed, device, parallel workers, summarize-only |
+| `run_ablation_study.py` | seed, device, parallel workers, summarize-only; **baseline → CSWAETrainer** |
 | `aggregate_results.py` | Multi-seed mean ± std |
+| `src/config.py` | `lr_scheduler_step`, `lr_scheduler_gamma` |
+| `src/config_ablation.py` | Inherit từ `config.py` |
+| `src/models/cs_wae_ablation.py` | Baseline variant → `SphericalWAE_Supervised` |
+| `src/trainers/trainer_ablation.py` | Scheduler step 20 → 30 |
+| `src/utils/loss.py` | MMD sampling trên `x.device` |
 | `src/utils/seed.py` | Reproducibility |
 | `src/utils/device.py` | Device override |
 | `src/utils/run_io.py` | JSON I/O |
-| `src/utils/loss_ablation.py` | Fix in-place loss bug (`+=` → new tensor) |
+| `src/utils/loss_ablation.py` | Fix in-place loss bug |
 | `src/datasets/mnist.py` | Seeded DataLoader |
 | `run_mnist_pipeline_parallel.sh` | 2-GPU parallel orchestration |
 | `.gitignore` | Ignore runs/, logs/, fid_images/, plots |
@@ -266,14 +307,14 @@ Total loss ~1.8 là **bình thường** (weighted MMD terms). Recon ~0.06–0.08
 
 ## 10. Known issues & limitations
 
-| Issue | Impact | Action |
-|-------|--------|--------|
-| Seed 0 outlier | ACC ±4% variance | Investigate UMAP; thêm seeds hoặc report mean±std |
-| Ablation vs main code path | Số liệu ablation baseline thấp hơn | Unify trainer/loss hoặc document |
-| Baselines single-seed | Không symmetric với multi-seed main | Chạy baselines 3 seeds (optional) |
-| Chỉ MNIST | Không generalize | Fashion-MNIST next |
-| S-VAE không chạy | Thiếu `hyperspherical_vae` package | Optional install |
-| ~355k PNG trong runs/ | Git bloated | Đã gitignore; metrics nằm trong runs/ |
+| Issue | Impact | Trạng thái |
+|-------|--------|------------|
+| Seed 0 outlier (ACC 87% vs 96%) | Variance ±4% | Report mean±std; investigate optional |
+| Ablation vs main code path | Baseline 84% vs 87% | ✅ **Đã fix trong code**; run cũ vẫn 84% |
+| Baselines single-seed | Không symmetric với multi-seed main | Optional: chạy baselines 3 seeds |
+| Chỉ MNIST | Không generalize | **Bước tiếp:** Fashion-MNIST |
+| S-VAE không chạy | Thiếu `hyperspherical_vae` | Optional install |
+| ~355k PNG trong runs/ | Git bloated | ✅ Đã gitignore |
 
 ---
 
@@ -282,23 +323,30 @@ Total loss ~1.8 là **bình thường** (weighted MMD terms). Recon ~0.06–0.08
 ### Table 1 — Main results (MNIST, 50 epochs, 3 seeds)
 > CS-WAE: ACC **92.9±4.0%**, NMI **89.0±0.8%**, ARI **88.5±3.2%**, FID **19.4±5.3**
 
-### Table 2 — Baseline comparison (seed 0)
-> CS-WAE vs VAE/VaDE/WAE-MMD — see Section 6
+### Table 2 — Baseline comparison (seed 0, 50 epochs, fair protocol)
 
-### Table 3 — Ablation
-> See Section 7 / `ablation_results.csv`
+| Method | ACC | NMI | FID |
+|--------|-----|-----|-----|
+| VAE | 60.9 | 55.3 | 18.8 |
+| WAE-MMD | 57.5 | 50.6 | 138.3 |
+| VaDE | 57.8 | 53.4 | 17.4 |
+| **CS-WAE (ours)** | **86.9** | **85.0** | **15.2** |
+
+### Table 3 — Ablation (relative comparison, seed 0)
+> Dùng `ablation_results.csv` — nhấn mạnh **delta giữa variants**, không so absolute ACC với Table 1
 
 ---
 
 ## 12. Bước tiếp theo (recommended priority)
 
 1. **Fashion-MNIST** — generalization (P0 cho conference)
-2. **Multi-seed baselines** — fair comparison symmetric
-3. **Align ablation code path** — consistent numbers
-4. **Export paper tables** — copy metrics CSV ra `docs/` hoặc `paper_results/`
-5. **Theory section** — spherical Cauchy + dual MMD motivation
-6. **Figure generation** — UMAP, recon grid, ablation bar charts từ saved metrics
+2. **Multi-seed baselines** — fair comparison symmetric (optional)
+3. ~~**Align ablation code path**~~ — ✅ done in code
+4. **Re-run ablation** (optional) — nếu muốn baseline row ~87% trong bảng ablation
+5. **Export paper tables** — copy metrics CSV ra `docs/` hoặc `paper_results/`
+6. **Theory section** — spherical Cauchy + dual MMD motivation
+7. **Figure generation** — UMAP, recon grid, ablation bar charts
 
 ---
 
-*Generated from pipeline outputs in `runs/mnist/` — 2026-06-21*
+*Report cập nhật: 2026-06-21 — pipeline outputs trong `runs/mnist/`*

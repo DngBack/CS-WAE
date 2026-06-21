@@ -217,7 +217,19 @@ class CSWAEAblation(nn.Module):
 
 
 def create_ablation_model(variant="baseline"):
-    """Factory function to create ablation models"""
+    """Factory function to create ablation models.
+
+    The baseline variant uses the same model class as main training
+    (SphericalWAE_Supervised) for identical results.
+    """
+    if variant == "baseline":
+        from .cs_wae import SphericalWAE_Supervised
+
+        return SphericalWAE_Supervised(
+            latent_dim=ablation_config.latent_dim,
+            n_classes=ablation_config.n_classes,
+        )
+
     return CSWAEAblation(
         latent_dim=ablation_config.latent_dim,
         n_classes=ablation_config.n_classes,

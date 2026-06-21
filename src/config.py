@@ -32,6 +32,10 @@ class Config:
         self.sup_mmd_weight = 20.0
         self.unsup_mmd_weight = 50.0
         self.anneal_epochs = 20
+
+        # LR scheduler (shared with ablation trainer)
+        self.lr_scheduler_step = 30
+        self.lr_scheduler_gamma = 0.5
         
         # Data parameters
         self.num_workers = 2

@@ -21,7 +21,11 @@ class CSWAETrainer:
         
         # Initialize optimizer and scheduler
         self.optimizer = optim.Adam(model.parameters(), lr=config.lr)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=30, gamma=0.5)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+            self.optimizer,
+            step_size=config.lr_scheduler_step,
+            gamma=config.lr_scheduler_gamma,
+        )
         
         # Initialize LPIPS loss function
         self.loss_fn_vgg = lpips.LPIPS(net='vgg').to(self.device)

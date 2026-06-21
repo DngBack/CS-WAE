@@ -4,6 +4,8 @@ Configuration file for CS-WAE ablation studies
 
 import torch
 
+from .config import config
+
 
 class AblationConfig:
     """Configuration class for CS-WAE ablation experiments"""
@@ -13,32 +15,36 @@ class AblationConfig:
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # Model parameters
-        self.latent_dim = 32
-        self.n_classes = 10
+        self.latent_dim = config.latent_dim
+        self.n_classes = config.n_classes
 
-        # Training parameters
-        self.batch_size = 128
-        self.epochs = 50
-        self.lr = 1e-3
+        # Training parameters — keep in sync with src/config.py
+        self.batch_size = config.batch_size
+        self.epochs = config.epochs
+        self.lr = config.lr
 
         # CS-WAE specific parameters
-        self.rho_prior = 0.7
-        self.epsilon = 1e-8
+        self.rho_prior = config.rho_prior
+        self.epsilon = config.epsilon
 
         # Loss weights
-        self.bce_weight = 0.3
-        self.lpips_weight = 0.7
+        self.bce_weight = config.bce_weight
+        self.lpips_weight = config.lpips_weight
 
         # Annealing parameters
-        self.sup_mmd_weight = 20.0
-        self.unsup_mmd_weight = 50.0
-        self.anneal_epochs = 20
+        self.sup_mmd_weight = config.sup_mmd_weight
+        self.unsup_mmd_weight = config.unsup_mmd_weight
+        self.anneal_epochs = config.anneal_epochs
+
+        # LR scheduler
+        self.lr_scheduler_step = config.lr_scheduler_step
+        self.lr_scheduler_gamma = config.lr_scheduler_gamma
 
         # Data parameters
-        self.num_workers = 2
+        self.num_workers = config.num_workers
 
         # Evaluation parameters
-        self.num_images_for_fid = 10000
+        self.num_images_for_fid = config.num_images_for_fid
 
         # Ablation study variants
         self.ablation_variants = {

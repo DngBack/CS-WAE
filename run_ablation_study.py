@@ -16,12 +16,47 @@ warnings.filterwarnings("ignore")
 from src.config_ablation import ablation_config
 from src.models.cs_wae_ablation import create_ablation_model
 from src.datasets.loaders import get_loaders
+from src.trainers.trainer import CSWAETrainer
 from src.trainers.trainer_ablation import AblationTrainer, NoiseRobustnessEvaluator
 from src.metrics.evaluation import ModelEvaluator
 from src.visualization.plots import plot_results
 from src.utils.seed import set_seed
 from src.utils.device import set_device
 from src.utils.run_io import config_to_dict, save_run_metadata
+
+
+def uses_main_trainer(variant_name: str) -> bool:
+    """Baseline variant trains with the same stack as train_cs_wae.py."""
+    return variant_name == "baseline"
+
+
+def normalize_training_history(history, from_main_trainer: bool):
+    """Convert CSWAETrainer tuple history to ablation dict format."""
+    if not from_main_trainer:
+        return history
+    return [
+        {
+            "total": h[0],
+            "recon": h[1],
+            "sup_mmd": h[2],
+            "unsup_mmd": h[3],
+            "kld": 0.0,
+        }
+        for h in history
+    ]
+
+
+def model_reconstruct(model, data):
+    """Return reconstructions for main or ablation model forward signatures."""
+    return model(data)[0]
+
+
+def get_model_flags(model):
+    """Read ablation flags; main model defaults to full CS-WAE."""
+    return (
+        getattr(model, "use_supervised_mmd", True),
+        getattr(model, "use_spherical_space", True),
+    )
 
 
 def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
@@ -43,9 +78,16 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
     variant_dir = os.path.join(results_dir, variant_name)
     os.makedirs(variant_dir, exist_ok=True)
 
-    # Train model
-    trainer = AblationTrainer(model, train_loader, variant_config["name"])
-    history = trainer.train()
+    # Train model — baseline uses main trainer for identical training dynamics
+    if uses_main_trainer(variant_name):
+        print("Using main CSWAETrainer (same as train_cs_wae.py)")
+        trainer = CSWAETrainer(model, train_loader)
+        history = normalize_training_history(trainer.train(), from_main_trainer=True)
+    else:
+        trainer = AblationTrainer(model, train_loader, variant_config["name"])
+        history = trainer.train()
+
+    use_supervised_mmd, use_spherical_space = get_model_flags(model)
 
     # Save model
     model_path = os.path.join(variant_dir, f"{variant_name}_model.pth")
@@ -66,7 +108,7 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
             linewidth=2,
         )
 
-        if model.use_supervised_mmd:
+        if use_supervised_mmd:
             plt.plot(
                 epochs,
                 [h["sup_mmd"] for h in history],
@@ -81,7 +123,7 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
             linewidth=2,
         )
 
-        if not model.use_spherical_space:
+        if not use_spherical_space:
             plt.plot(epochs, [h["kld"] for h in history], label="KLD Loss", linewidth=2)
 
         plt.title(f"Training History - {variant_config['name']}")
@@ -99,7 +141,7 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
         with torch.no_grad():
             data, _ = next(iter(test_loader))
             data = data.to(ablation_config.device)
-            x_hat, _, _, _ = model(data)
+            x_hat = model_reconstruct(model, data)
 
             fig, axes = plt.subplots(2, 10, figsize=(20, 4))
             for i in range(10):

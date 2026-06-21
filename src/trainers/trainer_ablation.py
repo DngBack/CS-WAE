@@ -24,7 +24,9 @@ class AblationTrainer:
         # Initialize optimizer and scheduler
         self.optimizer = optim.Adam(model.parameters(), lr=ablation_config.lr)
         self.scheduler = torch.optim.lr_scheduler.StepLR(
-            self.optimizer, step_size=20, gamma=0.5
+            self.optimizer,
+            step_size=ablation_config.lr_scheduler_step,
+            gamma=ablation_config.lr_scheduler_gamma,
         )
 
         # Initialize LPIPS loss function
