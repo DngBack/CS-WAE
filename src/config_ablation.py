@@ -10,7 +10,7 @@ class AblationConfig:
 
     def __init__(self):
         # Base configuration (inherited from main config)
-        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # Model parameters
         self.latent_dim = 32
@@ -18,7 +18,7 @@ class AblationConfig:
 
         # Training parameters
         self.batch_size = 128
-        self.epochs = 1  # Reduced for ablation speed
+        self.epochs = 50
         self.lr = 1e-3
 
         # CS-WAE specific parameters
@@ -32,13 +32,13 @@ class AblationConfig:
         # Annealing parameters
         self.sup_mmd_weight = 20.0
         self.unsup_mmd_weight = 50.0
-        self.anneal_epochs = 15  # Reduced for faster convergence
+        self.anneal_epochs = 20
 
         # Data parameters
         self.num_workers = 2
 
         # Evaluation parameters
-        self.num_images_for_fid = 5000  # Reduced for faster evaluation
+        self.num_images_for_fid = 10000
 
         # Ablation study variants
         self.ablation_variants = {

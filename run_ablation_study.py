@@ -2,6 +2,8 @@
 Main script for running CS-WAE ablation studies
 """
 
+import argparse
+import json
 import os
 import torch
 import warnings
@@ -13,10 +15,13 @@ warnings.filterwarnings("ignore")
 
 from src.config_ablation import ablation_config
 from src.models.cs_wae_ablation import create_ablation_model
-from src.datasets.mnist import get_mnist_loaders
+from src.datasets.loaders import get_loaders
 from src.trainers.trainer_ablation import AblationTrainer, NoiseRobustnessEvaluator
 from src.metrics.evaluation import ModelEvaluator
 from src.visualization.plots import plot_results
+from src.utils.seed import set_seed
+from src.utils.device import set_device
+from src.utils.run_io import config_to_dict, save_run_metadata
 
 
 def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
@@ -142,15 +147,203 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
         }
 
     print(f"Completed evaluation for {variant_name}")
+    print(
+        f"  Metrics: ACC={metrics.get('ACC', 0):.4f}, NMI={metrics.get('NMI', 0):.4f}, "
+        f"FID={metrics.get('FID', float('inf')):.4f}, SSIM={metrics.get('SSIM', 0):.4f}"
+    )
+
+    metrics_path = os.path.join(variant_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+
     return metrics, history, model
+
+
+def collect_metrics_from_disk(results_dir):
+    """Load metrics.json written by each ablation variant subdirectory."""
+    all_results = {}
+    for variant_key, variant_config in ablation_config.ablation_variants.items():
+        metrics_path = os.path.join(results_dir, variant_key, "metrics.json")
+        if os.path.exists(metrics_path):
+            with open(metrics_path) as f:
+                all_results[variant_config["name"]] = json.load(f)
+    return all_results
+
+
+def plot_ablation_comparison(df, results_dir):
+    """Save bar-chart comparison figure from ablation metrics table."""
+    if df is None or df.empty:
+        return
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    axes = axes.flatten()
+    metrics_to_plot = ["ACC", "NMI", "ARI", "FID", "LPIPS", "SSIM"]
+
+    for i, metric in enumerate(metrics_to_plot[:6]):
+        if metric in df.columns:
+            ax = axes[i]
+            values = df[metric].sort_values(ascending=(metric != "FID"))
+            bars = ax.bar(range(len(values)), values.values)
+            ax.set_xticks(range(len(values)))
+            ax.set_xticklabels(values.index, rotation=45, ha="right")
+            ax.set_title(f"{metric} Comparison")
+            ax.set_ylabel(metric)
+            if metric == "FID":
+                best_idx, worst_idx = values.argmin(), values.argmax()
+            else:
+                best_idx, worst_idx = values.argmax(), values.argmin()
+            bars[best_idx].set_color("green")
+            bars[worst_idx].set_color("red")
+            ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(
+        os.path.join(results_dir, "ablation_comparison.png"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close()
+
+
+def summarize_ablation_results(results_dir):
+    """Build comparison table and plots from saved variant metrics."""
+    all_results = collect_metrics_from_disk(results_dir)
+    if not all_results:
+        print(f"No ablation metrics found under {results_dir}")
+        return None
+
+    print(f"\n{'=' * 80}")
+    print("ABLATION STUDY RESULTS (summarized)")
+    print(f"{'=' * 80}")
+
+    df = save_results_table(all_results, results_dir)
+    plot_ablation_comparison(df, results_dir)
+    return df
+
+
+def save_results_table(all_results, results_dir):
+    """Save and print ablation comparison table."""
+    if not all_results:
+        print("No results to save.")
+        return None
+
+    df = pd.DataFrame(all_results).T
+    column_order = ["ACC", "NMI", "ARI", "FID", "LPIPS", "SSIM", "PSNR"]
+    existing_cols = [col for col in column_order if col in df.columns]
+    df = df[existing_cols]
+
+    csv_path = os.path.join(results_dir, "ablation_results.csv")
+    df.to_csv(csv_path)
+
+    print("\nPERFORMANCE COMPARISON:")
+    print(df.to_markdown(floatfmt=".4f"))
+    print(f"\nSaved: {csv_path}")
+    return df
+
+
+def evaluate_saved_variant(variant_name, test_loader, results_dir):
+    """Load a saved checkpoint and run evaluation only."""
+    variant_dir = os.path.join(results_dir, variant_name)
+    model_path = os.path.join(variant_dir, f"{variant_name}_model.pth")
+    if not os.path.exists(model_path):
+        print(f"Skip {variant_name}: checkpoint not found at {model_path}")
+        return None
+
+    variant_config = ablation_config.ablation_variants[variant_name]
+    model = create_ablation_model(variant_name)
+    model.load_state_dict(torch.load(model_path, map_location=ablation_config.device))
+    model.to(ablation_config.device)
+
+    print(f"\nEvaluating saved checkpoint: {variant_name}")
+    evaluator = ModelEvaluator()
+    metrics = evaluator.comprehensive_evaluation(
+        model, variant_config["name"], test_loader, variant_dir
+    )
+    print(
+        f"  Metrics: ACC={metrics.get('ACC', 0):.4f}, NMI={metrics.get('NMI', 0):.4f}, "
+        f"FID={metrics.get('FID', float('inf')):.4f}, SSIM={metrics.get('SSIM', 0):.4f}"
+    )
+
+    with open(os.path.join(variant_dir, "metrics.json"), "w") as f:
+        json.dump(metrics, f, indent=2)
+
+    return ablation_config.ablation_variants[variant_name]["name"], metrics
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run CS-WAE ablation study")
+    parser.add_argument(
+        "--run-noise",
+        action="store_true",
+        help="Run noise robustness evaluation after training (slow)",
+    )
+    parser.add_argument(
+        "--variants",
+        nargs="+",
+        default=["baseline", "no_sup_mmd", "euclidean", "vmf_prior", "minimal"],
+        choices=list(ablation_config.ablation_variants.keys()),
+        help="Ablation variants to run",
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default=None,
+        help="Existing results directory (for --eval-only or resume)",
+    )
+    parser.add_argument(
+        "--eval-only",
+        action="store_true",
+        help="Skip training; evaluate saved checkpoints and build comparison table",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=0,
+        help="Random seed for training and data shuffling",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Torch device, e.g. cuda:0 or cuda:1 (default: cuda:0)",
+    )
+    parser.add_argument(
+        "--skip-aggregate",
+        action="store_true",
+        help="Skip final CSV/plots (for parallel workers sharing one results dir)",
+    )
+    parser.add_argument(
+        "--summarize-only",
+        action="store_true",
+        help="Build comparison table/plots from existing metrics.json files",
+    )
+    return parser.parse_args()
 
 
 def main():
     """Main function for ablation study"""
+    args = parse_args()
+    set_seed(args.seed)
+    device = set_device(args.device)
+
+    if args.results_dir:
+        results_dir = args.results_dir
+        os.makedirs(results_dir, exist_ok=True)
+        timestamp = os.path.basename(results_dir)
+    else:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        results_dir = f"ablation_results/ablation_{timestamp}"
+        os.makedirs(results_dir, exist_ok=True)
+
+    if args.summarize_only:
+        summarize_ablation_results(results_dir)
+        return {}, results_dir
 
     print("=" * 80)
     print("CS-WAE ABLATION STUDY")
     print("=" * 80)
+    print(f"Seed: {args.seed}")
+    print(f"Device: {device}")
     print("This study systematically evaluates the contribution of each component:")
     print("1. Supervised MMD Loss")
     print("2. Spherical vs Euclidean Space")
@@ -158,102 +351,51 @@ def main():
     print("4. Noise Robustness")
     print("=" * 80)
 
-    # Create results directory
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = f"ablation_results/ablation_{timestamp}"
-    os.makedirs(results_dir, exist_ok=True)
-
     # Load data
+    variants_to_run = args.variants
     print("Loading MNIST dataset...")
-    train_loader, test_loader = get_mnist_loaders()
+    train_loader, test_loader = get_loaders(seed=args.seed)
 
-    # Define which variants to run (you can comment out some for faster testing)
-    variants_to_run = [
-        # "baseline",  # Full CS-WAE
-        "no_sup_mmd",  # Without supervised MMD
-        "euclidean",  # Euclidean space
-        "vmf_prior",  # von Mises-Fisher prior
-        "minimal",  # Minimal variant
-    ]
+    save_run_metadata(
+        results_dir,
+        config_to_dict(ablation_config),
+        args.seed,
+        extra={"variants": variants_to_run},
+    )
+    print(f"Variants to run: {variants_to_run}")
+    print(f"Epochs per variant: {ablation_config.epochs}")
+    print(f"Results directory: {results_dir}")
 
-    # Run ablation experiments
     all_results = {}
     all_histories = {}
     trained_models = {}
 
-    for variant in variants_to_run:
-        try:
-            metrics, history, model = run_single_ablation(
-                variant, train_loader, test_loader, results_dir
-            )
-            all_results[ablation_config.ablation_variants[variant]["name"]] = metrics
-            all_histories[variant] = history
-            trained_models[variant] = model
-        except Exception as e:
-            print(f"ERROR: Failed to run ablation {variant}: {e}")
-            continue
+    if args.eval_only:
+        print("\n--- EVAL-ONLY MODE: loading saved checkpoints ---")
+        for variant in variants_to_run:
+            try:
+                result = evaluate_saved_variant(variant, test_loader, results_dir)
+                if result:
+                    name, metrics = result
+                    all_results[name] = metrics
+            except Exception as e:
+                print(f"ERROR: Failed to evaluate {variant}: {e}")
+    else:
+        for variant in variants_to_run:
+            try:
+                metrics, history, model = run_single_ablation(
+                    variant, train_loader, test_loader, results_dir
+                )
+                all_results[ablation_config.ablation_variants[variant]["name"]] = metrics
+                all_histories[variant] = history
+                trained_models[variant] = model
+                if not args.skip_aggregate:
+                    save_results_table(all_results, results_dir)
+            except Exception as e:
+                print(f"ERROR: Failed to run ablation {variant}: {e}")
+                continue
 
-    # Create comprehensive comparison
-    print(f"\n{'=' * 80}")
-    print("ABLATION STUDY RESULTS")
-    print(f"{'=' * 80}")
-
-    if all_results:
-        # Create comparison table
-        df = pd.DataFrame(all_results).T
-
-        # Reorder columns for better readability
-        column_order = ["ACC", "NMI", "ARI", "FID", "LPIPS", "SSIM", "PSNR"]
-        existing_cols = [col for col in column_order if col in df.columns]
-        df = df[existing_cols]
-
-        print("\nPERFORMANCE COMPARISON:")
-        print(df.to_markdown(floatfmt=".4f"))
-
-        # Save results
-        df.to_csv(os.path.join(results_dir, "ablation_results.csv"))
-
-        # Create comparison plots
-        fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-        axes = axes.flatten()
-
-        metrics_to_plot = ["ACC", "NMI", "ARI", "FID", "LPIPS", "SSIM"]
-
-        for i, metric in enumerate(metrics_to_plot[:6]):
-            if metric in df.columns:
-                ax = axes[i]
-                values = df[metric].sort_values(
-                    ascending=(metric != "FID")
-                )  # FID: lower is better
-
-                bars = ax.bar(range(len(values)), values.values)
-                ax.set_xticks(range(len(values)))
-                ax.set_xticklabels(values.index, rotation=45, ha="right")
-                ax.set_title(f"{metric} Comparison")
-                ax.set_ylabel(metric)
-
-                # Color bars: green for best, red for worst
-                if metric == "FID":  # Lower is better
-                    best_idx = values.argmin()
-                    worst_idx = values.argmax()
-                else:  # Higher is better
-                    best_idx = values.argmax()
-                    worst_idx = values.argmin()
-
-                bars[best_idx].set_color("green")
-                bars[worst_idx].set_color("red")
-
-                ax.grid(True, alpha=0.3)
-
-        plt.tight_layout()
-        plt.savefig(
-            os.path.join(results_dir, "ablation_comparison.png"),
-            dpi=300,
-            bbox_inches="tight",
-        )
-        plt.close()
-
-        # Training loss comparison
+        # Training loss comparison (full run only)
         if all_histories:
             plt.figure(figsize=(15, 10))
 
@@ -276,12 +418,21 @@ def main():
             )
             plt.close()
 
-    # Noise robustness evaluation (optional - can be time-consuming)
-    run_noise_evaluation = (
-        input("\nRun noise robustness evaluation? (y/n): ").lower().strip() == "y"
-    )
+    if not args.skip_aggregate:
+        print(f"\n{'=' * 80}")
+        print("ABLATION STUDY RESULTS")
+        print(f"{'=' * 80}")
 
-    if run_noise_evaluation and trained_models:
+        if all_results:
+            df = save_results_table(all_results, results_dir)
+            plot_ablation_comparison(df, results_dir)
+        else:
+            summarize_ablation_results(results_dir)
+
+    # Noise robustness evaluation (optional - can be time-consuming)
+    run_noise_evaluation = args.run_noise
+
+    if run_noise_evaluation and trained_models and not args.eval_only:
         print("\n" + "=" * 60)
         print("NOISE ROBUSTNESS EVALUATION")
         print("=" * 60)
@@ -322,6 +473,7 @@ def main():
         f.write("CS-WAE Ablation Study Configuration\n")
         f.write("=" * 50 + "\n\n")
         f.write(f"Timestamp: {timestamp}\n")
+        f.write(f"Seed: {args.seed}\n")
         f.write(f"Device: {ablation_config.device}\n")
         f.write(f"Epochs: {ablation_config.epochs}\n")
         f.write(f"Batch Size: {ablation_config.batch_size}\n")

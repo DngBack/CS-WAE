@@ -8,7 +8,7 @@ from torchvision import datasets, transforms
 from ..config import config
 
 
-def get_mnist_loaders(data_dir='./data', batch_size=None, num_workers=None):
+def get_mnist_loaders(data_dir='./data', batch_size=None, num_workers=None, seed=None):
     """
     Create MNIST train and test data loaders
     
@@ -16,12 +16,18 @@ def get_mnist_loaders(data_dir='./data', batch_size=None, num_workers=None):
         data_dir (str): Directory to store/load MNIST data
         batch_size (int): Batch size for data loaders
         num_workers (int): Number of workers for data loading
+        seed (int, optional): Random seed for shuffling
         
     Returns:
         tuple: (train_loader, test_loader)
     """
     batch_size = batch_size or config.batch_size
     num_workers = num_workers or (2 if os.name == 'nt' else 4)
+
+    generator = None
+    if seed is not None:
+        generator = torch.Generator()
+        generator.manual_seed(seed)
     
     # Define transforms
     transform = transforms.Compose([
@@ -45,7 +51,8 @@ def get_mnist_loaders(data_dir='./data', batch_size=None, num_workers=None):
     train_loader = DataLoader(
         train_dataset, 
         batch_size=batch_size, 
-        shuffle=True, 
+        shuffle=True,
+        generator=generator,
         pin_memory=True, 
         num_workers=num_workers
     )
@@ -65,6 +72,7 @@ def get_data_info():
     return {
         'name': 'MNIST',
         'input_shape': (1, 28, 28),
+        'n_classes': 10,
         'num_classes': 10,
         'train_size': 60000,
         'test_size': 10000

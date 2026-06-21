@@ -1,85 +1,203 @@
 """
 Baseline comparison script for evaluating CS-WAE against other methods
 """
+import argparse
+import json
 import os
-import torch
 import warnings
-warnings.filterwarnings('ignore')
+
+import torch
+
+warnings.filterwarnings("ignore")
 
 from src.config import config
 from src.models import VAE, WAE_MMD, S_VAE, VaDE, SphericalWAE_Supervised
-from src.datasets.mnist import get_mnist_loaders
+from src.datasets.loaders import get_loaders, get_dataset_info
 from src.trainers.trainer import BaselineTrainer, CSWAETrainer
 from src.metrics.evaluation import ModelEvaluator, create_comparison_table
+from src.utils.seed import set_seed
+from src.utils.device import set_device
+from src.utils.run_io import config_to_dict, save_run_metadata, save_metrics
+
+
+def collect_baseline_metrics(results_dir: str) -> dict:
+    """Load per-model metrics.json from baseline output subdirectories."""
+    all_results = {}
+    for entry in os.listdir(results_dir):
+        model_dir = os.path.join(results_dir, entry)
+        metrics_path = os.path.join(model_dir, "metrics.json")
+        if os.path.isdir(model_dir) and os.path.exists(metrics_path):
+            with open(metrics_path) as f:
+                all_results[entry] = json.load(f)
+    return all_results
+
+
+def summarize_baseline_results(results_dir: str) -> None:
+    all_results = collect_baseline_metrics(results_dir)
+    if not all_results:
+        print(f"No baseline metrics found under {results_dir}")
+        return
+
+    comparison_df = create_comparison_table(all_results)
+    csv_path = os.path.join(results_dir, "comparison_results.csv")
+    comparison_df.to_csv(csv_path)
+    print("\nBASELINE COMPARISON (summarized):")
+    print(comparison_df.to_string())
+    print(f"\nSaved: {csv_path}")
+
+
+def build_models(n_classes: int) -> dict:
+    """Build baseline models, skipping optional ones that fail to import."""
+    models = {
+        "VAE": VAE(config.latent_dim),
+        "WAE-MMD": WAE_MMD(config.latent_dim),
+        "VaDE": VaDE(config.latent_dim, n_classes),
+        "CS-WAE": SphericalWAE_Supervised(config.latent_dim, n_classes),
+    }
+
+    try:
+        models["S-VAE"] = S_VAE(config.latent_dim)
+    except ImportError as e:
+        print(f"Skipping S-VAE: {e}")
+
+    return models
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Compare CS-WAE with baselines")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed")
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Output directory (default: runs/mnist/baselines/seed_<seed>)",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="mnist",
+        choices=["mnist"],
+        help="Dataset name",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=50,
+        help="Training epochs for each baseline (default: 50)",
+    )
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        default=None,
+        help="Subset of models to run (default: all available)",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Torch device, e.g. cuda:0 or cuda:1 (default: cuda:0)",
+    )
+    parser.add_argument(
+        "--skip-summary",
+        action="store_true",
+        help="Skip final comparison CSV (for parallel workers)",
+    )
+    parser.add_argument(
+        "--summarize-only",
+        action="store_true",
+        help="Build comparison CSV from existing metrics.json files",
+    )
+    return parser.parse_args()
 
 
 def main():
-    """Main function to compare CS-WAE with baseline methods"""
+    args = parse_args()
+
+    results_dir = args.output_dir or f"runs/mnist/baselines/seed_{args.seed}"
+    os.makedirs(results_dir, exist_ok=True)
+
+    if args.summarize_only:
+        summarize_baseline_results(results_dir)
+        return
+
+    set_seed(args.seed)
+    device = set_device(args.device)
+
+    dataset_info = get_dataset_info(args.dataset)
+
     print("=" * 80)
     print("CS-WAE vs Baselines Comparison")
     print("=" * 80)
-    
-    # Create results directory
-    results_dir = "baseline_results"
-    os.makedirs(results_dir, exist_ok=True)
-    
-    # Load data
-    print("Loading MNIST dataset...")
-    train_loader, test_loader = get_mnist_loaders()
-    
-    # Define models to compare
-    models_to_run = {
-        "VAE": VAE(config.latent_dim),
-        "WAE-MMD": WAE_MMD(config.latent_dim),
-        # "S-VAE": S_VAE(config.latent_dim),  # Uncomment if hyperspherical_vae is available
-        # "VaDE": VaDE(config.latent_dim, config.n_classes),  # Uncomment if needed
-        "CS-WAE": SphericalWAE_Supervised(config.latent_dim, config.n_classes)
-    }
-    
-    # Store all results
+    print(f"Seed: {args.seed}")
+    print(f"Device: {device}")
+    print(f"Dataset: {args.dataset}")
+    print(f"Epochs: {args.epochs}")
+    print(f"Output: {results_dir}")
+
+    save_run_metadata(
+        results_dir,
+        config_to_dict(config),
+        args.seed,
+        extra={"dataset": args.dataset, "epochs": args.epochs},
+    )
+
+    print("Loading dataset...")
+    train_loader, test_loader = get_loaders(
+        dataset=args.dataset,
+        seed=args.seed,
+        batch_size=config.batch_size,
+        num_workers=config.num_workers,
+    )
+
+    models_to_run = build_models(dataset_info["n_classes"])
+    if args.models:
+        models_to_run = {k: v for k, v in models_to_run.items() if k in args.models}
+        missing = set(args.models) - set(models_to_run.keys())
+        if missing:
+            print(f"Warning: requested models not available: {missing}")
+
     all_results = {}
-    evaluator = ModelEvaluator()
-    
-    # Train and evaluate each model
+    evaluator = ModelEvaluator(device=device)
+
     for model_name, model in models_to_run.items():
-        print(f"\n{'='*30}")
+        print(f"\n{'=' * 30}")
         print(f"Training {model_name}")
-        print(f"{'='*30}")
-        
+        print(f"{'=' * 30}")
+
         model.to(config.device)
-        
-        # Train model
+        model_dir = os.path.join(results_dir, model_name.replace("/", "-"))
+        os.makedirs(model_dir, exist_ok=True)
+
         if model_name == "CS-WAE":
             trainer = CSWAETrainer(model, train_loader)
-            trainer.train(epochs=10)  # Reduced epochs for faster comparison
+            trainer.train(epochs=args.epochs)
         else:
             trainer = BaselineTrainer(model, model_name, train_loader)
-            trainer.train(epochs=10)  # Reduced epochs for faster comparison
-        
-        # Save model
-        model_path = os.path.join(results_dir, f"{model_name}.pth")
+            trainer.train(epochs=args.epochs)
+
+        model_path = os.path.join(model_dir, f"{model_name.replace('/', '-')}.pth")
         torch.save(model.state_dict(), model_path)
-        
-        # Evaluate model
+
         print(f"Evaluating {model_name}...")
         metrics = evaluator.comprehensive_evaluation(
-            model, model_name, test_loader, results_dir
+            model, model_name, test_loader, model_dir
         )
         all_results[model_name] = metrics
-        
+        save_metrics(model_dir, metrics)
+
         print(f"Completed {model_name}")
-    
-    # Create comparison table
-    print("\n" + "="*80)
-    print("FINAL COMPARISON")
-    print("="*80)
-    
-    comparison_df = create_comparison_table(all_results)
-    
-    # Save results to CSV
-    comparison_df.to_csv(os.path.join(results_dir, "comparison_results.csv"))
-    print(f"\nResults saved to: {results_dir}/comparison_results.csv")
-    
+
+    if not args.skip_summary:
+        print("\n" + "=" * 80)
+        print("FINAL COMPARISON")
+        print("=" * 80)
+
+        comparison_df = create_comparison_table(all_results)
+        csv_path = os.path.join(results_dir, "comparison_results.csv")
+        comparison_df.to_csv(csv_path)
+        print(comparison_df.to_string())
+        print(f"\nResults saved to: {csv_path}")
+
     print("Comparison completed successfully!")
 
 

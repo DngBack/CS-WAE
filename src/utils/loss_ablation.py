@@ -154,15 +154,11 @@ def calculate_ablation_loss(
 
     # --- Total Loss Calculation ---
     total_loss = recon_loss
-
     if model.use_supervised_mmd:
-        total_loss += sup_mmd_weight * supervised_mmd_loss
-
-    total_loss += unsup_mmd_weight * unsupervised_mmd_loss
-
+        total_loss = total_loss + sup_mmd_weight * supervised_mmd_loss
+    total_loss = total_loss + unsup_mmd_weight * unsupervised_mmd_loss
     if not model.use_spherical_space:
-        # Add KL divergence for Euclidean variants
-        total_loss += kld_loss
+        total_loss = total_loss + kld_loss
 
     return total_loss, recon_loss, supervised_mmd_loss, unsupervised_mmd_loss, kld_loss
 

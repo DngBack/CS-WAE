@@ -206,12 +206,36 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Weight
+# Weight / checkpoints
 *.pth
 
 # Data
 data/
 
-# Ablation Study
-ablation_results/*
-results_cs_wae/fid_images_CS-WAE/*
+# ── CS-WAE experiment outputs (large — do not commit) ──
+runs/
+logs/
+results_cs_wae/
+ablation_results/
+baseline_results/
+
+# FID caches (~10k–20k PNG per evaluation)
+**/fid_images*/
+**/fid_images_*/
+
+# Generated plots & figures from training/eval
+**/*reconstruction*.png
+**/*umap*.png
+**/*slerp*.png
+**/*loss_history*.png
+**/*grid_samples*.png
+**/*prior_distribution*.png
+**/*class_separation*.png
+**/*latent_traversal*.png
+**/*spherical_interpolation*.png
+**/*ablation_comparison*.png
+**/*training_comparison*.png
+**/*noise_robustness*.png
+
+# Keep metrics/config tables trackable if stored outside runs/
+# (metrics.json, *.csv, run_config.json inside runs/ are ignored via runs/)
