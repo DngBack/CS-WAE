@@ -9,7 +9,7 @@ import torch
 
 from src.config import config
 from src.models import SphericalWAE_Supervised
-from src.datasets.loaders import get_loaders, get_dataset_info
+from src.datasets.loaders import get_loaders, get_dataset_info, get_default_runs_dir, SUPPORTED_DATASETS
 from src.trainers.trainer import CSWAETrainer
 from src.visualization.plots import plot_results, plot_slerp
 from src.metrics.evaluation import ModelEvaluator
@@ -31,7 +31,7 @@ def parse_args():
         "--dataset",
         type=str,
         default="mnist",
-        choices=["mnist"],
+        choices=list(SUPPORTED_DATASETS),
         help="Dataset name",
     )
     parser.add_argument(
@@ -64,7 +64,7 @@ def main():
     set_seed(args.seed)
     device = set_device(args.device)
 
-    save_dir = args.output_dir or f"runs/mnist/seed_{args.seed}"
+    save_dir = args.output_dir or f"{get_default_runs_dir(args.dataset)}/seed_{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
 
     epochs = args.epochs or config.epochs
@@ -143,7 +143,7 @@ def main():
         )
 
     print("Starting comprehensive evaluation...")
-    evaluator = ModelEvaluator(device=device)
+    evaluator = ModelEvaluator(device=device, dataset=args.dataset)
     metrics = evaluator.comprehensive_evaluation(
         model, "CS-WAE", test_loader, save_dir
     )

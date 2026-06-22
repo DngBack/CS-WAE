@@ -12,7 +12,12 @@ warnings.filterwarnings("ignore")
 
 from src.config import config
 from src.models import VAE, WAE_MMD, S_VAE, VaDE, SphericalWAE_Supervised
-from src.datasets.loaders import get_loaders, get_dataset_info
+from src.datasets.loaders import (
+    get_loaders,
+    get_dataset_info,
+    get_default_runs_dir,
+    SUPPORTED_DATASETS,
+)
 from src.trainers.trainer import BaselineTrainer, CSWAETrainer
 from src.metrics.evaluation import ModelEvaluator, create_comparison_table
 from src.utils.seed import set_seed
@@ -70,13 +75,13 @@ def parse_args():
         "--output-dir",
         type=str,
         default=None,
-        help="Output directory (default: runs/mnist/baselines/seed_<seed>)",
+        help="Output directory (default: runs/<dataset>/baselines/seed_<seed>)",
     )
     parser.add_argument(
         "--dataset",
         type=str,
         default="mnist",
-        choices=["mnist"],
+        choices=list(SUPPORTED_DATASETS),
         help="Dataset name",
     )
     parser.add_argument(
@@ -113,7 +118,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    results_dir = args.output_dir or f"runs/mnist/baselines/seed_{args.seed}"
+    results_dir = args.output_dir or f"{get_default_runs_dir(args.dataset)}/baselines/seed_{args.seed}"
     os.makedirs(results_dir, exist_ok=True)
 
     if args.summarize_only:
@@ -157,7 +162,7 @@ def main():
             print(f"Warning: requested models not available: {missing}")
 
     all_results = {}
-    evaluator = ModelEvaluator(device=device)
+    evaluator = ModelEvaluator(device=device, dataset=args.dataset)
 
     for model_name, model in models_to_run.items():
         print(f"\n{'=' * 30}")

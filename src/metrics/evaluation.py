@@ -33,8 +33,10 @@ from ..utils.utils import sample_uniform_sphere, mobius_reparam
 class ModelEvaluator:
     """Comprehensive model evaluation class"""
     
-    def __init__(self, device=None):
+    def __init__(self, device=None, dataset="mnist", data_dir="./data"):
         self.device = device or config.device
+        self.dataset = dataset
+        self.data_dir = data_dir
         
         if EVAL_LIBS_AVAILABLE:
             self.ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(self.device)
@@ -157,9 +159,9 @@ class ModelEvaluator:
         
         # Save real images (only if not already done)
         if not os.listdir(real_img_dir):
-            from torchvision import datasets, transforms
-            transform = transforms.Compose([transforms.ToTensor()])
-            test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
+            from ..datasets.loaders import build_test_dataset
+
+            test_dataset = build_test_dataset(self.dataset, self.data_dir)
             
             for i, (img, _) in enumerate(tqdm(test_dataset, desc="Saving real images")):
                 current_config = ablation_config if ablation_config else config

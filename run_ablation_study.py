@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 
 from src.config_ablation import ablation_config
 from src.models.cs_wae_ablation import create_ablation_model
-from src.datasets.loaders import get_loaders
+from src.datasets.loaders import get_loaders, get_default_runs_dir, SUPPORTED_DATASETS
 from src.trainers.trainer import CSWAETrainer
 from src.trainers.trainer_ablation import AblationTrainer, NoiseRobustnessEvaluator
 from src.metrics.evaluation import ModelEvaluator
@@ -59,7 +59,7 @@ def get_model_flags(model):
     )
 
 
-def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
+def run_single_ablation(variant_name, train_loader, test_loader, results_dir, dataset="mnist"):
     """Run training and evaluation for a single ablation variant"""
 
     print(f"\n{'=' * 60}")
@@ -168,7 +168,7 @@ def run_single_ablation(variant_name, train_loader, test_loader, results_dir):
 
     # Evaluate model
     print(f"Evaluating {variant_name}...")
-    evaluator = ModelEvaluator()
+    evaluator = ModelEvaluator(dataset=dataset)
 
     # Adapt evaluation for ablation models
     try:
@@ -283,7 +283,7 @@ def save_results_table(all_results, results_dir):
     return df
 
 
-def evaluate_saved_variant(variant_name, test_loader, results_dir):
+def evaluate_saved_variant(variant_name, test_loader, results_dir, dataset="mnist"):
     """Load a saved checkpoint and run evaluation only."""
     variant_dir = os.path.join(results_dir, variant_name)
     model_path = os.path.join(variant_dir, f"{variant_name}_model.pth")
@@ -297,7 +297,7 @@ def evaluate_saved_variant(variant_name, test_loader, results_dir):
     model.to(ablation_config.device)
 
     print(f"\nEvaluating saved checkpoint: {variant_name}")
-    evaluator = ModelEvaluator()
+    evaluator = ModelEvaluator(dataset=dataset)
     metrics = evaluator.comprehensive_evaluation(
         model, variant_config["name"], test_loader, variant_dir
     )
@@ -350,6 +350,13 @@ def parse_args():
         help="Torch device, e.g. cuda:0 or cuda:1 (default: cuda:0)",
     )
     parser.add_argument(
+        "--dataset",
+        type=str,
+        default="mnist",
+        choices=list(SUPPORTED_DATASETS),
+        help="Dataset name",
+    )
+    parser.add_argument(
         "--skip-aggregate",
         action="store_true",
         help="Skip final CSV/plots (for parallel workers sharing one results dir)",
@@ -374,7 +381,7 @@ def main():
         timestamp = os.path.basename(results_dir)
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_dir = f"ablation_results/ablation_{timestamp}"
+        results_dir = f"{get_default_runs_dir(args.dataset)}/ablation_{timestamp}"
         os.makedirs(results_dir, exist_ok=True)
 
     if args.summarize_only:
@@ -386,6 +393,7 @@ def main():
     print("=" * 80)
     print(f"Seed: {args.seed}")
     print(f"Device: {device}")
+    print(f"Dataset: {args.dataset}")
     print("This study systematically evaluates the contribution of each component:")
     print("1. Supervised MMD Loss")
     print("2. Spherical vs Euclidean Space")
@@ -395,14 +403,14 @@ def main():
 
     # Load data
     variants_to_run = args.variants
-    print("Loading MNIST dataset...")
-    train_loader, test_loader = get_loaders(seed=args.seed)
+    print(f"Loading {args.dataset} dataset...")
+    train_loader, test_loader = get_loaders(dataset=args.dataset, seed=args.seed)
 
     save_run_metadata(
         results_dir,
         config_to_dict(ablation_config),
         args.seed,
-        extra={"variants": variants_to_run},
+        extra={"variants": variants_to_run, "dataset": args.dataset},
     )
     print(f"Variants to run: {variants_to_run}")
     print(f"Epochs per variant: {ablation_config.epochs}")
@@ -416,7 +424,9 @@ def main():
         print("\n--- EVAL-ONLY MODE: loading saved checkpoints ---")
         for variant in variants_to_run:
             try:
-                result = evaluate_saved_variant(variant, test_loader, results_dir)
+                result = evaluate_saved_variant(
+                    variant, test_loader, results_dir, dataset=args.dataset
+                )
                 if result:
                     name, metrics = result
                     all_results[name] = metrics
@@ -426,7 +436,7 @@ def main():
         for variant in variants_to_run:
             try:
                 metrics, history, model = run_single_ablation(
-                    variant, train_loader, test_loader, results_dir
+                    variant, train_loader, test_loader, results_dir, dataset=args.dataset
                 )
                 all_results[ablation_config.ablation_variants[variant]["name"]] = metrics
                 all_histories[variant] = history
