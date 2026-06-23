@@ -14,6 +14,8 @@ class Config:
         # Model parameters
         self.latent_dim = 32
         self.n_classes = 10
+        self.in_channels = 1
+        self.image_size = 28
         
         # Training parameters
         self.batch_size = 128

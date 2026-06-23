@@ -18,6 +18,7 @@ from src.datasets.loaders import (
     get_default_runs_dir,
     SUPPORTED_DATASETS,
 )
+from src.utils.dataset_config import apply_dataset_config
 from src.trainers.trainer import BaselineTrainer, CSWAETrainer
 from src.metrics.evaluation import ModelEvaluator, create_comparison_table
 from src.utils.seed import set_seed
@@ -51,13 +52,14 @@ def summarize_baseline_results(results_dir: str) -> None:
     print(f"\nSaved: {csv_path}")
 
 
-def build_models(n_classes: int) -> dict:
+def build_models(n_classes: int, in_channels: int = 1, image_size: int = 28) -> dict:
     """Build baseline models, skipping optional ones that fail to import."""
+    cnn = {"in_channels": in_channels, "image_size": image_size}
     models = {
-        "VAE": VAE(config.latent_dim),
-        "WAE-MMD": WAE_MMD(config.latent_dim),
-        "VaDE": VaDE(config.latent_dim, n_classes),
-        "CS-WAE": SphericalWAE_Supervised(config.latent_dim, n_classes),
+        "VAE": VAE(config.latent_dim, **cnn),
+        "WAE-MMD": WAE_MMD(config.latent_dim, **cnn),
+        "VaDE": VaDE(config.latent_dim, n_classes, **cnn),
+        "CS-WAE": SphericalWAE_Supervised(config.latent_dim, n_classes, **cnn),
     }
 
     try:
@@ -128,7 +130,7 @@ def main():
     set_seed(args.seed)
     device = set_device(args.device)
 
-    dataset_info = get_dataset_info(args.dataset)
+    dataset_info = apply_dataset_config(args.dataset, get_dataset_info)
 
     print("=" * 80)
     print("CS-WAE vs Baselines Comparison")
@@ -154,7 +156,11 @@ def main():
         num_workers=config.num_workers,
     )
 
-    models_to_run = build_models(dataset_info["n_classes"])
+    models_to_run = build_models(
+        dataset_info["n_classes"],
+        in_channels=dataset_info.get("in_channels", 1),
+        image_size=dataset_info.get("image_size", 28),
+    )
     if args.models:
         models_to_run = {k: v for k, v in models_to_run.items() if k in args.models}
         missing = set(args.models) - set(models_to_run.keys())

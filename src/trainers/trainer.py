@@ -108,8 +108,9 @@ class BaselineTrainer:
         self.device = device or config.device
         self.model.to(self.device)
         
-        # Initialize optimizer
-        self.optimizer = optim.Adam(model.parameters(), lr=config.lr)
+        # VaDE KL + BCE can diverge on RGB; use a lower LR than other baselines
+        lr = 1e-4 if model_name == "VaDE" else config.lr
+        self.optimizer = optim.Adam(model.parameters(), lr=lr)
         
     def train_epoch(self, epoch):
         """Train for one epoch"""
@@ -134,6 +135,7 @@ class BaselineTrainer:
                 loss = self.model.loss_function(recon_batch, data, mu, log_var, z)
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.step()
             pbar.set_postfix({"Loss": loss.item() / len(data)})
 

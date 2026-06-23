@@ -1,4 +1,4 @@
-"""Fashion-MNIST dataset loading utilities."""
+"""Kuzushiji-MNIST (KMNIST) dataset loading utilities."""
 
 import os
 
@@ -9,8 +9,8 @@ from torchvision import datasets, transforms
 from ..config import config
 
 
-def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=None, seed=None):
-    """Create Fashion-MNIST train and test data loaders."""
+def get_kmnist_loaders(data_dir="./data", batch_size=None, num_workers=None, seed=None):
+    """Create KMNIST train and test data loaders."""
     batch_size = batch_size or config.batch_size
     num_workers = num_workers or (2 if os.name == "nt" else 4)
 
@@ -21,13 +21,13 @@ def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=No
 
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_dataset = datasets.FashionMNIST(
+    train_dataset = datasets.KMNIST(
         data_dir,
         train=True,
         download=True,
         transform=transform,
     )
-    test_dataset = datasets.FashionMNIST(
+    test_dataset = datasets.KMNIST(
         data_dir,
         train=False,
         download=True,
@@ -54,13 +54,10 @@ def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=No
 
 
 def get_data_info():
-    """Get information about the Fashion-MNIST dataset."""
+    """Get information about the KMNIST dataset."""
     return {
-        "name": "Fashion-MNIST",
+        "name": "KMNIST",
         "input_shape": (1, 28, 28),
-        "in_channels": 1,
-        "image_size": 28,
-        "color": False,
         "n_classes": 10,
         "num_classes": 10,
         "train_size": 60000,
