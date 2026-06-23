@@ -10,6 +10,7 @@ import torch
 from src.config import config
 from src.models import SphericalWAE_Supervised
 from src.datasets.loaders import get_loaders, get_dataset_info, get_default_runs_dir, SUPPORTED_DATASETS
+from src.utils.dataset_config import apply_dataset_config
 from src.trainers.trainer import CSWAETrainer
 from src.visualization.plots import plot_results, plot_slerp
 from src.metrics.evaluation import ModelEvaluator
@@ -68,7 +69,7 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
 
     epochs = args.epochs or config.epochs
-    dataset_info = get_dataset_info(args.dataset)
+    dataset_info = apply_dataset_config(args.dataset, get_dataset_info)
 
     print("=" * 60)
     print("CS-WAE Training and Evaluation")
@@ -98,6 +99,8 @@ def main():
     model = SphericalWAE_Supervised(
         latent_dim=config.latent_dim,
         n_classes=dataset_info["n_classes"],
+        in_channels=dataset_info.get("in_channels", 1),
+        image_size=dataset_info.get("image_size", 28),
     ).to(config.device)
 
     trainer = CSWAETrainer(model, train_loader)

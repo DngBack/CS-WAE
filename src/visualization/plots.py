@@ -220,12 +220,13 @@ def plot_results(history, model, test_loader, save_dir=".", device=None):
         prior_mus_np = F.normalize(model.prior_mus, p=2, dim=1).cpu().detach().numpy()
         prior_embedding = reducer.transform(prior_mus_np)
 
+        n_classes = model.prior_mus.shape[0]
         fig = plt.figure(figsize=(12, 10))
         scatter = plt.scatter(embedding[:, 0], embedding[:, 1], c=labels, cmap='Spectral', s=5, alpha=0.7)
-        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], c=range(10), cmap='Spectral', 
+        plt.scatter(prior_embedding[:, 0], prior_embedding[:, 1], c=range(n_classes), cmap='Spectral', 
                    marker='*', s=500, edgecolor='black', label='Prior Centers')
         plt.title('Latent Space - UMAP (Annealing)')
-        plt.legend(handles=scatter.legend_elements(num=10)[0], labels=list(range(10)))
+        plt.legend(handles=scatter.legend_elements(num=n_classes)[0], labels=list(range(n_classes)))
         plt.colorbar(scatter)
         plt.savefig(f'{save_dir}/latent_space_umap.png')
         plt.close(fig)

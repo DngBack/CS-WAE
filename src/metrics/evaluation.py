@@ -27,7 +27,8 @@ try:
     from ..config_ablation import ablation_config
 except ImportError:
     ablation_config = None
-from ..utils.utils import sample_uniform_sphere, mobius_reparam
+from ..datasets.loaders import get_dataset_info
+from ..utils.utils import sample_uniform_sphere, mobius_reparam, to_rgb_for_lpips
 
 
 class ModelEvaluator:
@@ -37,6 +38,7 @@ class ModelEvaluator:
         self.device = device or config.device
         self.dataset = dataset
         self.data_dir = data_dir
+        self.n_classes = get_dataset_info(dataset)["n_classes"]
         
         if EVAL_LIBS_AVAILABLE:
             self.ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(self.device)
@@ -77,8 +79,8 @@ class ModelEvaluator:
                 self.psnr_metric.update(reconstructed_images, images)
                 
                 # Calculate LPIPS
-                images_lpips = (images * 2 - 1).repeat(1, 3, 1, 1)
-                recon_lpips = (reconstructed_images * 2 - 1).repeat(1, 3, 1, 1)
+                images_lpips = to_rgb_for_lpips(images * 2 - 1)
+                recon_lpips = to_rgb_for_lpips(reconstructed_images * 2 - 1)
                 total_lpips_score += self.lpips_metric(images_lpips, recon_lpips).sum().item()
         
         final_ssim = self.ssim_metric.compute().item()
@@ -118,8 +120,7 @@ class ModelEvaluator:
         labels_np = np.concatenate(all_labels, axis=0)
         
         # Perform K-means clustering
-        current_config = ablation_config if ablation_config else config
-        n_clusters = current_config.n_classes
+        n_clusters = self.n_classes
         
         if model_name == 'VaDE' and hasattr(model, 'mu_c'):
             # Use VaDE cluster centers as initialization
@@ -167,8 +168,10 @@ class ModelEvaluator:
                 current_config = ablation_config if ablation_config else config
                 if i >= current_config.num_images_for_fid:
                     break
-                torchvision.utils.save_image(img.repeat(3, 1, 1), 
-                                           os.path.join(real_img_dir, f"real_{i}.png"))
+                save_img = img if img.shape[0] == 3 else img.repeat(3, 1, 1)
+                torchvision.utils.save_image(
+                    save_img, os.path.join(real_img_dir, f"real_{i}.png")
+                )
         
         # Generate and save fake images
         model.eval()
@@ -184,7 +187,7 @@ class ModelEvaluator:
                     # Sample from CS-WAE priors (both regular and ablation)
                     # Use appropriate config based on model type
                     current_config = ablation_config if hasattr(model, 'variant_config') else config
-                    random_classes = torch.randint(0, current_config.n_classes, (num_to_gen,), device=self.device)
+                    random_classes = torch.randint(0, self.n_classes, (num_to_gen,), device=self.device)
                     
                     if hasattr(model, 'sample_from_prior'):
                         # Ablation model with sample_from_prior method
@@ -225,9 +228,12 @@ class ModelEvaluator:
                 for i in range(generated_images.size(0)):
                     if generated_count >= current_config.num_images_for_fid:
                         break
-                    image_rgb = generated_images[i].cpu().repeat(3, 1, 1)
-                    torchvision.utils.save_image(image_rgb, 
-                                               os.path.join(gen_img_dir, f"gen_{generated_count}.png"))
+                    image_rgb = generated_images[i].cpu()
+                    if image_rgb.shape[0] == 1:
+                        image_rgb = image_rgb.repeat(3, 1, 1)
+                    torchvision.utils.save_image(
+                        image_rgb, os.path.join(gen_img_dir, f"gen_{generated_count}.png")
+                    )
                     generated_count += 1
         
         # Calculate FID

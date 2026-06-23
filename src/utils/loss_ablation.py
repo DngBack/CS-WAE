@@ -5,7 +5,7 @@ Loss functions for CS-WAE ablation studies
 import torch
 import torch.nn.functional as F
 import lpips
-from .utils import mmd_loss, sample_uniform_sphere, mobius_reparam
+from .utils import mmd_loss, sample_uniform_sphere, mobius_reparam, to_rgb_for_lpips
 from ..config_ablation import ablation_config
 
 
@@ -47,9 +47,8 @@ def calculate_ablation_loss(
     # Convert image scale from [0, 1] to [-1, 1] for LPIPS
     x_rescaled = (x * 2) - 1
     x_hat_rescaled = (x_hat * 2) - 1
-    # LPIPS requires 3-channel images, repeat grayscale 3 times
-    x_rescaled_rgb = x_rescaled.repeat(1, 3, 1, 1)
-    x_hat_rescaled_rgb = x_hat_rescaled.repeat(1, 3, 1, 1)
+    x_rescaled_rgb = to_rgb_for_lpips(x_rescaled)
+    x_hat_rescaled_rgb = to_rgb_for_lpips(x_hat_rescaled)
 
     lpips_loss = loss_fn_vgg(x_hat_rescaled_rgb, x_rescaled_rgb).mean()
 

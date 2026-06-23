@@ -6,6 +6,14 @@ from ..config import config
 Utility functions for sampling, reparameterization, and kernel computation on spheres and manifolds.
 """
 
+
+def to_rgb_for_lpips(tensor: torch.Tensor) -> torch.Tensor:
+    """LPIPS expects 3 channels: repeat grayscale, pass RGB through."""
+    if tensor.shape[1] == 1:
+        return tensor.repeat(1, 3, 1, 1)
+    return tensor
+
+
 def sample_uniform_sphere(n_samples, dim, device=None):
     """
     Sample points uniformly from the surface of a unit sphere.

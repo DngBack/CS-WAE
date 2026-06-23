@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import lpips
-from .utils import mmd_loss, sample_uniform_sphere, mobius_reparam
+from .utils import mmd_loss, sample_uniform_sphere, mobius_reparam, to_rgb_for_lpips
 from ..config import config
 
 """
@@ -32,9 +32,9 @@ def calculate_cs_wae_loss(x, y, x_hat, z_q, model, loss_fn_vgg, sup_mmd_weight, 
     # Convert image scale from [0, 1] to [-1, 1] for LPIPS
     x_rescaled = (x * 2) - 1
     x_hat_rescaled = (x_hat * 2) - 1
-    # LPIPS requires 3-channel images, repeat grayscale 3 times
-    x_rescaled_rgb = x_rescaled.repeat(1, 3, 1, 1)
-    x_hat_rescaled_rgb = x_hat_rescaled.repeat(1, 3, 1, 1)
+    # LPIPS requires 3-channel images (repeat grayscale only)
+    x_rescaled_rgb = to_rgb_for_lpips(x_rescaled)
+    x_hat_rescaled_rgb = to_rgb_for_lpips(x_hat_rescaled)
 
     lpips_loss = loss_fn_vgg(x_hat_rescaled_rgb, x_rescaled_rgb).mean()
 
@@ -43,10 +43,11 @@ def calculate_cs_wae_loss(x, y, x_hat, z_q, model, loss_fn_vgg, sup_mmd_weight, 
 
     # --- MMD Loss Components ---
     device = x.device
+    n_classes = model.prior_mus.shape[0]
     supervised_mmd_loss = 0.0
     normalized_prior_mus = F.normalize(model.prior_mus, p=2, dim=1)
     
-    for c in range(config.n_classes):
+    for c in range(n_classes):
         class_mask = (y == c)
         if class_mask.sum() > 1:
             n = class_mask.sum().item()
@@ -58,10 +59,10 @@ def calculate_cs_wae_loss(x, y, x_hat, z_q, model, loss_fn_vgg, sup_mmd_weight, 
                     torch.full((n,), model.rho_p, device=device),
                 )
             )
-    supervised_mmd_loss /= config.n_classes
+    supervised_mmd_loss /= n_classes
 
     # Unsupervised MMD loss
-    random_classes = torch.randint(0, config.n_classes, (x.size(0),), device=device)
+    random_classes = torch.randint(0, n_classes, (x.size(0),), device=device)
     z_p_unsupervised = mobius_reparam(
         sample_uniform_sphere(x.size(0), config.latent_dim, device=device),
         normalized_prior_mus[random_classes],

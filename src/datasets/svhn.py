@@ -1,4 +1,4 @@
-"""Fashion-MNIST dataset loading utilities."""
+"""SVHN dataset loading utilities (32×32 RGB street-view digits)."""
 
 import os
 
@@ -9,8 +9,8 @@ from torchvision import datasets, transforms
 from ..config import config
 
 
-def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=None, seed=None):
-    """Create Fashion-MNIST train and test data loaders."""
+def get_svhn_loaders(data_dir="./data", batch_size=None, num_workers=None, seed=None):
+    """Create SVHN train and test data loaders."""
     batch_size = batch_size or config.batch_size
     num_workers = num_workers or (2 if os.name == "nt" else 4)
 
@@ -21,17 +21,11 @@ def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=No
 
     transform = transforms.Compose([transforms.ToTensor()])
 
-    train_dataset = datasets.FashionMNIST(
-        data_dir,
-        train=True,
-        download=True,
-        transform=transform,
+    train_dataset = datasets.SVHN(
+        data_dir, split="train", download=True, transform=transform
     )
-    test_dataset = datasets.FashionMNIST(
-        data_dir,
-        train=False,
-        download=True,
-        transform=transform,
+    test_dataset = datasets.SVHN(
+        data_dir, split="test", download=True, transform=transform
     )
 
     train_loader = DataLoader(
@@ -54,15 +48,14 @@ def get_fashion_mnist_loaders(data_dir="./data", batch_size=None, num_workers=No
 
 
 def get_data_info():
-    """Get information about the Fashion-MNIST dataset."""
     return {
-        "name": "Fashion-MNIST",
-        "input_shape": (1, 28, 28),
-        "in_channels": 1,
-        "image_size": 28,
-        "color": False,
+        "name": "SVHN",
+        "input_shape": (3, 32, 32),
+        "in_channels": 3,
+        "image_size": 32,
         "n_classes": 10,
         "num_classes": 10,
-        "train_size": 60000,
-        "test_size": 10000,
+        "train_size": 73257,
+        "test_size": 26032,
+        "color": True,
     }

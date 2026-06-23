@@ -10,15 +10,23 @@ from ..config_ablation import ablation_config
 from ..utils.utils import sample_uniform_sphere, mobius_reparam
 
 
-class EncoderCNN_Ablation(nn.Module):
-    """CNN Encoder for ablation studies - supports both spherical and Euclidean output"""
+from ..config import config
+from .image_cnn import DecoderCNN, encoder_spatial_size
 
-    def __init__(self, latent_dim, output_type="spherical"):
-        super(EncoderCNN_Ablation, self).__init__()
+
+class EncoderCNN_Ablation(nn.Module):
+    """Ablation encoder — spherical or Euclidean heads, multi-channel support."""
+
+    def __init__(self, latent_dim, output_type="spherical", in_channels=None, image_size=None):
+        super().__init__()
         self.output_type = output_type
+        in_channels = in_channels if in_channels is not None else config.in_channels
+        image_size = image_size if image_size is not None else config.image_size
+        spatial = encoder_spatial_size(image_size, "cs_wae")
+        flat = 128 * spatial * spatial
 
         self.conv_block = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(in_channels, 32, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(True),
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
@@ -29,54 +37,35 @@ class EncoderCNN_Ablation(nn.Module):
             nn.ReLU(True),
         )
         self.fc_block = nn.Sequential(
-            nn.Flatten(), nn.Linear(128 * 4 * 4, 256), nn.ReLU(True)
+            nn.Flatten(), nn.Linear(flat, 256), nn.ReLU(True)
         )
-
+        self.fc_mu = nn.Linear(256, latent_dim)
         if output_type == "spherical":
-            # Spherical output: mu (direction) and s (concentration)
-            self.fc_mu = nn.Linear(256, latent_dim)
             self.fc_s = nn.Linear(256, 1)
-        elif output_type == "euclidean":
-            # Euclidean output: mu and log_var (like VAE)
-            self.fc_mu = nn.Linear(256, latent_dim)
+        else:
             self.fc_logvar = nn.Linear(256, latent_dim)
 
     def forward(self, x):
         x = self.conv_block(x)
         x = self.fc_block(x)
-
         if self.output_type == "spherical":
             return self.fc_mu(x), self.fc_s(x)
-        elif self.output_type == "euclidean":
-            return self.fc_mu(x), self.fc_logvar(x)
+        return self.fc_mu(x), self.fc_logvar(x)
 
 
 class DecoderCNN_Ablation(nn.Module):
-    """CNN Decoder for ablation studies"""
+    """Ablation decoder with configurable channels."""
 
-    def __init__(self, latent_dim):
-        super(DecoderCNN_Ablation, self).__init__()
-        self.fc_block = nn.Sequential(
-            nn.Linear(latent_dim, 256),
-            nn.ReLU(True),
-            nn.Linear(256, 128 * 4 * 4),
-            nn.ReLU(True),
-        )
-        self.deconv_block = nn.Sequential(
-            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2, padding=1),
-            nn.Sigmoid(),
-        )
+    def __init__(self, latent_dim, in_channels=None, image_size=None):
+        super().__init__()
+        in_channels = in_channels if in_channels is not None else config.in_channels
+        image_size = image_size if image_size is not None else config.image_size
+        spatial = encoder_spatial_size(image_size, "cs_wae")
+        self.spatial = spatial
+        self.decoder = DecoderCNN(latent_dim, in_channels, spatial, image_size)
 
     def forward(self, z):
-        x = self.fc_block(z)
-        x = x.view(-1, 128, 4, 4)
-        return self.deconv_block(x)
+        return self.decoder(z)
 
 
 class CSWAEAblation(nn.Module):
@@ -228,6 +217,8 @@ def create_ablation_model(variant="baseline"):
         return SphericalWAE_Supervised(
             latent_dim=ablation_config.latent_dim,
             n_classes=ablation_config.n_classes,
+            in_channels=config.in_channels,
+            image_size=config.image_size,
         )
 
     return CSWAEAblation(

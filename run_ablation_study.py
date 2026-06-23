@@ -15,7 +15,8 @@ warnings.filterwarnings("ignore")
 
 from src.config_ablation import ablation_config
 from src.models.cs_wae_ablation import create_ablation_model
-from src.datasets.loaders import get_loaders, get_default_runs_dir, SUPPORTED_DATASETS
+from src.datasets.loaders import get_loaders, get_default_runs_dir, SUPPORTED_DATASETS, get_dataset_info
+from src.utils.dataset_config import apply_dataset_config
 from src.trainers.trainer import CSWAETrainer
 from src.trainers.trainer_ablation import AblationTrainer, NoiseRobustnessEvaluator
 from src.metrics.evaluation import ModelEvaluator
@@ -374,6 +375,7 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     device = set_device(args.device)
+    apply_dataset_config(args.dataset, get_dataset_info)
 
     if args.results_dir:
         results_dir = args.results_dir

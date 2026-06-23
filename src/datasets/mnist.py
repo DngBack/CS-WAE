@@ -72,6 +72,9 @@ def get_data_info():
     return {
         'name': 'MNIST',
         'input_shape': (1, 28, 28),
+        'in_channels': 1,
+        'image_size': 28,
+        'color': False,
         'n_classes': 10,
         'num_classes': 10,
         'train_size': 60000,
