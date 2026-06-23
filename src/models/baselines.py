@@ -6,17 +6,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .image_cnn import BaseDecoderCNN, BaseEncoderCNN, baseline_decoder_spatial, encoder_spatial_size
+from .image_cnn import BaseDecoderCNN, baseline_decoder_spatial
+from .backbone import build_baseline_encoder
+from ..config import config
 
 
 class VAE(nn.Module):
     """Vanilla Variational Autoencoder"""
 
-    def __init__(self, latent_dim, in_channels: int = 1, image_size: int = 28):
+    def __init__(
+        self,
+        latent_dim,
+        in_channels: int = 1,
+        image_size: int = 28,
+        backbone: str | None = None,
+    ):
         super().__init__()
+        backbone = backbone or config.backbone
         dec_spatial = baseline_decoder_spatial(image_size)
-        self.encoder = BaseEncoderCNN(
-            latent_dim, in_channels, image_size, vae_mode=True
+        self.encoder = build_baseline_encoder(
+            backbone, latent_dim, in_channels, image_size, vae_mode=True
         )
         self.decoder = BaseDecoderCNN(latent_dim, in_channels, dec_spatial, image_size)
 
@@ -51,11 +60,17 @@ def mmd_loss(q_samples, p_samples, sigma=1.0):
 class WAE_MMD(nn.Module):
     """Wasserstein Autoencoder with MMD regularization"""
 
-    def __init__(self, latent_dim, in_channels: int = 1, image_size: int = 28):
+    def __init__(
+        self,
+        latent_dim,
+        in_channels: int = 1,
+        image_size: int = 28,
+        backbone: str | None = None,
+    ):
         super().__init__()
-        spatial = encoder_spatial_size(image_size, "baseline")
+        backbone = backbone or config.backbone
         dec_spatial = baseline_decoder_spatial(image_size)
-        self.encoder = BaseEncoderCNN(latent_dim, in_channels, image_size)
+        self.encoder = build_baseline_encoder(backbone, latent_dim, in_channels, image_size)
         self.decoder = BaseDecoderCNN(latent_dim, in_channels, dec_spatial, image_size)
         self.latent_dim = latent_dim
 
@@ -73,10 +88,19 @@ class WAE_MMD(nn.Module):
 class S_VAE(nn.Module):
     """Spherical VAE"""
 
-    def __init__(self, latent_dim, in_channels: int = 1, image_size: int = 28):
+    def __init__(
+        self,
+        latent_dim,
+        in_channels: int = 1,
+        image_size: int = 28,
+        backbone: str | None = None,
+    ):
         super().__init__()
+        backbone = backbone or config.backbone
         dec_spatial = baseline_decoder_spatial(image_size)
-        self.encoder = BaseEncoderCNN(latent_dim + 1, in_channels, image_size)
+        self.encoder = build_baseline_encoder(
+            backbone, latent_dim + 1, in_channels, image_size
+        )
         self.decoder = BaseDecoderCNN(latent_dim, in_channels, dec_spatial, image_size)
         self.latent_dim = latent_dim
 
@@ -109,11 +133,19 @@ class S_VAE(nn.Module):
 class VaDE(nn.Module):
     """Variational Deep Embedding"""
 
-    def __init__(self, latent_dim, n_classes, in_channels: int = 1, image_size: int = 28):
+    def __init__(
+        self,
+        latent_dim,
+        n_classes,
+        in_channels: int = 1,
+        image_size: int = 28,
+        backbone: str | None = None,
+    ):
         super().__init__()
+        backbone = backbone or config.backbone
         dec_spatial = baseline_decoder_spatial(image_size)
-        self.encoder = BaseEncoderCNN(
-            latent_dim, in_channels, image_size, vae_mode=True
+        self.encoder = build_baseline_encoder(
+            backbone, latent_dim, in_channels, image_size, vae_mode=True
         )
         self.decoder = BaseDecoderCNN(latent_dim, in_channels, dec_spatial, image_size)
         self.latent_dim = latent_dim

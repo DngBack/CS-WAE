@@ -12,6 +12,7 @@ from ..utils.utils import sample_uniform_sphere, mobius_reparam
 
 from ..config import config
 from .image_cnn import DecoderCNN, encoder_spatial_size
+from .backbone import build_cs_wae_encoder, encoder_spatial_for_backbone
 
 
 class EncoderCNN_Ablation(nn.Module):
@@ -60,7 +61,7 @@ class DecoderCNN_Ablation(nn.Module):
         super().__init__()
         in_channels = in_channels if in_channels is not None else config.in_channels
         image_size = image_size if image_size is not None else config.image_size
-        spatial = encoder_spatial_size(image_size, "cs_wae")
+        spatial = encoder_spatial_for_backbone(config.backbone, image_size, "cs_wae")
         self.spatial = spatial
         self.decoder = DecoderCNN(latent_dim, in_channels, spatial, image_size)
 
@@ -85,7 +86,13 @@ class CSWAEAblation(nn.Module):
         encoder_type = (
             "spherical" if self.variant_config["use_spherical_space"] else "euclidean"
         )
-        self.encoder = EncoderCNN_Ablation(latent_dim, output_type=encoder_type)
+        self.encoder = build_cs_wae_encoder(
+            config.backbone,
+            latent_dim,
+            config.in_channels,
+            config.image_size,
+            output_type=encoder_type,
+        )
         self.decoder = DecoderCNN_Ablation(latent_dim)
 
         # Initialize priors based on variant

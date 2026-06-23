@@ -13,6 +13,7 @@ from datetime import datetime
 
 warnings.filterwarnings("ignore")
 
+from src.config import config
 from src.config_ablation import ablation_config
 from src.models.cs_wae_ablation import create_ablation_model
 from src.datasets.loaders import get_loaders, get_default_runs_dir, SUPPORTED_DATASETS, get_dataset_info
@@ -367,6 +368,13 @@ def parse_args():
         action="store_true",
         help="Build comparison table/plots from existing metrics.json files",
     )
+    parser.add_argument(
+        "--backbone",
+        type=str,
+        default=None,
+        choices=["cnn", "resnet18"],
+        help="Encoder backbone (default: cnn; use resnet18 for CIFAR-10)",
+    )
     return parser.parse_args()
 
 
@@ -375,7 +383,7 @@ def main():
     args = parse_args()
     set_seed(args.seed)
     device = set_device(args.device)
-    apply_dataset_config(args.dataset, get_dataset_info)
+    apply_dataset_config(args.dataset, get_dataset_info, backbone=args.backbone)
 
     if args.results_dir:
         results_dir = args.results_dir
@@ -383,7 +391,7 @@ def main():
         timestamp = os.path.basename(results_dir)
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_dir = f"{get_default_runs_dir(args.dataset)}/ablation_{timestamp}"
+        results_dir = f"{get_default_runs_dir(args.dataset, config.backbone)}/ablation_{timestamp}"
         os.makedirs(results_dir, exist_ok=True)
 
     if args.summarize_only:
@@ -396,6 +404,7 @@ def main():
     print(f"Seed: {args.seed}")
     print(f"Device: {device}")
     print(f"Dataset: {args.dataset}")
+    print(f"Backbone: {config.backbone}")
     print("This study systematically evaluates the contribution of each component:")
     print("1. Supervised MMD Loss")
     print("2. Spherical vs Euclidean Space")
@@ -535,10 +544,10 @@ def main():
         f.write(f"Latent Dimension: {ablation_config.latent_dim}\n\n")
 
         f.write("Ablation Variants:\n")
-        for variant, config in ablation_config.ablation_variants.items():
+        for variant, variant_cfg in ablation_config.ablation_variants.items():
             if variant in variants_to_run:
                 f.write(f"\n{variant}:\n")
-                for key, value in config.items():
+                for key, value in variant_cfg.items():
                     f.write(f"  {key}: {value}\n")
 
     print(f"\n{'=' * 80}")

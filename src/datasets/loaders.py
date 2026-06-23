@@ -51,10 +51,13 @@ def get_dataset_info(dataset: str = "mnist") -> dict:
     raise ValueError(f"Unsupported dataset: {dataset}")
 
 
-def get_default_runs_dir(dataset: str = "mnist") -> str:
-    """Default output root for a dataset, e.g. runs/fashion_mnist."""
+def get_default_runs_dir(dataset: str = "mnist", backbone: str | None = None) -> str:
+    """Default output root for a dataset, e.g. runs/fashion_mnist or runs/cifar10_resnet18."""
     if dataset not in SUPPORTED_DATASETS:
         raise ValueError(f"Unsupported dataset: {dataset}")
+    bb = (backbone or "cnn").lower()
+    if bb != "cnn":
+        return f"runs/{dataset}_{bb}"
     return f"runs/{dataset}"
 
 

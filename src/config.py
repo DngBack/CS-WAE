@@ -16,7 +16,7 @@ class Config:
         self.n_classes = 10
         self.in_channels = 1
         self.image_size = 28
-        
+        self.backbone = "cnn"
         # Training parameters
         self.batch_size = 128
         self.epochs = 50

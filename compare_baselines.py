@@ -52,9 +52,19 @@ def summarize_baseline_results(results_dir: str) -> None:
     print(f"\nSaved: {csv_path}")
 
 
-def build_models(n_classes: int, in_channels: int = 1, image_size: int = 28) -> dict:
+def build_models(
+    n_classes: int,
+    in_channels: int = 1,
+    image_size: int = 28,
+    backbone: str | None = None,
+) -> dict:
     """Build baseline models, skipping optional ones that fail to import."""
-    cnn = {"in_channels": in_channels, "image_size": image_size}
+    backbone = backbone or config.backbone
+    cnn = {
+        "in_channels": in_channels,
+        "image_size": image_size,
+        "backbone": backbone,
+    }
     models = {
         "VAE": VAE(config.latent_dim, **cnn),
         "WAE-MMD": WAE_MMD(config.latent_dim, **cnn),
@@ -114,23 +124,33 @@ def parse_args():
         action="store_true",
         help="Build comparison CSV from existing metrics.json files",
     )
+    parser.add_argument(
+        "--backbone",
+        type=str,
+        default=None,
+        choices=["cnn", "resnet18"],
+        help="Encoder backbone (default: cnn; use resnet18 for CIFAR-10)",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
 
-    results_dir = args.output_dir or f"{get_default_runs_dir(args.dataset)}/baselines/seed_{args.seed}"
-    os.makedirs(results_dir, exist_ok=True)
-
+    results_dir = args.output_dir
     if args.summarize_only:
+        if not results_dir:
+            results_dir = f"{get_default_runs_dir(args.dataset, args.backbone)}/baselines/seed_{args.seed}"
+        os.makedirs(results_dir, exist_ok=True)
         summarize_baseline_results(results_dir)
         return
 
     set_seed(args.seed)
     device = set_device(args.device)
 
-    dataset_info = apply_dataset_config(args.dataset, get_dataset_info)
+    dataset_info = apply_dataset_config(args.dataset, get_dataset_info, backbone=args.backbone)
+    results_dir = args.output_dir or f"{get_default_runs_dir(args.dataset, config.backbone)}/baselines/seed_{args.seed}"
+    os.makedirs(results_dir, exist_ok=True)
 
     print("=" * 80)
     print("CS-WAE vs Baselines Comparison")
@@ -138,6 +158,7 @@ def main():
     print(f"Seed: {args.seed}")
     print(f"Device: {device}")
     print(f"Dataset: {args.dataset}")
+    print(f"Backbone: {config.backbone}")
     print(f"Epochs: {args.epochs}")
     print(f"Output: {results_dir}")
 
@@ -145,7 +166,7 @@ def main():
         results_dir,
         config_to_dict(config),
         args.seed,
-        extra={"dataset": args.dataset, "epochs": args.epochs},
+        extra={"dataset": args.dataset, "epochs": args.epochs, "backbone": config.backbone},
     )
 
     print("Loading dataset...")
@@ -160,6 +181,7 @@ def main():
         dataset_info["n_classes"],
         in_channels=dataset_info.get("in_channels", 1),
         image_size=dataset_info.get("image_size", 28),
+        backbone=config.backbone,
     )
     if args.models:
         models_to_run = {k: v for k, v in models_to_run.items() if k in args.models}

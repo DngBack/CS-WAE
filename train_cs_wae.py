@@ -57,6 +57,13 @@ def parse_args():
         default=None,
         help="Torch device, e.g. cuda:0 or cuda:1 (default: cuda:0)",
     )
+    parser.add_argument(
+        "--backbone",
+        type=str,
+        default=None,
+        choices=["cnn", "resnet18"],
+        help="Encoder backbone (default: cnn; use resnet18 for CIFAR-10)",
+    )
     return parser.parse_args()
 
 
@@ -65,11 +72,12 @@ def main():
     set_seed(args.seed)
     device = set_device(args.device)
 
-    save_dir = args.output_dir or f"{get_default_runs_dir(args.dataset)}/seed_{args.seed}"
+    dataset_info = apply_dataset_config(args.dataset, get_dataset_info, backbone=args.backbone)
+
+    save_dir = args.output_dir or f"{get_default_runs_dir(args.dataset, config.backbone)}/seed_{args.seed}"
     os.makedirs(save_dir, exist_ok=True)
 
     epochs = args.epochs or config.epochs
-    dataset_info = apply_dataset_config(args.dataset, get_dataset_info)
 
     print("=" * 60)
     print("CS-WAE Training and Evaluation")
@@ -77,6 +85,7 @@ def main():
     print(f"Seed: {args.seed}")
     print(f"Device: {device}")
     print(f"Dataset: {args.dataset}")
+    print(f"Backbone: {config.backbone}")
     print(f"Output: {save_dir}")
     print(f"Epochs: {epochs}")
 
@@ -84,7 +93,7 @@ def main():
         save_dir,
         config_to_dict(config),
         args.seed,
-        extra={"dataset": args.dataset, "epochs": epochs},
+        extra={"dataset": args.dataset, "epochs": epochs, "backbone": config.backbone},
     )
 
     print("Loading dataset...")
@@ -101,6 +110,7 @@ def main():
         n_classes=dataset_info["n_classes"],
         in_channels=dataset_info.get("in_channels", 1),
         image_size=dataset_info.get("image_size", 28),
+        backbone=config.backbone,
     ).to(config.device)
 
     trainer = CSWAETrainer(model, train_loader)

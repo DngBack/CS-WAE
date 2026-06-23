@@ -15,9 +15,23 @@ DATASET="${1:-${DATASET:-kmnist}}"
 GPU0="${GPU0:-cuda:0}"
 GPU1="${GPU1:-cuda:1}"
 SEEDS=(0 1 2)
-RUNS_DIR="runs/${DATASET}"
 LOG_DIR="logs"
-mkdir -p "$LOG_DIR" "$RUNS_DIR"
+mkdir -p "$LOG_DIR"
+
+# Backbone: ResNet-18 default for CIFAR-10 (override with BACKBONE=cnn)
+if [[ "$DATASET" == "cifar10" ]] || [[ "$DATASET" == "svhn" ]]; then
+  BACKBONE="${BACKBONE:-resnet18}"
+else
+  BACKBONE="${BACKBONE:-cnn}"
+fi
+BACKBONE_ARGS=(--backbone "$BACKBONE")
+
+if [[ "$BACKBONE" != "cnn" ]]; then
+  RUNS_DIR="runs/${DATASET}_${BACKBONE}"
+else
+  RUNS_DIR="runs/${DATASET}"
+fi
+mkdir -p "$RUNS_DIR"
 
 # Skip heavy viz for color / many-class datasets
 EXTRA_VIZ=()
@@ -44,16 +58,16 @@ run_bg() {
   LAST_BG_PID=$!
 }
 
-log "=== CS-WAE Pipeline — dataset=$DATASET  GPU0=$GPU0  GPU1=$GPU1  seeds=${SEEDS[*]} ==="
+log "=== CS-WAE Pipeline — dataset=$DATASET  backbone=$BACKBONE  GPU0=$GPU0  GPU1=$GPU1  seeds=${SEEDS[*]} ==="
 
 # ── Phase 1: Multi-seed training ─────────────────────────────────────────────
 run_bg "seed_0" python train_cs_wae.py \
   --dataset "$DATASET" --seed 0 --device "$GPU0" \
-  --output-dir "$RUNS_DIR/seed_0" "${EXTRA_VIZ[@]}"
+  --output-dir "$RUNS_DIR/seed_0" "${BACKBONE_ARGS[@]}" "${EXTRA_VIZ[@]}"
 P1A=$LAST_BG_PID
 run_bg "seed_1" python train_cs_wae.py \
   --dataset "$DATASET" --seed 1 --device "$GPU1" \
-  --output-dir "$RUNS_DIR/seed_1" --skip-advanced-viz "${EXTRA_VIZ[@]}"
+  --output-dir "$RUNS_DIR/seed_1" "${BACKBONE_ARGS[@]}" --skip-advanced-viz "${EXTRA_VIZ[@]}"
 P1B=$LAST_BG_PID
 wait "$P1A" "$P1B"
 log "Done seeds 0 & 1"
@@ -61,7 +75,7 @@ log "Done seeds 0 & 1"
 log "Training seed 2 on $GPU0"
 python train_cs_wae.py \
   --dataset "$DATASET" --seed 2 --device "$GPU0" \
-  --output-dir "$RUNS_DIR/seed_2" --skip-advanced-viz "${EXTRA_VIZ[@]}" \
+  --output-dir "$RUNS_DIR/seed_2" "${BACKBONE_ARGS[@]}" --skip-advanced-viz "${EXTRA_VIZ[@]}" \
   2>&1 | tee -a "$PIPELINE_LOG"
 
 # ── Phase 2: Ablation ────────────────────────────────────────────────────────
@@ -71,12 +85,12 @@ mkdir -p "$ABLATION_DIR"
 run_bg "ablation_gpu0" python run_ablation_study.py \
   --dataset "$DATASET" --seed 0 --device "$GPU0" \
   --variants baseline no_sup_mmd minimal \
-  --results-dir "$ABLATION_DIR" --skip-aggregate
+  --results-dir "$ABLATION_DIR" --skip-aggregate "${BACKBONE_ARGS[@]}"
 P2A=$LAST_BG_PID
 run_bg "ablation_gpu1" python run_ablation_study.py \
   --dataset "$DATASET" --seed 0 --device "$GPU1" \
   --variants euclidean vmf_prior \
-  --results-dir "$ABLATION_DIR" --skip-aggregate
+  --results-dir "$ABLATION_DIR" --skip-aggregate "${BACKBONE_ARGS[@]}"
 P2B=$LAST_BG_PID
 wait "$P2A" "$P2B"
 python run_ablation_study.py --summarize-only --results-dir "$ABLATION_DIR" \
@@ -88,11 +102,11 @@ mkdir -p "$BASELINE_DIR"
 
 run_bg "baseline_gpu0" python compare_baselines.py \
   --dataset "$DATASET" --seed 0 --device "$GPU0" --epochs 50 \
-  --output-dir "$BASELINE_DIR" --models VAE WAE-MMD --skip-summary
+  --output-dir "$BASELINE_DIR" --models VAE WAE-MMD --skip-summary "${BACKBONE_ARGS[@]}"
 P3A=$LAST_BG_PID
 run_bg "baseline_gpu1" python compare_baselines.py \
   --dataset "$DATASET" --seed 0 --device "$GPU1" --epochs 50 \
-  --output-dir "$BASELINE_DIR" --models VaDE CS-WAE --skip-summary
+  --output-dir "$BASELINE_DIR" --models VaDE CS-WAE --skip-summary "${BACKBONE_ARGS[@]}"
 P3B=$LAST_BG_PID
 wait "$P3A" "$P3B"
 python compare_baselines.py --dataset "$DATASET" --summarize-only --output-dir "$BASELINE_DIR" \
