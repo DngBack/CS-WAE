@@ -121,4 +121,5 @@ if __name__ == "__main__":
     print("✅ ALL TESTS PASSED!")
     print("Ablation study is ready to run.")
     print("Run: python run_ablation_study.py")
+    print("Or full pipeline: python run_pipeline.py all --dataset mnist --device cuda:0")
     print("=" * 60)

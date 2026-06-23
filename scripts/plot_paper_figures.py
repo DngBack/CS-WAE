@@ -37,7 +37,7 @@ from src.utils.device import set_device
 from src.utils.seed import set_seed
 from src.utils.utils import mobius_reparam, sample_uniform_sphere
 
-DATASETS = ("mnist", "fashion_mnist")
+DATASETS = ("mnist", "fashion_mnist", "cifar10")
 BASELINE_METHODS = ("CS-WAE", "VaDE", "VAE", "WAE-MMD")
 ABLATION_VARIANTS = (
     ("baseline", "CS-WAE (Baseline)"),
@@ -57,6 +57,11 @@ RUN_PATHS = {
         "aggregated": "runs/fashion_mnist/aggregated_metrics.json",
         "baselines": "runs/fashion_mnist/baselines/seed_0",
         "ablation": "runs/fashion_mnist/ablation_20260621_192630",
+    },
+    "cifar10": {
+        "aggregated": "runs/cifar10/aggregated_metrics.json",
+        "baselines": "runs/cifar10/baselines/seed_0",
+        "ablation": "runs/cifar10/ablation_20260622_201844",
     },
 }
 

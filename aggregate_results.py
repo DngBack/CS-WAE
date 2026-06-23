@@ -3,6 +3,7 @@ Aggregate multi-seed metrics into mean ± std summary tables.
 """
 import argparse
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +11,7 @@ import pandas as pd
 
 
 METRIC_COLUMNS = ["ACC", "NMI", "ARI", "FID", "LPIPS", "SSIM", "PSNR"]
+SEED_DIR_RE = re.compile(r"^seed_\d+$")
 
 
 def parse_args():
@@ -24,7 +26,7 @@ def parse_args():
         "--pattern",
         type=str,
         default="seed_*",
-        help="Glob pattern for seed run directories",
+        help="Glob pattern for seed run directories (only seed_<digits> are loaded)",
     )
     parser.add_argument(
         "--output",
@@ -38,23 +40,21 @@ def parse_args():
 def load_seed_metrics(runs_dir: Path, pattern: str) -> dict[int, dict]:
     seed_metrics = {}
     for run_dir in sorted(runs_dir.glob(pattern)):
+        if not SEED_DIR_RE.match(run_dir.name):
+            print(f"Skip {run_dir.name}: not a numeric seed directory")
+            continue
+
         metrics_path = run_dir / "metrics.json"
         if not metrics_path.exists():
             print(f"Skip {run_dir.name}: no metrics.json")
             continue
 
-        seed = None
-        if run_dir.name.startswith("seed_"):
-            try:
-                seed = int(run_dir.name.split("_", 1)[1])
-            except ValueError:
-                pass
+        seed = int(run_dir.name.split("_", 1)[1])
 
         with metrics_path.open() as f:
             metrics = json.load(f)
 
-        key = seed if seed is not None else run_dir.name
-        seed_metrics[key] = metrics
+        seed_metrics[seed] = metrics
         print(f"Loaded {run_dir.name}: {metrics_path}")
 
     return seed_metrics

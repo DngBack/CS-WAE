@@ -218,6 +218,11 @@ logs/
 results_cs_wae/
 ablation_results/
 baseline_results/
+exp/
+.venv-test/
+
+# Paper figure outputs (regenerate with scripts/plot_paper_figures.py)
+paper_outputs/figures/
 
 # FID caches (~10k–20k PNG per evaluation)
 **/fid_images*/

@@ -731,7 +731,7 @@ python run_ablation_study.py --dataset cifar10 --seed 0 --device cuda:0
 python aggregate_results.py --runs-dir runs/cifar10
 
 # Full parallel pipeline
-bash run_dataset_pipeline_parallel.sh cifar10
+python run_pipeline.py all --dataset cifar10 --device cuda:0 --backbone cnn
 ```
 
 ```bash
