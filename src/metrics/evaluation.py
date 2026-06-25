@@ -100,8 +100,9 @@ class ModelEvaluator:
                 images = images.to(self.device)
                 
                 # Extract latent representations
-                if model_name == 'CS-WAE' or hasattr(model, 'encode_to_distribution'):
-                    # CS-WAE models (both regular and ablation)
+                if hasattr(model, 'encode_to_distribution'):
+                    # CS-WAE, F-CS-WAE, ablation models
+                    # F-CS-WAE: returns (mu_c, rho_c) — use mu_c for clustering
                     mu_q, _ = model.encode_to_distribution(images)
                     latent_vectors = mu_q
                 elif model_name in ['VAE', 'VaDE']:
@@ -112,6 +113,9 @@ class ModelEvaluator:
                 elif model_name == 'S-VAE':
                     q_params = model.encoder(images)
                     latent_vectors = torch.nn.functional.normalize(q_params[:, :-1], p=2, dim=1)
+                elif hasattr(model, 'encode'):
+                    # Extended baselines: ResNetAE, AEWithCE, AEWithSupCon, etc.
+                    latent_vectors = model.encode(images)
                 
                 all_latents.append(latent_vectors.cpu().numpy())
                 all_labels.append(labels.numpy())
@@ -183,9 +187,26 @@ class ModelEvaluator:
                 num_to_gen = min(current_config.batch_size, current_config.num_images_for_fid - generated_count)
                 
                 # Generate samples based on model type
-                if model_name == 'CS-WAE' or hasattr(model, 'encode_to_distribution'):
-                    # Sample from CS-WAE priors (both regular and ablation)
-                    # Use appropriate config based on model type
+                if hasattr(model, 'sample_from_class_prior'):
+                    # F-CS-WAE and FCSWAEAblation: sample_from_class_prior returns (z_c, z_s)
+                    random_classes = torch.randint(0, self.n_classes, (num_to_gen,), device=self.device)
+                    z_c_list, z_s_list = [], []
+                    for class_idx in random_classes:
+                        z_c_i, z_s_i = model.sample_from_class_prior(
+                            class_idx.item(), 1, self.device
+                        )
+                        z_c_list.append(z_c_i)
+                        if z_s_i is not None:
+                            z_s_list.append(z_s_i)
+                    z_c = torch.cat(z_c_list, dim=0)
+                    if z_s_list:
+                        z_s = torch.cat(z_s_list, dim=0)
+                        dec_in = torch.cat([z_c, z_s], dim=1)
+                    else:
+                        dec_in = z_c
+                    generated_images = model.decoder(dec_in)
+                elif hasattr(model, 'encode_to_distribution'):
+                    # Original CS-WAE and CS-WAE ablation
                     current_config = ablation_config if hasattr(model, 'variant_config') else config
                     random_classes = torch.randint(0, self.n_classes, (num_to_gen,), device=self.device)
                     
@@ -203,6 +224,15 @@ class ModelEvaluator:
                         z_p = mobius_reparam(eps, normalized_prior_mus[random_classes], 
                                            torch.full((num_to_gen,), model.rho_p, device=self.device))
                     generated_images = model.decoder(z_p)
+                elif hasattr(model, 'generate'):
+                    # Conditional extended baselines: ConditionalVAE, ConditionalWAE_MMD, GaussianClassPriorWAE
+                    random_classes = torch.randint(0, self.n_classes, (num_to_gen,), device=self.device)
+                    generated_images = model.generate(random_classes, self.device)
+                elif hasattr(model, 'encode') and hasattr(model, 'decoder'):
+                    # Non-generative extended baselines: ResNetAE, AEWithCE, etc.
+                    # Sample from standard Gaussian and decode as a proxy for FID
+                    z = torch.randn(num_to_gen, model.latent_dim, device=self.device)
+                    generated_images = model.decoder(z)
                 elif model_name in ['VAE', 'WAE-MMD']:
                     # Sample from standard Gaussian
                     z = torch.randn(num_to_gen, config.latent_dim, device=self.device)

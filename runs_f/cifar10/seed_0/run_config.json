@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-06-24T19:50:03.783669",
+  "seed": 0,
+  "config": {
+    "dataset": "cifar10",
+    "epochs": 300,
+    "n_centers": 1,
+    "seed": 0,
+    "backbone": "resnet18"
+  },
+  "dataset": "cifar10",
+  "epochs": 300,
+  "n_centers": 1,
+  "backbone": "resnet18"
+}
