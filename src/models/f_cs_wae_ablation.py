@@ -238,6 +238,7 @@ class FCSWAEAblation(nn.Module):
         self.semantic_dim       = semantic_dim or cfg.semantic_dim
         self.style_dim          = style_dim    or cfg.style_dim
         self.n_classes          = n_classes    or cfg.n_classes
+        self.n_centers          = 1
         in_channels             = in_channels  or cfg.in_channels
         image_size              = image_size   or cfg.image_size
 

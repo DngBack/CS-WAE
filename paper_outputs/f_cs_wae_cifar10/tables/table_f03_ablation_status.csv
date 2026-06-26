@@ -1,0 +1,10 @@
+Key,Variant,Status,ACC,NMI,ARI,FID,LPIPS,SSIM,PSNR
+full,F-CS-WAE (Full),completed,0.8149,0.6622193592539084,0.6438409203146145,83.591108052484,0.21881346673965454,0.6973913311958313,21.658735275268555
+no_z_s,No style latent z_s,"interrupted, no metrics",,,,,,,
+no_class_mmd,No supervised class MMD,not completed,,,,,,,
+no_style_mmd,No style MMD,not completed,,,,,,,
+no_classifier,No auxiliary classifier,not completed,,,,,,,
+gaussian_class_prior,Euclidean Gaussian class prior,not completed,,,,,,,
+vmf_class_prior,vMF class prior,not completed,,,,,,,
+single_center,Single center per class,not completed,,,,,,,
+learnable_centers,Learnable class centers,not completed,,,,,,,

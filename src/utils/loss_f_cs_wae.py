@@ -58,6 +58,41 @@ def mmd_euclidean(q: torch.Tensor, p: torch.Tensor) -> torch.Tensor:
     return mmd_val / len(_SIGMAS)
 
 
+def _sample_class_prior_for_loss(model, class_idx: int, n: int, device: torch.device) -> torch.Tensor:
+    if hasattr(model, "_sample_prior_z_c"):
+        return model._sample_prior_z_c(class_idx, n, device)
+
+    normalized_centers = F.normalize(model.ema_centers, p=2, dim=-1)
+    if model.n_centers == 1:
+        center = normalized_centers[class_idx, 0].unsqueeze(0).expand(n, -1)
+    else:
+        r_idx = torch.randint(0, model.n_centers, (n,), device=device)
+        center = normalized_centers[class_idx][r_idx]
+    rho = torch.full((n,), model.rho_p, device=device)
+    eps = sample_uniform_sphere(n, model.semantic_dim, device=device)
+    return mobius_reparam(eps, center, rho)
+
+
+def _sample_prior_mixture_for_loss(model, n: int, device: torch.device) -> torch.Tensor:
+    if hasattr(model, "_sample_prior_z_c"):
+        rand_k = torch.randint(0, model.n_classes, (n,), device=device)
+        return torch.cat(
+            [model._sample_prior_z_c(k.item(), 1, device) for k in rand_k],
+            dim=0,
+        )
+
+    normalized_centers = F.normalize(model.ema_centers, p=2, dim=-1)
+    rand_k = torch.randint(0, model.n_classes, (n,), device=device)
+    if model.n_centers == 1:
+        center_mix = normalized_centers[rand_k, 0]
+    else:
+        rand_r = torch.randint(0, model.n_centers, (n,), device=device)
+        center_mix = normalized_centers[rand_k, rand_r]
+    rho_mix = torch.full((n,), model.rho_p, device=device)
+    eps_mix = sample_uniform_sphere(n, model.semantic_dim, device=device)
+    return mobius_reparam(eps_mix, center_mix, rho_mix)
+
+
 # ---------------------------------------------------------------------------
 # Main loss function
 # ---------------------------------------------------------------------------
@@ -116,22 +151,13 @@ def calculate_f_cs_wae_loss(
     # ------------------------------------------------------------------ #
     L_class = torch.tensor(0.0, device=device)
     if alpha > 0.0:
-        normalized_centers = F.normalize(model.ema_centers, p=2, dim=-1)  # (K, R, d_c)
         count = 0
         for k in range(model.n_classes):
             mask = y == k
             if mask.sum() < 2:
                 continue
             n_k = mask.sum().item()
-            # Pick center (single-center: R=1; multi-center: random pick)
-            if model.n_centers == 1:
-                center_k = normalized_centers[k, 0].unsqueeze(0).expand(n_k, -1)
-            else:
-                r_idx = torch.randint(0, model.n_centers, (n_k,), device=device)
-                center_k = normalized_centers[k][r_idx]
-            rho_k = torch.full((n_k,), model.rho_p, device=device)
-            eps_k = sample_uniform_sphere(n_k, model.semantic_dim, device=device)
-            z_p_k = mobius_reparam(eps_k, center_k, rho_k)
+            z_p_k = _sample_class_prior_for_loss(model, k, n_k, device)
             L_class = L_class + mmd_loss(z_c[mask], z_p_k)
             count += 1
         if count > 0:
@@ -142,17 +168,8 @@ def calculate_f_cs_wae_loss(
     # ------------------------------------------------------------------ #
     L_agg = torch.tensor(0.0, device=device)
     if beta > 0.0:
-        normalized_centers = F.normalize(model.ema_centers, p=2, dim=-1)
         B = x.shape[0]
-        rand_k = torch.randint(0, model.n_classes, (B,), device=device)
-        if model.n_centers == 1:
-            center_mix = normalized_centers[rand_k, 0]           # (B, d_c)
-        else:
-            rand_r = torch.randint(0, model.n_centers, (B,), device=device)
-            center_mix = normalized_centers[rand_k, rand_r]      # (B, d_c)
-        rho_mix = torch.full((B,), model.rho_p, device=device)
-        eps_mix = sample_uniform_sphere(B, model.semantic_dim, device=device)
-        z_p_mix = mobius_reparam(eps_mix, center_mix, rho_mix)
+        z_p_mix = _sample_prior_mixture_for_loss(model, B, device)
         L_agg = mmd_loss(z_c, z_p_mix)
 
     # ------------------------------------------------------------------ #
