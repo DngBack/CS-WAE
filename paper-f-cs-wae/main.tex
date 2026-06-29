@@ -33,7 +33,7 @@
 
 \title{\vspace{-1.0em}
 F-CS-WAE: Factorized Class-Structured Spherical Cauchy Wasserstein Auto-Encoders
-for Label-Guided Generative Clustering
+with Representation-Aware Sampling for Label-Guided Generative Clustering
 \vspace{-0.3em}}
 
 \author{
@@ -48,7 +48,7 @@ Anonymous Authors\\
 \maketitle
 
 \begin{abstract}
-Generative clustering requires a latent space that is simultaneously discriminative, reconstructive, and samplable. These requirements often conflict: a representation can form clean clusters while decoding poor prior samples, or reconstruct images accurately while providing little class structure. We study this tension through \ours, a factorized class-structured Wasserstein auto-encoder that separates a hyperspherical semantic latent $\zc\in\Sph^{d_{\mathrm{c}}-1}$ from a Euclidean style latent $\zs\in\R^{d_{\mathrm{s}}}$. The semantic component is regularized by class-conditional Spherical Cauchy priors on the hypersphere, while the style component is matched to a Gaussian prior using MMD. A four-phase schedule first learns reconstruction, then gradually introduces style matching, auxiliary semantic classification, and semantic prior alignment. On CIFAR-10, \ours achieves $80.87\pm0.52\%$ clustering accuracy over three seeds with FID $83.04\pm0.86$, substantially improving over available VAE, WAE-MMD, VaDE, and single-latent baselines under the repository protocol. On MNIST, \ours reaches $99.15\%$ clustering accuracy and strong reconstruction quality, but a diagnostic analysis reveals a conditional prior mismatch: the global style aggregate resembles $N(0,I)$, yet style codes remain class-dependent, causing naive independent prior samples to decode poorly. This failure mode is not incidental; it exposes a central design issue in factorized generative clustering. We therefore present \ours as both a strong empirical model and a diagnostic framework for studying when semantic/style factorization improves or harms sampling. The current evidence suggests that AAAI-level claims should combine clustering gains with conditional style alignment, rather than relying on clustering metrics alone.
+Generative clustering requires a latent space that is simultaneously discriminative, reconstructive, and samplable. These requirements often conflict: a representation can form clean clusters while decoding poor prior samples, or reconstruct images accurately while providing little class structure. We study this tension through \ours, a factorized class-structured Wasserstein auto-encoder that separates a hyperspherical semantic latent $\zc\in\Sph^{d_{\mathrm{c}}-1}$ from a Euclidean style latent $\zs\in\R^{d_{\mathrm{s}}}$. The semantic component is regularized by class-conditional Spherical Cauchy priors, while the style component is matched to a Gaussian aggregate using MMD. On CIFAR-10, \ours achieves $80.87\pm0.52\%$ clustering accuracy over three seeds with FID $83.04\pm0.86$, substantially improving over available VAE, WAE-MMD, VaDE, and single-latent baselines under the repository protocol. On MNIST, \ours reaches $99.15\%$ clustering accuracy and strong reconstruction quality, but naive independent sampling $\zs\sim N(0,I)$ yields poor class-conditional generations. We diagnose the cause: the global style aggregate resembles $N(0,I)$, yet style codes remain class-dependent. We then test representation-aware sampling strategies and show that a class-conditional diagonal style prior restores class-consistent generation in a lightweight self-consistency test, improving generated-image self-accuracy from $15\%$ for global Gaussian style sampling to $100\%$ for class-conditional style sampling on a diagnostic subset. The resulting paper claim is sharper than clustering alone: factorized Spherical Cauchy WAEs need sampling rules that respect the learned semantic/style representation. \ours{} is therefore both a strong label-guided clustering model and a diagnostic framework for designing class-conditional generative sampling in factorized latent spaces.
 \end{abstract}
 
 \section{Introduction}
@@ -63,7 +63,7 @@ We introduce \ours, a factorized class-structured Spherical Cauchy WAE. The mode
 
 The empirical picture is nuanced. On CIFAR-10, the factorized model dramatically improves clustering over available baselines and maintains substantially better sample quality than the older single-latent ResNet variant. On MNIST, it obtains almost perfect clustering and excellent reconstructions, but naive prior samples are worse than those of \simple{}. A targeted diagnostic shows why: $\zs$ is globally matched to a Gaussian, but remains conditionally dependent on class. Thus, sampling $\zc$ from a class prior and $\zs$ independently from $N(0,I)$ creates latent pairs that the decoder did not learn to map to realistic images.
 
-This paper is therefore written with a conservative claim. \ours{} is a strong factorized model for label-guided clustering, and its failure mode is scientifically useful: it identifies conditional style mismatch as a central obstacle for making factorized WAE models simultaneously cluster-friendly and sample-friendly. For a final AAAI-27 submission, we argue that the correct target is not merely higher ACC/NMI/ARI, but a factorized objective that preserves clustering gains while repairing conditional decoding.
+Rather than treating this only as a limitation, we use it to refine the generative story. If the learned representation is factorized into semantic and style variables, the sampling rule must also be factorized in a representation-aware way. We therefore test class-conditional style sampling rules derived from the encoded style bank. A simple diagonal Gaussian style prior per class gives clean, class-consistent MNIST samples while preserving more diversity than a class mean style code. This paper is therefore written with a stronger but still honest claim: \ours{} improves label-guided clustering, and reliable generation requires conditional style sampling rather than an unconditional style prior.
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -71,7 +71,7 @@ This paper is therefore written with a conservative claim. \ours{} is a strong f
     \item We introduce a four-phase training schedule that separates reconstruction learning, style regularization, semantic supervision, and class-prior alignment.
     \item We provide repository-local empirical evidence on CIFAR-10 and MNIST, including multi-seed CIFAR-10 results and a direct comparison against a single-latent \simple{} variant.
     \item We diagnose a conditional prior mismatch in the MNIST model, showing that global style MMD is insufficient for reliable class-conditional generation.
-    \item We outline the method extension required for an AAAI-27-strength paper: conditional style priors and per-class style matching.
+    \item We evaluate representation-aware sampling strategies and show that a class-conditional diagonal style prior repairs class consistency in generated samples in a post-hoc diagnostic.
 \end{itemize}
 
 \section{Position in the Field}
@@ -229,7 +229,7 @@ The schedule is designed to prevent early regularization from destroying reconst
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Sampling}
+\subsection{Representation-Aware Sampling}
 
 For class-conditional generation, the current model samples
 \begin{equation}
@@ -239,7 +239,16 @@ For class-conditional generation, the current model samples
     \qquad
     \hat{x}=D_\theta([\zc,\zs]).
 \end{equation}
-This is the intended factorized generative story. The diagnostic in Section~\ref{sec:failure} shows that it is not fully achieved on MNIST: $\zs$ remains class-dependent. This finding motivates the conditional style extension in Section~\ref{sec:future}.
+This is the naive factorized generative story. The diagnostic in Section~\ref{sec:failure} shows that it is not fully achieved on MNIST: $\zs$ remains class-dependent. We therefore also evaluate representation-aware alternatives:
+\begin{align}
+    \zs &= \bar{\mu}_{s,k}
+    &&\text{(class mean style)},\\
+    \zs &\sim N(\bar{\mu}_{s,k}, \tau^2\mathrm{diag}(\bar{\sigma}_{s,k}^2))
+    &&\text{(class-conditional diagonal style)},\\
+    \zs &\sim \mathrm{Empirical}\{ \mu_s(x_i): y_i=k\}
+    &&\text{(style-bank upper bound)}.
+\end{align}
+The class statistics are estimated from encoded training samples. The scalar $\tau$ controls the style temperature. In the MNIST diagnostic, $\tau=0.25$ gives the cleanest class-consistent samples, while larger temperatures increase diversity but also introduce visible artifacts. This sampling rule does not require retraining the checkpoint, but it changes the generative prior from an unconditional style prior to a conditional factorized prior.
 
 \section{Experiments}
 
@@ -345,23 +354,6 @@ Method & ACC & NMI & ARI & FID & LPIPS & SSIM & PSNR \\
 \end{tabular}
 \end{table}
 
-\begin{figure*}[t]
-\centering
-\begin{subfigure}[t]{0.48\linewidth}
-\centering
-\includegraphics[width=\linewidth]{mnist_cs_prior_samples.png}
-\caption{\simple{} prior samples.}
-\end{subfigure}
-\hfill
-\begin{subfigure}[t]{0.48\linewidth}
-\centering
-\includegraphics[width=\linewidth]{mnist_fcs_prior_samples.png}
-\caption{\ours{} naive independent prior samples.}
-\end{subfigure}
-\caption{MNIST generation comparison. The factorized model clusters and reconstructs better, but independent sampling of $\zs\sim N(0,I)$ creates unrealistic or class-mismatched samples.}
-\label{fig:mnist-prior-comparison}
-\end{figure*}
-
 \section{Failure Analysis: Conditional Style Mismatch}
 \label{sec:failure}
 
@@ -371,23 +363,64 @@ On 2,048 MNIST test samples encoded by the \ours{} seed-0 checkpoint, the poster
 
 This explains the generation failure. During training, the decoder sees pairs $(\zc,\zs)$ from the same image. If $\zs$ contains class information, then the decoder learns class-specific interactions between $\zc$ and $\zs$. During generation, the current prior samples $\zc$ from class $k$ but samples $\zs$ independently from the global Gaussian. This creates combinations that may never occur under the encoded posterior.
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.68\linewidth,height=0.62\textheight,keepaspectratio]{mnist_style_prior_diagnostic.png}
-\caption{MNIST style-prior diagnostic. For each digit, three rows compare $\zs\sim N(0,I)$, $\zs=0$, and empirical posterior $\zs$ sampled from the same class. Empirical same-class style codes recover clean digits; independent Gaussian style codes often decode as broken or wrong-class samples.}
-\label{fig:style-diagnostic}
-\end{figure}
+The conclusion is direct: current \ours{} improves semantic clustering, but its intended factorization is incomplete if generation uses a class-independent style prior. The fix is not to discard the factorized representation, but to sample style in a way that respects the conditional structure that the model actually learned.
 
-Figure~\ref{fig:style-diagnostic} visualizes the issue. Empirical same-class style codes decode cleanly, while independent Gaussian styles often create broken samples. Setting $\zs=0$ also fails to preserve class semantics. The conclusion is direct: current \ours{} improves semantic clustering, but its intended factorization is incomplete because the style latent is not class-invariant.
+\section{Representation-Aware Sampling Results}
+\label{sec:sampling-results}
+
+We next test whether generation can be improved by changing the sampling rule rather than retraining the model. The experiment uses the trained MNIST seed-0 checkpoint. We estimate class-conditional style statistics from encoded training examples, then sample $\zc$ from the learned Spherical Cauchy class prior and vary only the choice of $\zs$. To obtain a lightweight class-consistency metric, generated images are passed back through the \ours{} encoder and auxiliary classifier; the target class is the class used to sample $\zc$. This metric is not a replacement for FID, but it is useful for detecting the specific failure mode observed above.
+
+\begin{table}[t]
+\centering
+\caption{MNIST representation-aware sampling diagnostics. Self-ACC is computed by generating images from each class prior, re-encoding them with the trained \ours{} model, and checking whether the auxiliary semantic classifier predicts the intended class. Diversity is the mean per-pixel standard deviation over generated images.}
+\label{tab:sampling}
+\begin{tabular}{lrrr}
+\toprule
+Sampling strategy & Self-ACC $\uparrow$ & Confidence $\uparrow$ & Diversity $\uparrow$ \\
+\midrule
+Global Gaussian $\zs\sim N(0,I)$ & 0.15 & 0.934 & 0.151 \\
+Class mean $\zs=\bar{\mu}_{s,k}$ & 1.00 & 1.000 & 0.132 \\
+Class diagonal Gaussian, $\tau=0.25$ & 1.00 & 1.000 & 0.135 \\
+Empirical same-class style bank & 1.00 & 1.000 & 0.182 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:sampling} confirms the visual diagnosis. The original global Gaussian style sampler has only $15\%$ self-accuracy: generated images often decode as the wrong class or as ambiguous shapes. A class mean style code gives perfect self-accuracy but collapses within-class variation. The empirical style bank is the most diverse, but it is an oracle-like sampler that reuses encoded training styles. The best paper-facing compromise is the class-conditional diagonal Gaussian with temperature $\tau=0.25$: it is a true parametric sampler, restores class consistency, and preserves more variation than a class mean while producing cleaner samples than higher-temperature variants.
+
+\begin{figure*}[t]
+\centering
+\begin{subfigure}[t]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{mnist_sampling_class_mean.png}
+\caption{Class mean style.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{mnist_sampling_class_diag_t025.png}
+\caption{Class diagonal style, $\tau=0.25$.}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{mnist_sampling_class_empirical.png}
+\caption{Empirical same-class style bank.}
+\end{subfigure}
+\caption{MNIST generation under representation-aware style sampling. The class mean sampler is clean but nearly deterministic; the diagonal class-conditional sampler introduces controlled variation; empirical style-bank sampling is a useful upper bound but less attractive as a standalone generative prior.}
+\label{fig:sampling-strategies}
+\end{figure*}
+
+The key scientific point is that the sampling rule must match the learned representation. The model did learn useful semantic and style coordinates, but the original sampler ignored the conditional structure of the style coordinate. Once style is sampled conditionally on the target semantic class, the same decoder produces coherent class-conditional samples. This supports a refined claim for the paper: \ours{} should be evaluated not only by its latent factorization and clustering performance, but also by whether its sampling distribution respects the learned factorization.
 
 \section{Toward an AAAI-27-Strength Method}
 \label{sec:future}
 
-The current draft supports the following claim: factorized semantic/style modeling can greatly improve clustering, but naive marginal style matching is insufficient for reliable class-conditional generation. For an AAAI-27 submission, the method should close this gap. We propose three concrete extensions.
+The current draft supports the following claim: factorized semantic/style modeling can greatly improve clustering, but naive marginal style matching is insufficient for reliable class-conditional generation. The post-hoc sampling experiment closes part of this gap by using a class-conditional style prior at generation time. For an AAAI-27 submission, the method should integrate this prior into the model and evaluate it with full FID, multi-seed runs, and ablations. We propose three concrete extensions.
 
 \subsection{Conditional Style Prior}
 
-Replace the independent prior $\zs\sim N(0,I)$ with a class-conditional style prior:
+Integrate the post-hoc class-conditional sampler as the default generative prior:
 \begin{equation}
     \zs \sim p(\zs\mid y=k).
 \end{equation}
@@ -395,7 +428,7 @@ The simplest version uses an EMA Gaussian per class:
 \begin{equation}
     p(\zs\mid y=k)=N(\bar{\mu}_{s,k},\mathrm{diag}(\bar{\sigma}_{s,k}^2)).
 \end{equation}
-This extension matches the empirical finding that style is currently class-dependent. It is likely to improve samples quickly, but it changes the interpretation: style is no longer strictly class-independent. The paper can still make a strong claim if it frames the model as a \emph{conditional factorized prior} rather than a fully disentangled semantic/style model.
+This extension matches the empirical finding that style is currently class-dependent and is directly supported by Table~\ref{tab:sampling}. It changes the interpretation: style is no longer strictly class-independent. The paper can still make a strong claim if it frames the model as a \emph{conditional factorized prior} rather than a fully disentangled semantic/style model. The next evaluation step is to regenerate FID images using this sampler instead of the global Gaussian sampler.
 
 \subsection{Per-Class Style MMD}
 
@@ -419,7 +452,7 @@ A complementary approach is to penalize dependence between $\zs$ and class label
 
 A paper based only on ACC/NMI/ARI would be vulnerable because the model is explicitly generative. The final AAAI-level claim should be:
 \begin{quote}
-    Factorized Spherical Cauchy WAE models improve label-guided clustering, but require conditional style alignment to preserve prior sample quality; with this alignment, the model achieves strong clustering and competitive generation under a unified class-conditional generative objective.
+    Factorized Spherical Cauchy WAE models improve label-guided clustering, and representation-aware class-conditional style sampling converts the learned semantic/style representation into reliable class-conditional generation.
 \end{quote}
 This claim is stronger than a pure clustering result because it contributes both a model and a diagnosis of why factorization can fail.
 
@@ -432,16 +465,16 @@ On CIFAR-10, \ours{} improves both clustering and FID relative to the available 
 The MNIST \ours{} checkpoint has excellent SSIM, PSNR, and LPIPS, yet poor prior samples. This confirms a standard lesson in generative modeling: reconstruction quality is not equivalent to sample quality. A decoder can reconstruct encoded latents that lie on the posterior manifold while failing on samples from the intended prior.
 
 \paragraph{Why the failure is useful.}
-The failure is not merely a bad hyperparameter setting. It identifies a missing conditional constraint in the factorized objective. Global matching $q(\zs)\approx N(0,I)$ does not imply $q(\zs\mid y=k)\approx N(0,I)$ for all $k$, nor does it imply $\zs\perp y$. This is precisely the gap that conditional style priors or per-class style MMD should close.
+The failure is not merely a bad hyperparameter setting. It identifies a missing conditional constraint in the factorized objective. Global matching $q(\zs)\approx N(0,I)$ does not imply $q(\zs\mid y=k)\approx N(0,I)$ for all $k$, nor does it imply $\zs\perp y$. The sampling experiment in Section~\ref{sec:sampling-results} shows that this gap can be addressed at generation time by sampling $\zs$ conditionally on class. This makes the failure useful: it points directly to a better generative prior.
 
 \paragraph{Limitations of the current draft.}
-The completed evidence is not yet sufficient for a final AAAI-27 submission. CIFAR-10 has strong three-seed results, but MNIST and Fashion-MNIST need full multi-seed factorized runs. Ablations are incomplete. The conditional style fix proposed in Section~\ref{sec:future} must be implemented and evaluated. The current paper draft is therefore a detailed research manuscript and submission plan, not a finished empirical package.
+The completed evidence is not yet sufficient for a final AAAI-27 submission. CIFAR-10 has strong three-seed results, but MNIST and Fashion-MNIST need full multi-seed factorized runs. Ablations are incomplete. The representation-aware sampler is currently evaluated with visual diagnostics and self-consistency, not with full FID. The next version should integrate class-conditional style sampling into the evaluator, regenerate FID images, and compare against the global Gaussian sampler under the same protocol.
 
 \section{Conclusion}
 
-We presented \ours, a factorized class-structured Spherical Cauchy WAE for label-guided generative clustering. The model separates semantic and style latents, aligns semantics with hyperspherical class priors, and regularizes style toward a Gaussian prior through MMD. Completed CIFAR-10 experiments show strong and stable clustering performance with favorable generation metrics relative to available baselines. MNIST diagnostics reveal a deeper issue: marginal style matching can hide class dependence in the style latent, causing naive independent prior samples to decode poorly.
+We presented \ours, a factorized class-structured Spherical Cauchy WAE for label-guided generative clustering. The model separates semantic and style latents, aligns semantics with hyperspherical class priors, and regularizes style toward a Gaussian aggregate through MMD. Completed CIFAR-10 experiments show strong and stable clustering performance with favorable generation metrics relative to available baselines. MNIST diagnostics reveal a deeper issue: marginal style matching can hide class dependence in the style latent, causing naive independent prior samples to decode poorly.
 
-The main lesson is that factorization is not obtained by architectural separation alone. A factorized generative model needs conditional distributional constraints that match how sampling will be performed. For an AAAI-27-strength submission, the next step is therefore clear: preserve the clustering gains of \ours{} while adding conditional style alignment to make class-conditional generation reliable.
+The main lesson is that factorization is not obtained by architectural separation alone. A factorized generative model needs a sampling distribution that matches the conditional structure learned by the representation. The post-hoc class-conditional style sampler is a simple and effective step in that direction: it restores class-consistent MNIST generation in the diagnostic setting while preserving the clustering gains of \ours{}. For an AAAI-27-strength submission, the next step is to formalize this sampler as the default conditional prior and evaluate it with full FID, matched baselines, and ablations.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
@@ -456,6 +489,7 @@ All quantitative claims in this draft are taken from local repository artifacts:
     \item CIFAR-10 summary tables and figures: \texttt{paper\_outputs/f\_cs\_wae\_cifar10/}.
     \item MNIST \ours{} metrics and images: \texttt{runs\_f/mnist/seed\_0/}.
     \item MNIST \simple{} metrics and images: \texttt{runs/mnist/seed\_0/}.
+    \item MNIST sampling diagnostics: \texttt{paper-f-cs-wae/experiments/mnist\_sampling/}.
 \end{itemize}
 
 \section{AAAI-27 Submission Checklist}
@@ -463,7 +497,8 @@ All quantitative claims in this draft are taken from local repository artifacts:
 Before submission, the following experiments should be completed:
 \begin{itemize}
     \item Run \ours{} on MNIST and Fashion-MNIST for seeds 0, 1, 2.
-    \item Implement conditional style prior and per-class style MMD.
+    \item Integrate conditional style prior into the official evaluator and compute full FID.
+    \item Implement per-class style MMD as a training-time regularizer.
     \item Run ablations: no style latent, no semantic MMD, no style MMD, no auxiliary classifier, conditional style prior, per-class style MMD, style adversary, style dimension sweep.
     \item Recompute all FID directories after changing sampling.
     \item Add a final benchmark table with matched seeds for all baselines.

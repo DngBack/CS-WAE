@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex main"] 1782603395 "main.aux" "main.bbl" "main" 1782603400
+["bibtex main"] 1782722935 "main.aux" "main.bbl" "main" 1782722939
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "main.aux" 1782603400 12208 65a4075b9a157a65fbd5c7a07bbdd449 "pdflatex"
+  "main.aux" 1782722938 12698 35db83f20ad7a9405c38f89d2343f923 "pdflatex"
   "references.bib" 1782603254 4678 023851c5a5a9dd07cb0aa05d6f3a9576 ""
   (generated)
   "main.bbl"
   "main.blg"
-["pdflatex"] 1782603395 "main.tex" "main.pdf" "main" 1782603400
+["pdflatex"] 1782722935 "main.tex" "main.pdf" "main" 1782722939
   "/etc/texmf/web2c/texmf.cnf" 1769138956 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -155,13 +155,13 @@
   "figures//cifar10_main_metrics.png" 1782603042 90874 98d1c456fb3a60e9d28e0a1726ca33ac ""
   "figures//cifar10_style_semantic_grid.png" 1782603042 354319 18bc5cecbb0b0c85438c404a1429642f ""
   "figures//cifar10_training_curves.png" 1782603042 249215 b1e2da21f60c0742ed39d15892231794 ""
-  "figures//mnist_cs_prior_samples.png" 1782603052 97330 18959aba6918252db9333d5e3412c3aa ""
-  "figures//mnist_fcs_prior_samples.png" 1782603052 140687 ceba10279875f23a03a2a09e4dc02593 ""
-  "figures//mnist_style_prior_diagnostic.png" 1782603052 311328 67287a5858b9306312fe6cdbc92e66f1 ""
-  "main.aux" 1782603400 12208 65a4075b9a157a65fbd5c7a07bbdd449 "pdflatex"
-  "main.bbl" 1782603395 4871 8d42ed5156d47cb64806f996798fbeeb "bibtex main"
-  "main.out" 1782603400 4338 f2aae7135b4c65c3223e9ce1015d0610 "pdflatex"
-  "main.tex" 1782603385 32341 be93a6d1c59b48924995ef2494571c4a ""
+  "figures//mnist_sampling_class_diag_t025.png" 1782722732 101349 6fd68a9e87c90fdb8f6acb84aaf2a58b ""
+  "figures//mnist_sampling_class_empirical.png" 1782721658 99732 1104185d21b8bf53ce40ef06f28a1c03 ""
+  "figures//mnist_sampling_class_mean.png" 1782722732 75435 fa7b27a367c2c593af62111553c1a289 ""
+  "main.aux" 1782722938 12698 35db83f20ad7a9405c38f89d2343f923 "pdflatex"
+  "main.bbl" 1782722935 4871 8d42ed5156d47cb64806f996798fbeeb "bibtex main"
+  "main.out" 1782722938 4681 b7272726ea35186ab6577a42ff3959c6 "pdflatex"
+  "main.tex" 1782722812 36876 45886c6f4e635e0bc0c2c1d4f9b6853f ""
   (generated)
   "main.aux"
   "main.log"

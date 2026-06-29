@@ -1,0 +1,12 @@
+[
+  {
+    "strategy": "prior_class_diag_t0.25",
+    "z_s": "class_diag_t0.25",
+    "z_c": "prior",
+    "self_acc": 1.0,
+    "self_conf": 0.9999977946281433,
+    "min_class_acc": 1.0,
+    "pixel_diversity": 0.1345449537038803,
+    "mean_intensity": 0.12044962495565414
+  }
+]

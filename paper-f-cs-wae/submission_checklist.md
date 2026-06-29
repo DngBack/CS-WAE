@@ -10,9 +10,11 @@
 
 ## Method Fixes Needed for a Strong AAAI Story
 
-- Implement class-conditional style prior:
+- Integrate class-conditional style prior into the official generation/evaluation path:
   - `p(z_s | y=k) = N(mu_s_k, diag(sigma_s_k^2))`, estimated by EMA or learned parameters.
   - Update sampling code so class-conditional generation uses the conditional style prior.
+  - Use temperature sweep `tau = 0.25, 0.5, 0.75, 1.0`.
+  - Current post-hoc diagnostic suggests `tau = 0.25` is the best first candidate for clean MNIST samples.
 - Implement per-class style MMD:
   - `mean_k MMD(q(z_s | y=k), N(0,I))`.
   - Compare against current global-only style MMD.
@@ -52,13 +54,14 @@ Prior structure sweep:
 - Prior samples:
   - CS-WAE/simple baseline.
   - current F-CS-WAE.
-  - fixed F-CS-WAE with conditional style alignment.
+  - F-CS-WAE with class-conditional diagonal style sampling.
 - Latent UMAP:
   - semantic centers and encoded test data.
-- Style diagnostic:
+- Style/sampling diagnostic:
   - `z_s ~ N(0,I)`.
+  - class mean style.
+  - class-conditional diagonal Gaussian style.
   - `z_s` empirical same-class posterior.
-  - conditional style prior sample.
 - Ablation trade-off plot:
   - ACC vs FID.
 
@@ -79,3 +82,7 @@ Weak claim to avoid:
 Strong claim to target:
 
 > Factorized Spherical Cauchy WAE improves label-guided generative clustering, and conditional style alignment resolves the prior-sampling failure mode caused by marginal-only style matching.
+
+Current draft claim:
+
+> Factorized Spherical Cauchy WAE improves label-guided clustering, and representation-aware class-conditional style sampling converts the learned semantic/style representation into class-consistent generation in a post-hoc diagnostic.

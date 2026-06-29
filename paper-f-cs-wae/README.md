@@ -23,8 +23,11 @@ MNIST exposes an important limitation:
 
 - F-CS-WAE seed 0 improves clustering and reconstruction strongly.
 - But naive independent prior sampling is worse than CS-WAE because the style latent still carries class information.
+- Post-hoc representation-aware sampling fixes the class-consistency failure:
+  - global Gaussian style sampling self-ACC: `0.15`
+  - class-conditional diagonal style sampling with temperature `0.25` self-ACC: `1.00`
 
-This is written as a core diagnostic insight, not hidden. For an AAAI-level final submission, the next method step should be conditional style alignment.
+This is written as a core diagnostic insight plus a sampling fix. For an AAAI-level final submission, the next method step should be to integrate class-conditional style sampling into the evaluator and run full FID/multi-seed experiments.
 
 ## Build
 
@@ -47,4 +50,4 @@ The current preamble uses a generic article style so it can compile without the 
 
 ## Important Caveat
 
-Do not submit this exact draft without running the missing experiments in `submission_checklist.md`. It is designed as a detailed AAAI-oriented manuscript scaffold, not as a finished empirical package.
+Do not submit this exact draft without running the missing experiments in `submission_checklist.md`. It now contains a concrete sampling fix and regenerated diagnostic figures, but still needs full FID and matched multi-seed ablations.
