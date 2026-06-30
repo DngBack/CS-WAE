@@ -45,9 +45,15 @@ class FCSWAETrainer:
     # Phase weight schedule
     # ------------------------------------------------------------------
 
-    def get_phase_weights(self, epoch: int) -> tuple[float, float, float, float]:
+    def get_phase_weights(self, epoch: int) -> tuple[float, float, float, float, float]:
         """
-        Return (alpha, beta, gamma, eta) for the given epoch.
+        Return (alpha, beta, gamma, delta, eta) for the given epoch.
+
+        alpha = supervised class MMD weight
+        beta  = aggregated semantic MMD weight
+        gamma = global style MMD weight
+        delta = per-class style MMD weight (new: enforces z_s ⊥ y)
+        eta   = auxiliary classifier weight
 
         Epoch is 0-indexed.
         """
@@ -61,19 +67,21 @@ class FCSWAETrainer:
         alpha_f = cfg.alpha_final    # 2.0
         beta_f  = cfg.beta_final     # 5.0
         gamma_f = cfg.gamma_final    # 1.0
+        delta_f = cfg.delta_final    # 1.0
         eta_i   = cfg.eta_init       # 0.1
         eta_f   = cfg.eta_final      # 0.3
 
         if e < A_end:
             # Phase A: reconstruction only
-            return 0.0, 0.0, 0.0, 0.0
+            return 0.0, 0.0, 0.0, 0.0, 0.0
 
         elif e < B_end:
-            # Phase B: style + cls ramp up
+            # Phase B: style (global + per-class) + cls ramp up
             t = (e - A_end) / (B_end - A_end)   # 0 → 1
             gamma = gamma_f * t
+            delta = delta_f * t
             eta   = eta_i + (0.2 - eta_i) * t   # 0.1 → 0.2
-            return 0.0, 0.0, gamma, eta
+            return 0.0, 0.0, gamma, delta, eta
 
         elif e < C_end:
             # Phase C: class + agg MMD ramp 0 → half-final
@@ -81,14 +89,14 @@ class FCSWAETrainer:
             alpha = (alpha_f / 2.0) * t
             beta  = (beta_f  / 2.0) * t
             eta   = 0.2 + (eta_f - 0.2) * t     # 0.2 → 0.3
-            return alpha, beta, gamma_f, eta
+            return alpha, beta, gamma_f, delta_f, eta
 
         else:
             # Phase D: class + agg MMD ramp half-final → final
             t = min(1.0, (e - C_end) / (D_end - C_end))  # 0 → 1
             alpha = alpha_f / 2.0 + (alpha_f / 2.0) * t
             beta  = beta_f  / 2.0 + (beta_f  / 2.0) * t
-            return alpha, beta, gamma_f, eta_f
+            return alpha, beta, gamma_f, delta_f, eta_f
 
     # ------------------------------------------------------------------
     # Single epoch
@@ -97,10 +105,11 @@ class FCSWAETrainer:
     def train_epoch(self, epoch: int) -> dict[str, float]:
         """Train one epoch. Returns dict of average losses."""
         self.model.train()
-        alpha, beta, gamma, eta = self.get_phase_weights(epoch)
+        alpha, beta, gamma, delta, eta = self.get_phase_weights(epoch)
 
         acc = {k: 0.0 for k in
-               ("total", "rec", "class_mmd", "agg_mmd", "style_mmd", "cls", "var")}
+               ("total", "rec", "class_mmd", "agg_mmd", "style_mmd",
+                "style_cls_mmd", "cls", "var")}
 
         # Buffers for EMA center update (accumulated, detached)
         mu_c_accum: list[torch.Tensor] = []
@@ -108,7 +117,10 @@ class FCSWAETrainer:
 
         pbar = tqdm(
             self.train_loader,
-            desc=f"Epoch {epoch + 1} [α={alpha:.2f} β={beta:.2f} γ={gamma:.2f} η={eta:.2f}]",
+            desc=(
+                f"Epoch {epoch + 1} "
+                f"[α={alpha:.2f} β={beta:.2f} γ={gamma:.2f} δ={delta:.2f} η={eta:.2f}]"
+            ),
         )
 
         for data, labels in pbar:
@@ -123,11 +135,11 @@ class FCSWAETrainer:
 
             # lambda_var is only active once style latent is being trained (phase B+)
             lv = cfg.lambda_var if gamma > 0.0 else 0.0
-            total, L_rec, L_class, L_agg, L_style, L_cls, L_var = (
+            total, L_rec, L_class, L_agg, L_style, L_style_cls, L_cls, L_var = (
                 calculate_f_cs_wae_loss(
                     data, labels, x_hat, z_c, z_s, mu_c, mu_s, logvar_s,
                     self.model, self.loss_fn_vgg,
-                    alpha, beta, gamma, eta, lv,
+                    alpha, beta, gamma, delta, eta, lv,
                 )
             )
 
@@ -135,19 +147,20 @@ class FCSWAETrainer:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.grad_clip)
             self.optimizer.step()
 
-            acc["total"]     += total.item()
-            acc["rec"]       += L_rec.item()
-            acc["class_mmd"] += L_class.item()
-            acc["agg_mmd"]   += L_agg.item()
-            acc["style_mmd"] += L_style.item()
-            acc["cls"]       += L_cls.item()
-            acc["var"]       += L_var.item()
+            acc["total"]         += total.item()
+            acc["rec"]           += L_rec.item()
+            acc["class_mmd"]     += L_class.item()
+            acc["agg_mmd"]       += L_agg.item()
+            acc["style_mmd"]     += L_style.item()
+            acc["style_cls_mmd"] += L_style_cls.item()
+            acc["cls"]           += L_cls.item()
+            acc["var"]           += L_var.item()
 
             pbar.set_postfix({
-                "Loss": f"{total.item():.3f}",
-                "Rec":  f"{L_rec.item():.3f}",
-                "Cls":  f"{L_cls.item():.4f}",
-                "Var":  f"{L_var.item():.4f}",
+                "Loss":    f"{total.item():.3f}",
+                "Rec":     f"{L_rec.item():.3f}",
+                "Cls":     f"{L_cls.item():.4f}",
+                "StyCls":  f"{L_style_cls.item():.4f}",
             })
 
         self.scheduler.step()
@@ -162,8 +175,8 @@ class FCSWAETrainer:
             f"====> Epoch {epoch + 1}  "
             f"Total={avg['total']:.4f}  Rec={avg['rec']:.4f}  "
             f"ClassMMD={avg['class_mmd']:.4f}  AggMMD={avg['agg_mmd']:.4f}  "
-            f"StyleMMD={avg['style_mmd']:.4f}  Cls={avg['cls']:.4f}  "
-            f"Var={avg['var']:.4f}"
+            f"StyleMMD={avg['style_mmd']:.4f}  StyleClsMMD={avg['style_cls_mmd']:.4f}  "
+            f"Cls={avg['cls']:.4f}  Var={avg['var']:.4f}"
         )
         return avg
 

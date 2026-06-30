@@ -1,0 +1,433 @@
+"""
+compute_leakage_diagnostics.py
+
+Compute conditional style leakage diagnostics for any factorized generative model.
+
+Diagnostics (Section 3.4 of paper):
+  1. Global MMD:     MMD²(q(z_s), N(0,I))           — should be ≈0 if global style reg works
+  2. Δ_inter:        mean inter-class style mean sep   — should be ≈0 if z_s ⊥ y
+  3. LP(z_s → y):    linear probe accuracy on z_s      — should be ≈ 1/K (10%) if z_s ⊥ y
+  4. HSIC(z_s, y):   kernel independence test          — should be ≈0 if z_s ⊥ y
+  5. Gen self-ACC:   classifier accuracy on generated  — should be ≈1.0 for class-cond gen
+
+Usage
+-----
+python scripts/compute_leakage_diagnostics.py \\
+    --model-type fcswae \\
+    --checkpoint runs_f/mnist/seed_0/best_model.pth \\
+    --dataset mnist \\
+    --device cpu \\
+    --n-samples 2048 \\
+    --gen-per-class 50
+
+Model types supported: fcswae, vae, waemmd, vade, betavae, factorvae, betatcvae
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from src.datasets.loaders import get_dataloader
+
+
+# ---------------------------------------------------------------------------
+# Kernel helpers
+# ---------------------------------------------------------------------------
+
+def _rbf(x: torch.Tensor, y: torch.Tensor, sigma: float) -> torch.Tensor:
+    dist_sq = torch.cdist(x, y, p=2).pow(2)
+    return torch.exp(-dist_sq / (2.0 * sigma ** 2 + 1e-8))
+
+
+def mmd2_rbf(q: torch.Tensor, p: torch.Tensor) -> float:
+    """Multi-scale RBF MMD² between two Euclidean sample sets."""
+    if q.shape[0] < 2 or p.shape[0] < 2:
+        return 0.0
+    sigmas = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
+    val = 0.0
+    for s in sigmas:
+        kqq = _rbf(q, q, s).mean().item()
+        kpp = _rbf(p, p, s).mean().item()
+        kqp = _rbf(q, p, s).mean().item()
+        val += kqq + kpp - 2.0 * kqp
+    return val / len(sigmas)
+
+
+def hsic(z: torch.Tensor, y: torch.Tensor, sigma_z: float = 1.0) -> float:
+    """Empirical HSIC between continuous z_s and discrete y (one-hot kernel).
+
+    Uses RBF kernel on z and delta kernel on y.
+    Reference: Gretton et al. 2005.
+    """
+    n = z.shape[0]
+    if n < 2:
+        return 0.0
+
+    # Kernel on z: RBF
+    Kz = _rbf(z, z, sigma_z)
+
+    # Kernel on y: delta (= outer equality product)
+    y_vec = y.unsqueeze(1).float()  # (n, 1)
+    Ky = (y_vec == y_vec.T).float()
+
+    # Centre both kernels
+    H = torch.eye(n, device=z.device) - 1.0 / n
+    KzH = Kz @ H
+    KyH = Ky @ H
+    hsic_val = (KzH * KyH.T).sum() / ((n - 1) ** 2)
+    return hsic_val.item()
+
+
+# ---------------------------------------------------------------------------
+# Leakage metrics
+# ---------------------------------------------------------------------------
+
+def compute_global_mmd(z_s: torch.Tensor) -> float:
+    """MMD²(q(z_s), N(0,I))."""
+    z_p = torch.randn_like(z_s)
+    return mmd2_rbf(z_s, z_p)
+
+
+def compute_delta_inter(z_s: torch.Tensor, labels: torch.Tensor, n_classes: int) -> float:
+    """Mean pairwise distance between class-conditional style means.
+
+    Δ_inter = (1 / C(K,2)) * Σ_{j<k} ||μ_s^(j) - μ_s^(k)||₂
+    """
+    class_means = []
+    for k in range(n_classes):
+        mask = labels == k
+        if mask.sum() > 0:
+            class_means.append(z_s[mask].mean(dim=0))
+
+    if len(class_means) < 2:
+        return 0.0
+
+    total = 0.0
+    count = 0
+    for i in range(len(class_means)):
+        for j in range(i + 1, len(class_means)):
+            total += (class_means[i] - class_means[j]).norm().item()
+            count += 1
+    return total / count if count > 0 else 0.0
+
+
+def compute_linear_probe(
+    z_s: torch.Tensor,
+    labels: torch.Tensor,
+    z_s_val: torch.Tensor | None = None,
+    labels_val: torch.Tensor | None = None,
+    n_epochs: int = 100,
+    lr: float = 1e-2,
+) -> float:
+    """Train a linear probe z_s → y and return accuracy.
+
+    Trains on (z_s, labels), evaluates on (z_s_val, labels_val) if provided,
+    else uses the same training set for evaluation (quick estimate).
+    """
+    n_classes = int(labels.max().item()) + 1
+    d = z_s.shape[1]
+    clf = nn.Linear(d, n_classes).to(z_s.device)
+    opt = torch.optim.Adam(clf.parameters(), lr=lr, weight_decay=1e-4)
+
+    for _ in range(n_epochs):
+        logits = clf(z_s.detach())
+        loss = F.cross_entropy(logits, labels)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+
+    clf.eval()
+    with torch.no_grad():
+        z_eval = z_s_val if z_s_val is not None else z_s
+        l_eval = labels_val if labels_val is not None else labels
+        preds = clf(z_eval).argmax(dim=1)
+        acc = (preds == l_eval).float().mean().item()
+    return acc
+
+
+def compute_gen_self_accuracy(
+    model,
+    aux_classifier: nn.Module,
+    n_classes: int,
+    gen_per_class: int,
+    device: torch.device,
+    style_mode: str = "global_gaussian",
+    style_stats: dict | None = None,
+) -> float:
+    """Generate images class-conditionally, classify with aux_classifier, return self-ACC.
+
+    style_mode:
+        "global_gaussian"  : z_s ~ N(0,I)
+        "class_diag_t025"  : z_s ~ N(mu_s^k, 0.25² * sigma_s^k)
+        "class_mean"       : z_s = mu_s^k (deterministic)
+    style_stats: dict with keys "means" (K, d_s) and "stds" (K, d_s) tensors
+    """
+    model.eval()
+    aux_classifier.eval()
+
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for k in range(n_classes):
+            z_c, z_s = model.sample_from_class_prior(k, gen_per_class, device)
+
+            if style_mode == "global_gaussian":
+                z_s = torch.randn(gen_per_class, z_s.shape[1], device=device)
+            elif style_mode == "class_mean" and style_stats is not None:
+                z_s = style_stats["means"][k].unsqueeze(0).expand(gen_per_class, -1)
+            elif style_mode == "class_diag_t025" and style_stats is not None:
+                mu_k = style_stats["means"][k]
+                std_k = style_stats["stds"][k]
+                z_s = mu_k + 0.25 * std_k * torch.randn(gen_per_class, z_s.shape[1], device=device)
+
+            x_gen = model.decoder(torch.cat([z_c, z_s], dim=1))
+
+            logits = aux_classifier(x_gen)
+            preds = logits.argmax(dim=1)
+            correct += (preds == k).sum().item()
+            total += gen_per_class
+
+    return correct / total if total > 0 else 0.0
+
+
+# ---------------------------------------------------------------------------
+# Extract z_s from a trained model on a dataset
+# ---------------------------------------------------------------------------
+
+@torch.no_grad()
+def extract_style_latents(model, loader, device, model_type: str = "fcswae"):
+    """Return (z_s, labels) tensors from a trained model."""
+    model.eval()
+    z_s_list, label_list = [], []
+
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+
+        if model_type == "fcswae":
+            mu_c, rho_c, mu_s, logvar_s = model.encoder(x)
+            std_s = torch.exp(0.5 * logvar_s.clamp(-10, 10))
+            eps = torch.randn_like(std_s)
+            z_s = mu_s + std_s * eps
+        elif model_type in ("vae", "waemmd"):
+            # Standard VAE/WAE encoder: returns (mu, logvar) for full latent
+            # Treat second half of latent as "style"
+            mu, logvar = model.encode(x)
+            std = torch.exp(0.5 * logvar.clamp(-10, 10))
+            z_s = mu + std * torch.randn_like(std)
+        elif model_type == "betavae":
+            mu, logvar = model.encode(x)
+            std = torch.exp(0.5 * logvar.clamp(-10, 10))
+            z_s = mu + std * torch.randn_like(std)
+        elif model_type in ("factorvae", "betatcvae"):
+            mu, logvar = model.encode(x)
+            std = torch.exp(0.5 * logvar.clamp(-10, 10))
+            z_s = mu + std * torch.randn_like(std)
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
+
+        z_s_list.append(z_s.cpu())
+        label_list.append(y.cpu())
+
+    return torch.cat(z_s_list, dim=0), torch.cat(label_list, dim=0)
+
+
+# ---------------------------------------------------------------------------
+# Full diagnostic suite
+# ---------------------------------------------------------------------------
+
+def run_diagnostics(
+    model,
+    loader,
+    device: torch.device,
+    n_classes: int = 10,
+    model_type: str = "fcswae",
+    gen_per_class: int = 50,
+    aux_classifier: nn.Module | None = None,
+    verbose: bool = True,
+) -> dict:
+    """Run all leakage diagnostics and return results dict."""
+
+    print("Extracting style latents...")
+    z_s, labels = extract_style_latents(model, loader, device, model_type)
+    z_s = z_s.to(device)
+    labels = labels.to(device)
+
+    results = {}
+
+    # 1. Global MMD
+    print("Computing global MMD...")
+    results["global_mmd"] = compute_global_mmd(z_s)
+
+    # 2. Δ_inter
+    print("Computing inter-class style separation...")
+    results["delta_inter"] = compute_delta_inter(z_s, labels, n_classes)
+
+    # 3. Linear probe LP(z_s → y)
+    print("Computing linear probe accuracy...")
+    results["lp_accuracy"] = compute_linear_probe(z_s, labels)
+
+    # 4. HSIC(z_s, y)
+    print("Computing HSIC...")
+    # Use subset for HSIC (O(n²) kernel)
+    n_hsic = min(1024, z_s.shape[0])
+    idx = torch.randperm(z_s.shape[0])[:n_hsic]
+    results["hsic"] = hsic(z_s[idx], labels[idx])
+
+    # 5. Gen self-ACC (only for models with sample_from_class_prior)
+    results["gen_self_acc_global_gaussian"] = None
+    results["gen_self_acc_class_diag_t025"] = None
+
+    if aux_classifier is not None and hasattr(model, "sample_from_class_prior"):
+        print("Computing gen self-accuracy (global Gaussian style)...")
+        results["gen_self_acc_global_gaussian"] = compute_gen_self_accuracy(
+            model, aux_classifier, n_classes, gen_per_class, device,
+            style_mode="global_gaussian",
+        )
+
+        # Compute class-conditional style stats for conditional sampling
+        print("Computing class style stats for conditional sampling...")
+        class_means, class_stds = [], []
+        for k in range(n_classes):
+            mask = labels == k
+            if mask.sum() > 0:
+                zk = z_s[mask]
+                class_means.append(zk.mean(dim=0))
+                class_stds.append(zk.std(dim=0).clamp(min=1e-6))
+            else:
+                d = z_s.shape[1]
+                class_means.append(torch.zeros(d, device=device))
+                class_stds.append(torch.ones(d, device=device))
+        style_stats = {
+            "means": torch.stack(class_means),
+            "stds": torch.stack(class_stds),
+        }
+
+        print("Computing gen self-accuracy (class diag t=0.25)...")
+        results["gen_self_acc_class_diag_t025"] = compute_gen_self_accuracy(
+            model, aux_classifier, n_classes, gen_per_class, device,
+            style_mode="class_diag_t025",
+            style_stats=style_stats,
+        )
+
+    if verbose:
+        print("\n" + "=" * 60)
+        print("LEAKAGE DIAGNOSTIC RESULTS")
+        print("=" * 60)
+        print(f"  Global MMD²(q(z_s), N(0,I))  : {results['global_mmd']:.6f}  (should ≈ 0)")
+        print(f"  Δ_inter (inter-class sep)     : {results['delta_inter']:.4f}  (should ≈ 0)")
+        print(f"  LP(z_s → y) accuracy          : {results['lp_accuracy']:.4f}  (should ≈ {1/n_classes:.2f})")
+        print(f"  HSIC(z_s, y)                  : {results['hsic']:.6f}  (should ≈ 0)")
+        if results["gen_self_acc_global_gaussian"] is not None:
+            print(f"  Gen self-ACC (global N(0,I)) : {results['gen_self_acc_global_gaussian']:.4f}  (should ≈ 1.0)")
+        if results["gen_self_acc_class_diag_t025"] is not None:
+            print(f"  Gen self-ACC (class t=0.25)  : {results['gen_self_acc_class_diag_t025']:.4f}  (should ≈ 1.0)")
+        print("=" * 60)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Compute conditional style leakage diagnostics")
+    p.add_argument("--model-type", default="fcswae",
+                   choices=["fcswae", "vae", "waemmd", "betavae", "factorvae", "betatcvae"],
+                   help="Model type to load")
+    p.add_argument("--checkpoint", required=True, help="Path to model checkpoint (.pth)")
+    p.add_argument("--dataset", default="mnist",
+                   choices=["mnist", "fashion_mnist", "cifar10"])
+    p.add_argument("--device", default="cpu")
+    p.add_argument("--n-samples", type=int, default=2048,
+                   help="Number of test samples to use")
+    p.add_argument("--gen-per-class", type=int, default=50,
+                   help="Generated images per class for self-ACC")
+    p.add_argument("--aux-classifier-checkpoint", default=None,
+                   help="Path to auxiliary classifier checkpoint for gen self-ACC")
+    p.add_argument("--out", default=None, help="Save results JSON to this path")
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+    device = torch.device(args.device)
+
+    # Load test data
+    print(f"Loading {args.dataset} test set...")
+    _, test_loader = get_dataloader(args.dataset, batch_size=256, num_workers=0)
+
+    # Load model
+    print(f"Loading {args.model_type} from {args.checkpoint}...")
+    ckpt = torch.load(args.checkpoint, map_location=device)
+
+    if args.model_type == "fcswae":
+        from src.models.f_cs_wae import FCSWAE
+        from src.config_f_cs_wae import f_cs_wae_config as cfg
+        from src.utils.dataset_config import apply_dataset_config
+        apply_dataset_config(cfg, args.dataset)
+        model = FCSWAE(
+            semantic_dim=cfg.semantic_dim,
+            style_dim=cfg.style_dim,
+            n_classes=cfg.n_classes,
+            in_channels=cfg.in_channels,
+            image_size=cfg.image_size,
+        ).to(device)
+        state = ckpt.get("model_state_dict", ckpt)
+        model.load_state_dict(state)
+    else:
+        raise NotImplementedError(
+            f"Loading for model_type={args.model_type} not implemented yet. "
+            "Add model-specific loading here."
+        )
+
+    # Optionally load auxiliary classifier
+    aux_clf = None
+    if args.aux_classifier_checkpoint:
+        print(f"Loading aux classifier from {args.aux_classifier_checkpoint}...")
+        clf_ckpt = torch.load(args.aux_classifier_checkpoint, map_location=device)
+        # Assumes a simple linear classifier over images; replace with your classifier
+        aux_clf = nn.Linear(model.semantic_dim, 10).to(device)
+        aux_clf.load_state_dict(clf_ckpt)
+
+    # Subset loader
+    from torch.utils.data import Subset
+    dataset = test_loader.dataset
+    n = min(args.n_samples, len(dataset))
+    indices = torch.randperm(len(dataset))[:n].tolist()
+    subset = Subset(dataset, indices)
+    loader = DataLoader(subset, batch_size=256, shuffle=False, num_workers=0)
+
+    results = run_diagnostics(
+        model, loader, device,
+        n_classes=10,
+        model_type=args.model_type,
+        gen_per_class=args.gen_per_class,
+        aux_classifier=aux_clf,
+        verbose=True,
+    )
+
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"\nResults saved to {out_path}")
+
+
+if __name__ == "__main__":
+    main()

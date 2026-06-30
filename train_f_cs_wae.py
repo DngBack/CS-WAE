@@ -45,6 +45,9 @@ def parse_args() -> argparse.Namespace:
                    help="Override total training epochs")
     p.add_argument("--n-centers",   type=int,   default=None,
                    help="Centers per class (default: cfg.n_centers = 1)")
+    p.add_argument("--delta-final", type=float, default=None,
+                   help="Per-class style MMD weight (0=disabled, default: cfg.delta_final=1.0). "
+                        "Set 0 to reproduce baseline without the proposed fix.")
     p.add_argument("--output-dir",  type=str,   default=None,
                    help="Output directory (default: runs_f/<dataset>/seed_<N>)")
     p.add_argument("--skip-eval",   action="store_true",
@@ -68,6 +71,8 @@ def main() -> None:
     # Apply CLI overrides to config
     epochs    = args.epochs    or cfg.total_epochs
     n_centers = args.n_centers or cfg.n_centers
+    if args.delta_final is not None:
+        cfg.delta_final = args.delta_final
 
     print("=" * 60)
     print("F-CS-WAE Training")
@@ -77,6 +82,7 @@ def main() -> None:
     print(f"  Dataset    : {args.dataset}")
     print(f"  Epochs     : {epochs}")
     print(f"  n_centers  : {n_centers}")
+    print(f"  delta_final: {cfg.delta_final}  (per-class style MMD; 0=disabled)")
     print(f"  Output     : {save_dir}")
     print(f"  semantic_dim: {cfg.semantic_dim}  style_dim: {cfg.style_dim}")
 

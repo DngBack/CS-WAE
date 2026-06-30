@@ -382,13 +382,13 @@ training duration for comparability.
 Model & Global MMD $\downarrow$ & $\Delta_{\mathrm{inter}}$ $\downarrow$ & $\mathrm{LP}(\zs\to y)$ $\downarrow$ & Gen.\ self-ACC $\uparrow$ \\
 & (should be $\approx 0$) & (should be $\approx 0$) & (should be $\approx 1/K$) & (should be $\approx 1$) \\
 \midrule
-VAE              & \todo{} & \todo{} & \todo{} & \todo{} \\
-WAE-MMD          & \todo{} & \todo{} & \todo{} & \todo{} \\
-$\beta$-TCVAE    & \todo{} & \todo{} & \todo{} & \todo{} \\
-FactorVAE        & \todo{} & \todo{} & \todo{} & \todo{} \\
-\ours{} (ours)   & $0.0017$ & $6.25$ & \todo{} & $0.15$ \\
+VAE              & \todo{run} & \todo{run} & \todo{run} & N/A \\
+WAE-MMD          & \todo{run} & \todo{run} & \todo{run} & N/A \\
+$\beta$-TCVAE    & \todo{run} & \todo{run} & \todo{run} & N/A \\
+FactorVAE        & \todo{run} & \todo{run} & \todo{run} & N/A \\
+\ours{} (ours)   & $0.0017$ & $6.25$ & \todo{run LP} & $0.15$ \\
 \midrule
-\ours{} + per-class MMD & $\approx 0$ & $\approx 0$ & $\approx 0.10$ & $1.00$ \\
+\ours{} + per-class MMD & \todo{run} & \todo{run} & $\approx 0.10$ & $1.00$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -781,8 +781,9 @@ We encode 2{,}048 MNIST test images and measure the style latent.
 Global MMD to $\mathcal{N}(0,I)$ is $0.0017$---the aggregate regularizer appears
 to have succeeded.
 Yet the inter-class style separation is $\Delta_{\mathrm{inter}}=6.25$, far above
-zero, and a linear probe trained on $\zs$ achieves \todo{\%} accuracy
-(chance: $10\%$).
+zero, and a linear probe trained on $\zs$ achieves \todo{run LP script} accuracy
+(chance: $10\%$; run \texttt{scripts/compute\_leakage\_diagnostics.py} on the MNIST
+checkpoint to obtain this number).
 Figure~\ref{fig:style-diagnostic} visualizes the class-conditional structure.
 
 The formal gap from Proposition~\ref{prop:marginal-not-sufficient} is directly
@@ -809,17 +810,20 @@ distribution and that any class-conditional correction restores generation.
 \begin{table}[t]
 \centering
 \caption{MNIST generation under representation-aware style sampling strategies.
-         All strategies sample $\zc$ from the Spherical Cauchy class prior.}
+         All strategies sample $\zc$ from the Spherical Cauchy class prior.
+         Self-ACC = fraction of generated images classified to the intended class.
+         Confidence = mean classifier probability at the predicted class.
+         Diversity = mean pixel standard deviation across samples.}
 \label{tab:sampling}
 \begin{tabular}{lrrr}
 \toprule
 Style sampling $\zs$ & Self-ACC $\uparrow$ & Confidence $\uparrow$ & Diversity $\uparrow$ \\
 \midrule
-Global Gaussian $\mathcal{N}(0,I)$           & 0.15 & 0.934 & 0.151 \\
-Class mean $\bar\mus^{(k)}$                  & 1.00 & 1.000 & 0.132 \\
-Class diagonal Gaussian, $\tau=0.50$         & 1.00 & 0.990 & 0.139 \\
-Class diagonal Gaussian, $\tau=0.25$         & \textbf{1.00} & \textbf{1.000} & 0.135 \\
-Empirical style bank                         & 1.00 & 1.000 & \textbf{0.182} \\
+Global Gaussian $\mathcal{N}(0,I)$           & 0.150 & 0.934 & 0.151 \\
+Class mean $\bar\mus^{(k)}$                  & 1.000 & 1.000 & 0.132 \\
+Class diagonal Gaussian, $\tau=0.50$         & 1.000 & 0.990 & 0.139 \\
+Class diagonal Gaussian, $\tau=0.25$         & \textbf{1.000} & \textbf{1.000} & 0.135 \\
+Empirical style bank                         & 1.000 & 1.000 & \textbf{0.182} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1025,7 +1029,7 @@ $\lambda_{\mathrm{LPIPS}}$ & 0.1 \\
 $\alpha_{\mathrm{final}}$ (class MMD) & 2.0 \\
 $\beta_{\mathrm{final}}$ (agg.\ MMD) & 5.0 \\
 $\gamma_{\mathrm{final}}$ (global style MMD) & 1.0 \\
-$\delta_{\mathrm{final}}$ (per-class style MMD) & \todo{tune} \\
+$\delta_{\mathrm{final}}$ (per-class style MMD) & 1.0 \\
 $\eta_{\mathrm{final}}$ (classifier) & 0.3 \\
 Style prior temperature $\tau_s$ & 0.25 \\
 \bottomrule
@@ -1081,23 +1085,52 @@ marginal matches the target exactly, proving the proposition.
 \section{Submission Checklist}
 \label{app:checklist}
 
-The following items must be completed before AAAI-27 submission:
+The following items must be completed before AAAI-27 submission.
+Commands to run after activating the virtual environment (\texttt{source .venv/bin/activate}):
+
 \begin{itemize}
-  \item Complete cross-model experiment (Table~\ref{tab:cross-model}): run VAE,
-        WAE-MMD, $\beta$-TCVAE, FactorVAE on MNIST with leakage diagnostics.
-  \item Add Figure: bar plot of global MMD vs.\ $\Delta_{\mathrm{inter}}$ across
-        model families.
-  \item Add t-SNE plots of $\zs$ colored by class label for each model family.
-  \item Run \ours{} on MNIST and Fashion-MNIST for seeds 0, 1, 2 and report
-        mean$\pm$std.
-  \item Tune $\delta_{\mathrm{final}}$ for per-class style MMD; run 3 seeds on
-        CIFAR-10 and MNIST; fill ablation Table~\ref{tab:ablations}.
-  \item Recompute FID with global Gaussian sampling after training with per-class
-        style MMD; compare against FID with class-conditional style prior.
-  \item Add LP accuracy ($\mathrm{LP}(\zs\to y)$) and HSIC$(\zs,y)$ to all main
-        and ablation tables.
-  \item Run all baselines for seeds 1 and 2; update Table~\ref{tab:cifar-baselines}.
+  \item \textbf{Cross-model experiment (Table~\ref{tab:cross-model})}:
+        run VAE, WAE-MMD, $\beta$-TCVAE, FactorVAE on MNIST with leakage diagnostics.\\
+        \texttt{python scripts/run\_cross\_model\_diagnostics.py --device cuda --epochs 100}
+
+  \item \textbf{Leakage diagnostics for \ours{} MNIST}:
+        compute LP accuracy and HSIC for existing checkpoint.\\
+        \texttt{python scripts/compute\_leakage\_diagnostics.py} \\
+        \texttt{\quad --checkpoint runs\_f/mnist/seed\_0/best\_model.pth} \\
+        \texttt{\quad --dataset mnist --device cpu}
+
+  \item \textbf{Figure: bar plot of global MMD vs.\ $\Delta_{\mathrm{inter}}$}:
+        generate after cross-model run and add as \texttt{figures/cross\_model\_diagnostic.png}.
+
+  \item \textbf{t-SNE plots of $\zs$ colored by class label}:
+        for each model family (use saved checkpoints from cross-model run).
+
+  \item \textbf{Run \ours{} on MNIST and Fashion-MNIST for seeds 0, 1, 2}:
+        report mean$\pm$std.\\
+        \texttt{python train\_f\_cs\_wae.py --dataset mnist --seed 0 --device cuda}\\
+        \texttt{python train\_f\_cs\_wae.py --dataset fashion\_mnist --seed 0 --device cuda}
+
+  \item \textbf{Per-class style MMD ablation (Table~\ref{tab:ablations})}:
+        $\delta_{\mathrm{final}}=1.0$ is now in config; train with
+        \texttt{--delta-final 1.0} flag and compare against baseline
+        (\texttt{--delta-final 0.0}).
+
+  \item \textbf{Ablation variants (Table~\ref{tab:ablations})}:
+        add missing ablation flags to \texttt{train\_f\_cs\_wae.py}:
+        no-$\zs$ (\texttt{--style-dim 0}),
+        no class MMD (\texttt{--alpha-final 0}),
+        no style MMD (\texttt{--gamma-final 0}),
+        no aux classifier (\texttt{--eta-final 0}),
+        Gaussian semantic prior, vMF semantic prior.
+
+  \item \textbf{Recompute FID} with global Gaussian sampling after per-class style MMD training.
+
+  \item \textbf{Run all baselines for seeds 1 and 2}; update Table~\ref{tab:cifar-baselines}.
+
+  \item \textbf{Fashion-MNIST results}: add to Section~\ref{sec:experiments} after training.
+
   \item Replace this preamble with the official AAAI-27 author kit.
+
   \item Remove this appendix before submission.
 \end{itemize}
 

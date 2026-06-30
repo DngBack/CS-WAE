@@ -49,7 +49,8 @@ class FCSWAEConfig:
     # --- Regularization final weights (reached at end of phase D) ---
     alpha_final: float = 2.0   # L_class: supervised class MMD weight
     beta_final: float = 5.0    # L_agg:   global aggregated semantic MMD weight
-    gamma_final: float = 1.0   # L_style: style prior MMD weight
+    gamma_final: float = 1.0   # L_style: global style prior MMD weight
+    delta_final: float = 1.0   # L_style_cls: per-class style MMD weight (enforces z_s ⊥ y)
     eta_init: float = 0.1      # L_cls:   auxiliary CE weight at phase B start
     eta_final: float = 0.3     # L_cls:   auxiliary CE weight at phase D end
     lambda_var: float = 0.0    # diversity reg disabled: StyleMMD already handles z_s diversity

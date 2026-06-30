@@ -97,6 +97,29 @@ def _sample_prior_mixture_for_loss(model, n: int, device: torch.device) -> torch
 # Main loss function
 # ---------------------------------------------------------------------------
 
+def mmd_per_class_style(
+    z_s: torch.Tensor,
+    y: torch.Tensor,
+    n_classes: int,
+) -> torch.Tensor:
+    """Per-class style MMD: enforces q(z_s | y=k) ≈ N(0,I) for each class k.
+
+    This directly targets conditional style leakage that global aggregate MMD
+    cannot prevent (Proposition 1 in paper).
+    """
+    L = torch.tensor(0.0, device=z_s.device)
+    count = 0
+    for k in range(n_classes):
+        mask = y == k
+        if mask.sum() < 2:
+            continue
+        z_s_k = z_s[mask]
+        z_p_k = torch.randn_like(z_s_k)
+        L = L + mmd_euclidean(z_s_k, z_p_k)
+        count += 1
+    return L / count if count > 0 else L
+
+
 def calculate_f_cs_wae_loss(
     x: torch.Tensor,
     y: torch.Tensor,
@@ -111,10 +134,11 @@ def calculate_f_cs_wae_loss(
     alpha: float,
     beta: float,
     gamma: float,
+    delta: float,
     eta: float,
     lambda_var: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
-           torch.Tensor, torch.Tensor, torch.Tensor]:
+           torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Compute all F-CS-WAE loss terms.
 
@@ -127,11 +151,12 @@ def calculate_f_cs_wae_loss(
     mu_s, logvar_s : style distribution parameters
     model       : FCSWAE instance (needs .ema_centers, .n_classes, .rho_p, .classifier)
     loss_fn_vgg : lpips.LPIPS instance
-    alpha, beta, gamma, eta, lambda_var : current loss weights
+    alpha, beta, gamma, delta, eta, lambda_var : current loss weights
+        delta = per-class style MMD weight (0 disables per-class fix)
 
     Returns
     -------
-    (total, L_rec, L_class, L_agg, L_style, L_cls, L_var)
+    (total, L_rec, L_class, L_agg, L_style, L_style_cls, L_cls, L_var)
     """
     device = x.device
 
@@ -173,7 +198,7 @@ def calculate_f_cs_wae_loss(
         L_agg = mmd_loss(z_c, z_p_mix)
 
     # ------------------------------------------------------------------ #
-    # 4. Style prior MMD  (z_s vs N(0, I))
+    # 4. Global style prior MMD  (z_s vs N(0, I)) — necessary but not sufficient
     # ------------------------------------------------------------------ #
     L_style = torch.tensor(0.0, device=device)
     if gamma > 0.0:
@@ -181,7 +206,14 @@ def calculate_f_cs_wae_loss(
         L_style = mmd_euclidean(z_s, z_s_prior)
 
     # ------------------------------------------------------------------ #
-    # 5. Auxiliary classification loss  (prevents semantic collapse)
+    # 5. Per-class style MMD  (q(z_s|y=k) vs N(0,I) for each k) — proposed fix
+    # ------------------------------------------------------------------ #
+    L_style_cls = torch.tensor(0.0, device=device)
+    if delta > 0.0:
+        L_style_cls = mmd_per_class_style(z_s, y, model.n_classes)
+
+    # ------------------------------------------------------------------ #
+    # 6. Auxiliary classification loss  (prevents semantic collapse)
     # ------------------------------------------------------------------ #
     L_cls = torch.tensor(0.0, device=device)
     if eta > 0.0:
@@ -189,7 +221,7 @@ def calculate_f_cs_wae_loss(
         L_cls = F.cross_entropy(logits, y)
 
     # ------------------------------------------------------------------ #
-    # 6. Diversity regularization  (prevent style latent collapse)
+    # 7. Diversity regularization  (prevent style latent collapse)
     # ------------------------------------------------------------------ #
     # L_var is the *negative* variance; we add lambda_var * L_var to total,
     # so minimising total maximises var(z_s).
@@ -203,8 +235,9 @@ def calculate_f_cs_wae_loss(
         + alpha * L_class
         + beta  * L_agg
         + gamma * L_style
+        + delta * L_style_cls
         + eta   * L_cls
         + lambda_var * L_var
     )
 
-    return total, L_rec, L_class, L_agg, L_style, L_cls, L_var
+    return total, L_rec, L_class, L_agg, L_style, L_style_cls, L_cls, L_var
