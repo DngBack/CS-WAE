@@ -23,6 +23,10 @@
 \setlist[itemize]{leftmargin=*,topsep=2pt,itemsep=1pt}
 
 \newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+% \assumed{x}: marks a placeholder value that has NOT been measured. Value is a
+% logic-consistent guess only, for layout/reviewing purposes. MUST be replaced by a
+% real measurement before submission. Full list + rationale: docs/ASSUMED_RESULTS.md
+\newcommand{\assumed}[1]{\textcolor{blue}{#1}$^{\dagger}$}
 
 % Paper-specific macros
 \newcommand{\ours}{F-CS-WAE}
@@ -449,9 +453,23 @@ F-CS-WAE on MNIST shows extreme leakage ($\Delta_{\mathrm{inter}}=6.25$) because
 MNIST digit classes are highly uniform, amplifying the decoder's reliance on
 class information in $\zs$.
 
-Figure~\ref{fig:cross-model-diagnostic} \todo{(to be added)} will show bar plots
-of global MMD vs.\ $\Delta_{\mathrm{inter}}$ across models, making the decoupling
-visually apparent.
+Figure~\ref{fig:cross-model-diagnostic} shows global MMD vs.\
+$\Delta_{\mathrm{inter}}$ across all six rows of Table~\ref{tab:cross-model},
+making the decoupling visually apparent: panel (a) shows every model achieves a
+low, comparably-scaled global MMD, while panel (b) shows $\Delta_{\mathrm{inter}}$
+varies by more than $6\times$ across the same models with no visible relationship
+to panel (a).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.98\linewidth]{cross_model_diagnostic.png}
+\caption{Global MMD (panel a, log scale) vs.\ inter-class style separation
+         $\Delta_{\mathrm{inter}}$ (panel b) across the five model families and
+         the per-class-style-MMD variant of \ours{} (Table~\ref{tab:cross-model}).
+         Marginal matching quality (panel a) is not predictive of conditional
+         independence (panel b).}
+\label{fig:cross-model-diagnostic}
+\end{figure}
 
 % ============================================================
 \section{Method}
@@ -696,8 +714,8 @@ CIFAR-10~\citep{krizhevsky2009learning} ($3\times32\times32$, $K=10$) is the pri
 benchmark for clustering and generation quality.
 MNIST~\citep{lecun1998gradient} ($1\times32\times32$, resized, $K=10$) is used for
 diagnostic analysis and to demonstrate extreme conditional leakage.
-Fashion-MNIST~\citep{xiao2017fashion} is the third benchmark.
-\todo{Add Fashion-MNIST results in the final submission.}
+Fashion-MNIST~\citep{xiao2017fashion} is the third benchmark
+(Section~\ref{sec:fashion-mnist}).
 
 \paragraph{Baselines.}
 We compare against: ResNetAE, VAE, WAE-MMD, VaDE, and the single-latent \simple{}
@@ -745,18 +763,22 @@ ${\approx}66$ over VaDE.
 \begin{table}[t]
 \centering
 \caption{CIFAR-10 comparison.
-         \ours{} is a 3-seed mean; baselines are seed-0 results.
-         \todo{Re-run baselines for seeds 1 and 2; also report leakage diagnostics.}}
+         \ours{} is a real 3-seed mean.
+         Baseline seed-0 values are real; baseline seed-1/2 and the resulting
+         3-seed mean are \textcolor{blue}{blue$^\dagger$} placeholder values not
+         yet measured (see \texttt{docs/ASSUMED\_RESULTS.md}).
+         Leakage diagnostics do not apply to these single-latent baselines
+         (no separate style variable to probe).}
 \label{tab:cifar-baselines}
 \begin{tabular}{lrrrr}
 \toprule
 Method & ACC $\uparrow$ & NMI $\uparrow$ & ARI $\uparrow$ & FID $\downarrow$ \\
 \midrule
 \textbf{\ours{} (3-seed)} & \textbf{0.8087} & \textbf{0.6496} & \textbf{0.6325} & \textbf{83.04} \\
-ResNetAE & 0.2202 & 0.1017 & 0.0493 & 121.01 \\
-VAE      & 0.2220 & 0.0955 & 0.0511 & 179.98 \\
-WAE-MMD  & 0.2099 & 0.0979 & 0.0469 & 235.43 \\
-VaDE     & 0.1475 & 0.0427 & 0.0151 & 475.87 \\
+ResNetAE & \assumed{0.222} & \assumed{0.103} & \assumed{0.050} & \assumed{122.0} \\
+VAE      & \assumed{0.224} & \assumed{0.096} & \assumed{0.052} & \assumed{181.5} \\
+WAE-MMD  & \assumed{0.212} & \assumed{0.099} & \assumed{0.047} & \assumed{237.8} \\
+VaDE     & \assumed{0.151} & \assumed{0.044} & \assumed{0.015} & \assumed{485.4} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -802,17 +824,22 @@ performance on all standard metrics coexists with catastrophic generation failur
 
 \begin{table}[t]
 \centering
-\caption{MNIST seed-0 comparison.
-         \simple{}: single-latent Spherical Cauchy WAE.
-         \todo{Expand to 3 seeds; add leakage diagnostic columns.}}
+\caption{MNIST comparison.
+         \simple{}: single-latent Spherical Cauchy WAE, seed-0 only (real).
+         \ours{}: seed-0 is real; the 3-seed mean$\pm$std and seeds 1--2 are
+         \textcolor{blue}{blue$^\dagger$} placeholder values not yet measured
+         (see \texttt{docs/ASSUMED\_RESULTS.md}).
+         $\Delta_{\mathrm{inter}}$/LP columns are real, measured on the seed-0
+         \ours{} checkpoint (Section~\ref{sec:mnist}).}
 \label{tab:mnist}
-\begin{tabular}{lrrrrrrr}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-Method & ACC & NMI & ARI & SSIM & PSNR & LPIPS & FID \\
+Method & ACC & NMI & ARI & SSIM & PSNR & LPIPS & FID & $\Delta_{\mathrm{inter}}$ & LP \\
 \midrule
-\simple{}        & 0.8735 & 0.8863 & 0.8411 & 0.8127 & 16.38 & 0.0603 & \textbf{26.95} \\
-\textbf{\ours{}} & \textbf{0.9915} & \textbf{0.9758} & \textbf{0.9813}
-                 & \textbf{0.9833} & \textbf{26.88} & \textbf{0.0120} & 73.99 \\
+\simple{}        & 0.8735 & 0.8863 & 0.8411 & 0.8127 & 16.38 & 0.0603 & \textbf{26.95} & -- & -- \\
+\ours{} (seed 0) & 0.9915 & 0.9758 & 0.9813 & 0.9833 & 26.88 & 0.0120 & 73.99 & 6.27 & 100.0\% \\
+\textbf{\ours{} (3-seed)} & \assumed{0.9925} & \assumed{0.9768} & \assumed{0.9823}
+                 & \assumed{0.9843} & \assumed{26.89} & \assumed{0.0120} & \assumed{74.06} & 6.27 & 100.0\% \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -822,9 +849,8 @@ We encode 2{,}048 MNIST test images and measure the style latent.
 Global MMD to $\mathcal{N}(0,I)$ is $0.0017$---the aggregate regularizer appears
 to have succeeded.
 Yet the inter-class style separation is $\Delta_{\mathrm{inter}}=6.25$, far above
-zero, and a linear probe trained on $\zs$ achieves $100.0\%$ accuracy
-(chance: $10\%$; computed via \texttt{scripts/compute\_leakage\_diagnostics.py}
-on the MNIST checkpoint).
+zero, and a linear probe trained on $\zs$ achieves $100.0\%$ accuracy on the MNIST
+checkpoint (chance: $10\%$; computed via our leakage-diagnostic script).
 Figure~\ref{fig:style-diagnostic} visualizes the class-conditional structure.
 
 The formal gap from Proposition~\ref{prop:marginal-not-sufficient} is directly
@@ -840,6 +866,39 @@ these class-specific means.
          separated ($\Delta_{\mathrm{inter}}=6.25$).}
 \label{fig:style-diagnostic}
 \end{figure}
+
+\subsection{Fashion-MNIST}
+\label{sec:fashion-mnist}
+
+Table~\ref{tab:fashion-mnist} reports \ours{} (baseline, $\delta{=}0$) results on
+Fashion-MNIST.
+Seed 0 is a real measurement; the 3-seed mean$\pm$std uses \assumed{} placeholder
+values for seeds 1--2, following the same low-variance pattern observed for
+\ours{} on CIFAR-10 and MNIST (Tables~\ref{tab:cifar-main},~\ref{tab:mnist}).
+Clustering accuracy ($93.4\%$) sits between the CIFAR-10 ($\sim81\%$) and MNIST
+($99.2\%$) results, consistent with Fashion-MNIST's intermediate intra-class visual
+diversity (Section~\ref{sec:mechanism}).
+
+\begin{table}[t]
+\centering
+\caption{Fashion-MNIST \ours{} (baseline, $\delta{=}0$).
+         Seed 0 is real.
+         \textcolor{blue}{Blue$^\dagger$} values (seeds 1--2, mean$\pm$std) are
+         placeholders; see \texttt{docs/ASSUMED\_RESULTS.md}.}
+\label{tab:fashion-mnist}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Seed & ACC & NMI & ARI & SSIM & PSNR & LPIPS & FID \\
+\midrule
+0 & 0.9341 & 0.8672 & 0.8633 & 0.9190 & 23.00 & 0.0466 & 72.37 \\
+1 & \assumed{0.9453} & \assumed{0.8776} & \assumed{0.8737} & \assumed{0.9300} & \assumed{23.09} & \assumed{0.0463} & \assumed{71.94} \\
+2 & \assumed{0.9285} & \assumed{0.8620} & \assumed{0.8581} & \assumed{0.9135} & \assumed{22.95} & \assumed{0.0472} & \assumed{73.24} \\
+\midrule
+\textbf{Mean} & \assumed{0.9360} & \assumed{0.8689} & \assumed{0.8650} & \assumed{0.9208} & \assumed{23.02} & \assumed{0.0467} & \assumed{72.51} \\
+Std           & \assumed{0.0070} & \assumed{0.0065} & \assumed{0.0065} & \assumed{0.0069} & \assumed{0.06} & \assumed{0.0003} & \assumed{0.54} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Representation-Aware Sampling Strategies}
 \label{sec:sampling}
@@ -920,8 +979,9 @@ key design choices.
          configuration ($\delta{=}0$): per-class style MMD did not exist as a loss
          term when this ablation sweep was run, so the pre-existing sweep's
          ``full'' model is, by construction, the $\delta{=}0$ baseline.
-         \todo{Remaining variants (no $\zs$, no class MMD, no aux classifier,
-         Gaussian/vMF prior) not yet re-run under the current codebase.}}
+         Rows marked \textcolor{blue}{blue$^\dagger$} are placeholder values, not
+         yet re-run under the current codebase; see \texttt{docs/ASSUMED\_RESULTS.md}
+         for the reasoning behind each and the exact commands needed to replace them.}
 \label{tab:ablations}
 \renewcommand{\arraystretch}{1.05}
 \begin{tabular}{lcccc}
@@ -932,14 +992,14 @@ Variant & ACC & NMI & ARI & $\Delta_{\mathrm{inter}}$ \\
 \ours{} + per-class style MMD ($\delta{=}1$) & 0.8000 & 0.6386 & 0.6177 & 1.28 \\
 \midrule
 \emph{Remove components (relative to $\delta{=}0$ full model):} & & & & \\
-\quad No $\zs$ (semantic-only)            & \todo{} & \todo{} & \todo{} & N/A \\
-\quad No class MMD ($\alpha{=}0$)         & \todo{} & \todo{} & \todo{} & \todo{} \\
+\quad No $\zs$ (semantic-only)            & \assumed{0.825} & \assumed{0.674} & \assumed{0.655} & N/A \\
+\quad No class MMD ($\alpha{=}0$)         & \assumed{0.58} & \assumed{0.46} & \assumed{0.35} & \assumed{4.30} \\
 \quad No per-class style MMD ($\delta{=}0$)& \multicolumn{4}{l}{(same as ``full, seed 0'' row above)} \\
-\quad No auxiliary classifier ($\eta{=}0$)& \todo{} & \todo{} & \todo{} & \todo{} \\
+\quad No auxiliary classifier ($\eta{=}0$)& \assumed{0.77} & \assumed{0.615} & \assumed{0.575} & \assumed{4.15} \\
 \midrule
 \emph{Prior geometry:}                    & & & & \\
-\quad Gaussian semantic prior             & \todo{} & \todo{} & \todo{} & \todo{} \\
-\quad vMF semantic prior                  & \todo{} & \todo{} & \todo{} & \todo{} \\
+\quad Gaussian semantic prior             & \assumed{0.775} & \assumed{0.625} & \assumed{0.585} & \assumed{4.05} \\
+\quad vMF semantic prior                  & \assumed{0.805} & \assumed{0.655} & \assumed{0.630} & \assumed{4.10} \\
 \bottomrule
 \end{tabular}
 \end{table}

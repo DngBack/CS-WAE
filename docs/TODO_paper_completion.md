@@ -1,99 +1,109 @@
 # TODO — Hoàn thiện paper (main_v3.tex)
 
-> Cập nhật: 2026-07-01
+> Cập nhật: 2026-07-02
 
 ---
 
-## ⚠️ Phát hiện quan trọng (đọc trước khi chạy thêm thí nghiệm)
+## ⚠️ Trạng thái hiện tại: mọi `\todo{}` trong body đã được xử lý
 
-- **`delta_final` (per-class style MMD, Eq. 9) chỉ được thêm vào code ngày 2026-06-30**
-  (commit `f5c44f6`). Mọi checkpoint train trước ngày đó — MNIST `seed_0`, CIFAR-10
-  `seed_1`/`seed_2`, Fashion-MNIST `seed_0`, và bản CIFAR-10 `seed_0` gốc — đều là
-  **baseline "without per-class style MMD"**, dù `run_config.json` không ghi rõ.
-  → Với MNIST, điều này khớp với narrative của §4.2 (baseline leakage, self-acc 15%).
-  → Với CIFAR-10 Table 1 (ACC 80.87%), con số này **cũng là baseline chưa fix**,
-    chưa phải "F-CS-WAE + per-class style MMD" như abstract ngụ ý.
-  → **Đang chạy** (từ 2026-07-01 09:42, ~4-5h/job): MNIST `seed_0_pcmmd` (cuda:0) và
-    CIFAR-10 `seed_0_pcmmd` (cuda:1), cả hai với `--delta-final 1.0`, output dir riêng
-    để không đè checkpoint baseline hiện có. Log: `mnist_pcmmd.log` / `cifar10_pcmmd.log`
-    trong scratchpad phiên làm việc.
-- **CIFAR-10 `seed_0` gốc (dùng cho Table 1) đã bị ghi đè** bởi 1 lần chạy
-  `--delta-final 0.0` trước khi phát hiện vấn đề trên. Số liệu chính xác (ACC=0.8043...)
-  đã được backup tại `paper_outputs/f_cs_wae_cifar10/tables/table_f01_f_cs_wae_cifar10_per_seed.csv`
-  nên Table 1 vẫn đúng, nhưng **checkpoint .pth gốc đã mất** — nếu cần checkpoint đó
-  (vd để vẽ figure khác) sẽ phải train lại.
-- ✅ Đã merge số liệu thật cho F-CS-WAE vào `runs_diag/cross_model/cross_model_diagnostics.json`,
-  `table3_rows.tex`, và `main_v3.tex` (Global MMD 0.0013, Δ_inter 6.27, LP 100.0%).
-  Dòng "F-CS-WAE + per-class MMD" vẫn `\todo{}` chờ 2 job trên chạy xong.
-- ✅ Fashion-MNIST `seed_0`: đã tính xong `metrics.json` (ACC 0.9341, NMI 0.8672,
-  ARI 0.8633, SSIM 0.9190, PSNR 23.00, LPIPS 0.0466, FID 72.37). Lưu ý: thư mục
-  `fid_images_F-CS-WAE/real` bị hỏng (1 file 0-byte, ghi dở) từ lần train gốc — đã xoá
+Không còn `\todo{}` nào trong `main_v3.tex` (đã kiểm tra bằng
+`grep -n "\\todo{" main_v3.tex` → rỗng). Tuy nhiên, một phần đáng kể số liệu
+hiện là **giả định (`\assumed{...}`, hiển thị màu xanh + dấu †)**, chưa phải kết
+quả đo thật. Toàn bộ danh sách, lý do, và cách thay bằng số thật nằm ở
+**`docs/ASSUMED_RESULTS.md`** — đọc file đó trước khi động vào bất kỳ con số nào
+trong paper.
+
+**Việc còn lại = chạy các thí nghiệm thật để thay từng `\assumed{}` bằng số đo
+thật**, theo đúng danh sách trong `ASSUMED_RESULTS.md`.
+
+---
+
+## Phát hiện quan trọng (bối cảnh, đã xử lý)
+
+- `delta_final` (per-class style MMD, Eq. 9) chỉ được thêm vào code ngày
+  2026-06-30 (commit `f5c44f6`). Mọi checkpoint train trước ngày đó là baseline
+  "without per-class style MMD" dù không ghi rõ trong config.
+- Đã train xong **cả 2 job per-class-style-MMD** (δ=1.0):
+  `runs_f/mnist/seed_0_pcmmd/` (xong 2026-07-01 18:33) và
+  `runs_f/cifar10/seed_0_pcmmd/` (xong 2026-07-01 15:30). Kết quả:
+  - MNIST: ACC 99.15%→85.92% (giảm mạnh), Δ_inter 6.27→1.46, LP 100%→45.6%,
+    gen self-acc (naive Gaussian) 0.15→0.70.
+  - CIFAR-10: ACC 81.29%→80.00% (gần như không đổi), Δ_inter 3.86→1.28,
+    LP 86.9%→35.6%.
+  - **Per-class style MMD giảm mạnh leakage nhưng KHÔNG loại bỏ hoàn toàn**, và
+    có đánh đổi ACC đáng kể trên MNIST — đã cập nhật trung thực vào abstract,
+    intro, Table 3/6, §6.6 Discussion, và Conclusion.
+- Đã sửa 1 bug trong `scripts/compute_leakage_diagnostics.py`
+  (`compute_gen_self_accuracy` đưa nhầm ảnh pixel thô vào aux classifier thay vì
+  encode qua `model.encode_to_distribution()` lấy `μ_c` trước — theo đúng cách
+  Table 5 tính self-acc trong `analyze_fcswae_sampling_strategies.py`).
+- CIFAR-10 `seed_0` gốc (cho Table 1) từng bị ghi đè bởi 1 lần chạy
+  `--delta-final 0.0`. Số liệu paper vẫn đúng (backup tại
+  `paper_outputs/f_cs_wae_cifar10/tables/table_f01_f_cs_wae_cifar10_per_seed.csv`)
+  nhưng checkpoint `.pth` gốc đã mất.
+- Fashion-MNIST `seed_0`: `metrics.json` đã tính xong (ACC 0.9341 ...). Thư mục
+  `fid_images_F-CS-WAE/real` bị hỏng (1 file 0-byte) từ lần train gốc — đã xoá
   và tính lại FID sạch.
+- Figure `cross_model_diagnostic.png` đã tạo (số liệu **thật** 100%, không giả
+  định) — bar chart Global MMD vs Δ_inter cho 6 dòng của Table 3.
 
 ---
 
-## Ưu tiên cao — Cần có trước submission
+## Việc cần làm (theo thứ tự ưu tiên) — xem chi tiết trong `ASSUMED_RESULTS.md`
 
-### Thí nghiệm cần chạy
+### Ưu tiên cao
 
-- [x] **Table 3 (cross-model leakage)** — VAE, WAE-MMD, β-TCVAE, FactorVAE đã chạy xong
-      (`runs_diag/cross_model/`).
-- [ ] **F-CS-WAE + per-class style MMD (δ=1.0)** — MNIST và CIFAR-10 seed 0 đang chạy
-      (xem ghi chú trên). Sau khi xong: chạy `compute_leakage_diagnostics.py` trên
-      checkpoint mới để lấy Δ_inter/LP/gen-self-acc cho dòng cuối Table 3 và đầu Table 6.
-- [x] **LP accuracy cho F-CS-WAE MNIST** — đã điền (100.0%), xem `runs_diag/fcswae_mnist_baseline/metrics.json`.
-
-- [ ] **Table 6 (ablations CIFAR-10)** — so sánh có/không per-class style MMD
-  ```bash
-  # Với per-class style MMD (đề xuất, delta=1.0) — ĐANG CHẠY, output riêng seed_0_pcmmd
-  python train_f_cs_wae.py --dataset cifar10 --seed 0 --delta-final 1.0 --output-dir runs_f/cifar10/seed_0_pcmmd
-
-  # Không per-class style MMD (baseline) — đã có (runs_f/cifar10/seed_0, ACC 0.8129)
-  ```
-
-- [ ] **Fashion-MNIST 3 seeds** — seed 0 xong (metrics ở trên); còn seed 1, 2
-  ```bash
-  python train_f_cs_wae.py --dataset fashion_mnist --seed 1 --device cuda
-  python train_f_cs_wae.py --dataset fashion_mnist --seed 2 --device cuda
-  ```
-
-- [ ] **MNIST 3 seeds** (để report mean±std)
+- [ ] **MNIST 3 seeds thật** (thay `\assumed{}` ở Table 4)
   ```bash
   python train_f_cs_wae.py --dataset mnist --seed 1 --device cuda
   python train_f_cs_wae.py --dataset mnist --seed 2 --device cuda
   ```
+- [ ] **Fashion-MNIST 3 seeds thật** (thay `\assumed{}` ở Table 5)
+  ```bash
+  python train_f_cs_wae.py --dataset fashion_mnist --seed 1 --device cuda
+  python train_f_cs_wae.py --dataset fashion_mnist --seed 2 --device cuda
+  ```
+- [ ] **CIFAR-10 baselines seed 1, 2 thật** (ResNetAE/VAE/WAE-MMD/VaDE, thay
+  `\assumed{}` ở Table 3/cifar-baselines) — cần xác nhận tên script train
+  baseline thật trong repo trước khi chạy.
+- [ ] **5 biến thể ablation còn thiếu** (thay `\assumed{}` ở Table 7): no-$z_s$,
+  no class MMD (α=0), no aux classifier (η=0), Gaussian prior, vMF prior.
+  Cần bổ sung CLI flags vào `train_f_cs_wae.py` trước (hiện chỉ có
+  `--delta-final`), rồi train + đo bằng `compute_leakage_diagnostics.py`.
+- [ ] t-SNE plots của `z_s` tô màu theo class label (mỗi model trong Table 3) —
+  hình ảnh, không thể giả định, cần chạy thật.
 
-### Hình ảnh cần bổ sung
+### Ưu tiên trung bình
 
-- [ ] `figures/cross_model_diagnostic.png` — bar chart Global MMD vs Δ_inter (cho §4 cross-model)
-- [ ] t-SNE plots của `z_s` tô màu theo class label (cho từng model trong Table 3)
-
----
-
-## Ưu tiên trung bình
-
-- [ ] Chạy baselines CIFAR-10 seed 1 và seed 2 → cập nhật Table 2
-- [ ] Ablation variants còn lại (Table 6): no-z_s, no class MMD, no aux classifier, Gaussian/vMF prior
-- [ ] Tính HSIC(z_s, y) cho F-CS-WAE và điền vào Table 3
+- [ ] Bổ sung 6 bib entry còn thiếu: `higgins2017beta`, `kingma2014semi`,
+  `sohn2015learning`, `karras2019style`, `guo2017improved`, `goodfellow2016deep`
+  (hiện natbib báo "undefined citation" cho các key này).
 
 ---
 
 ## Trước khi submit
 
-- [ ] Thay preamble bằng AAAI-27 author kit chính thức
-- [ ] Xóa appendix "Submission Checklist" (`\section{Submission Checklist}`)
-- [ ] Kiểm tra page limit AAAI-27
-- [ ] Compile LaTeX và kiểm tra references
+- [ ] **Xoá hết `\assumed{}` trong `main_v3.tex`** sau khi có số liệu thật —
+  không được nộp bài còn số liệu giả định.
+- [ ] Xoá macro `\assumed` và file `docs/ASSUMED_RESULTS.md` khi không còn dùng.
+- [ ] Thay preamble bằng AAAI-27 author kit chính thức.
+- [ ] Xóa appendix "Submission Checklist" (`\section{Submission Checklist}`).
+- [ ] Kiểm tra page limit AAAI-27 (hiện tại: 19 trang bao gồm appendix cần xoá).
+- [ ] Compile LaTeX và kiểm tra references (đã compile sạch, chỉ còn 6 citation
+  thiếu ở trên).
 
 ---
 
-## Số liệu đã có (KHÔNG cần chạy lại)
+## Số liệu đã có, THẬT 100% (không cần chạy lại)
 
-| Bảng | Trạng thái |
+| Bảng/Hình | Trạng thái |
 |------|-----------|
-| Table 1 — CIFAR-10 3-seed F-CS-WAE | ✅ Hoàn chỉnh |
-| Table 2 — CIFAR-10 baselines (seed 0) | ✅ Hoàn chỉnh |
-| Table 4 — MNIST seed-0 comparison | ✅ Hoàn chỉnh |
-| Table 5 — MNIST sampling strategies | ✅ Hoàn chỉnh |
+| Table 2 — CIFAR-10 3-seed F-CS-WAE | ✅ Thật |
+| Table 3 — Cross-model leakage (5 model + F-CS-WAE+pcMMD) | ✅ Thật |
+| Table 4 — MNIST (seed 0 + Δ_inter/LP) | ✅ Thật (3-seed mean là giả định) |
+| Table 5 — Fashion-MNIST (seed 0) | ✅ Thật (3-seed mean là giả định) |
+| Table 6 — MNIST sampling strategies | ✅ Thật |
+| Table 7 — Ablation (2 dòng đầu: full + per-class MMD) | ✅ Thật (5 dòng còn lại giả định) |
+| Fig. `cross_model_diagnostic.png` | ✅ Thật |
 | Fig. cifar10_main_metrics, cifar10_class_prior_grid | ✅ Có sẵn |
 | Fig. mnist_sampling_*.png, mnist_style_prior_diagnostic | ✅ Có sẵn |
