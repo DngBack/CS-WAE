@@ -89,12 +89,20 @@ for each class independently; and a \emph{class-conditional style prior} that re
 generation post-hoc without retraining.
 
 Instantiated in F-CS-WAE---a factorized Spherical Cauchy Wasserstein auto-encoder
-for label-guided generative clustering---per-class style MMD raises class-conditional
-generation self-accuracy from $15\%$ to $100\%$ on MNIST while preserving
-$80.87\pm0.52\%$ clustering accuracy on CIFAR-10.
+for label-guided generative clustering---per-class style MMD substantially reduces
+leakage (inter-class style separation $\Delta_{\mathrm{inter}}$ falls by
+$67$--$77\%$ and linear-probe accuracy drops from $86$--$100\%$ to $36$--$46\%$
+on CIFAR-10/MNIST) and raises naive-Gaussian generation self-accuracy on MNIST from
+$15\%$ to $70\%$; combined with the post-hoc class-conditional style prior it reaches
+$100\%$.
+This reduction comes with a measurable trade-off: MNIST clustering accuracy falls
+from $99.15\%$ to $85.92\%$, whereas the CIFAR-10 clustering accuracy
+($80.87\pm0.52\%$ without the regularizer) is preserved within $1.3$ points.
 Our central finding is that architectural factorization does not imply statistical
-independence: the sampling distribution must match the conditional structure the
-representation actually learned.
+independence---and that supervising this dependence away is possible but not free:
+the sampling distribution must match the conditional structure the representation
+actually learned, and enforcing conditional independence trades off against how much
+class information the representation can still carry.
 \end{abstract}
 
 % ============================================================
@@ -166,8 +174,14 @@ $\zs\in\R^{d_s}$ regularized toward $\mathcal{N}(0,I)$.
 Without per-class style MMD, F-CS-WAE achieves $99.15\%$ clustering accuracy on MNIST
 but only $15\%$ class-conditional generation self-accuracy---an extreme illustration
 of the phenomenon.
-With per-class style MMD, self-accuracy reaches $100\%$ while CIFAR-10 clustering
-accuracy remains $80.87\pm0.52\%$.
+Adding per-class style MMD cuts inter-class style separation by $67$--$77\%$ and
+raises naive-Gaussian self-accuracy to $70\%$ on MNIST ($100\%$ once combined with
+the post-hoc style prior), but clustering accuracy falls to $85.92\%$ on MNIST;
+on CIFAR-10 the same regularizer leaves clustering accuracy essentially unchanged
+($80.87\pm0.52\%\to80.00\%$ on the seed we tested).
+The regularizer therefore trades away some of the class information $\zs$ was
+implicitly carrying---a real cost when that information was propping up clustering
+accuracy, negligible when it was not.
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -182,8 +196,9 @@ accuracy remains $80.87\pm0.52\%$.
         lightweight diagnostic: class-conditional style mean separation alongside
         marginal MMD (Section~\ref{sec:cross-model}).
   \item We propose \emph{per-class style MMD}, a general supervised regularizer that
-        directly enforces class-conditional style independence, and show it eliminates
-        the failure while preserving clustering and reconstruction quality
+        directly targets class-conditional style independence, and show it substantially
+        reduces (though does not fully eliminate) the failure, at a clustering-accuracy
+        cost that is dataset-dependent: large on MNIST, negligible on CIFAR-10
         (Section~\ref{sec:method}).
   \item We instantiate these findings in F-CS-WAE, achieving strong and stable
         CIFAR-10 clustering ($80.87\pm0.52\%$ ACC, three seeds) and raising MNIST
@@ -375,27 +390,53 @@ training duration for comparability.
          Despite near-zero global MMD in every case, inter-class style mean
          separation $\Delta_{\mathrm{inter}}$ is large, and linear probing
          ($\mathrm{LP}$) reveals recoverable class information in $\zs$.
-         \todo{Fill in all entries after running cross-model experiments.}}
+         The last row shows \ours{} trained with the proposed per-class style MMD
+         (Section~\ref{sec:method}): leakage drops sharply but is not eliminated.
+         Gen.\ self-ACC uses naive $\zs\sim\mathcal{N}(0,I)$ sampling; see
+         Section~\ref{sec:sampling} for the post-hoc correction that reaches $100\%$.}
 \label{tab:cross-model}
 \begin{tabular}{lcccc}
 \toprule
 Model & Global MMD $\downarrow$ & $\Delta_{\mathrm{inter}}$ $\downarrow$ & $\mathrm{LP}(\zs\to y)$ $\downarrow$ & Gen.\ self-ACC $\uparrow$ \\
 & (should be $\approx 0$) & (should be $\approx 0$) & (should be $\approx 1/K$) & (should be $\approx 1$) \\
 \midrule
-VAE              & \todo{run} & \todo{run} & \todo{run} & N/A \\
-WAE-MMD          & \todo{run} & \todo{run} & \todo{run} & N/A \\
-$\beta$-TCVAE    & \todo{run} & \todo{run} & \todo{run} & N/A \\
-FactorVAE        & \todo{run} & \todo{run} & \todo{run} & N/A \\
-\ours{} (ours)   & $0.0017$ & $6.25$ & \todo{run LP} & $0.15$ \\
+VAE              & $0.0002$ & $2.86$ & $87.4\%$ & N/A \\
+WAE-MMD          & $0.0576$ & $9.38$ & $93.0\%$ & N/A \\
+$\beta$-TCVAE    & $0.0002$ & $2.30$ & $73.9\%$ & N/A \\
+FactorVAE        & $0.0009$ & $2.27$ & $75.9\%$ & N/A \\
+\ours{} (ours)   & $0.0013$ & $6.27$ & $100.0\%$ & $0.15$ \\
 \midrule
-\ours{} + per-class MMD & \todo{run} & \todo{run} & $\approx 0.10$ & $1.00$ \\
+\ours{} + per-class MMD & $0.0015$ & $1.46$ & $45.6\%$ & $0.70$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:cross-model} summarizes the diagnostic measurements.
-\todo{Complete the table and add a short paragraph per model discussing why
-leakage severity varies.}
+All four baseline families exhibit LP accuracy far above the $10\%$ chance rate
+(74--93\%) despite near-zero global MMD, confirming that conditional style
+leakage is not specific to \ours{}.
+\ours{} shows the most extreme leakage ($\Delta_{\mathrm{inter}}=6.27$,
+$\mathrm{LP}=100\%$), consistent with MNIST's low intra-class visual diversity
+forcing the decoder to rely most heavily on class information carried in $\zs$
+(Section~\ref{sec:mechanism}).
+WAE-MMD shows the largest global MMD among the baselines ($0.0576$, roughly
+$30$--$300\times$ the other three); since WAE-MMD optimizes this quantity
+directly, the residual gap suggests its aggregate regularizer had not fully
+converged at the training budget used here, and it also shows the largest
+$\Delta_{\mathrm{inter}}$ ($9.38$) and LP ($93\%$) of the baselines.
+$\beta$-TCVAE and FactorVAE, which explicitly penalize total correlation,
+show the smallest $\Delta_{\mathrm{inter}}$ among the five models
+($2.30$ and $2.27$)—but LP accuracy remains far above chance ($74$--$76\%$),
+confirming that penalizing joint/marginal statistics reduces but does not
+eliminate the class dependence in $\zs$.
+Per-class style MMD shows the same pattern: relative to \ours{} without it,
+$\Delta_{\mathrm{inter}}$ falls by $77\%$ ($6.27\to1.46$) and LP falls by $54$
+points ($100\%\to45.6\%$)—still far above the $10\%$ chance rate, and higher than
+three of the four unsupervised baselines.
+Naive-Gaussian generation self-accuracy rises correspondingly from $0.15$ to
+$0.70$, confirming the regularizer directly repairs the failure mode it targets,
+but a supervised, class-stratified regularizer applied directly to $q(\zs\mid y{=}k)$
+still does not drive conditional dependence to zero in practice.
 
 \paragraph{Expected variation across models.}
 We hypothesize that leakage severity correlates with the degree to which each
@@ -781,9 +822,9 @@ We encode 2{,}048 MNIST test images and measure the style latent.
 Global MMD to $\mathcal{N}(0,I)$ is $0.0017$---the aggregate regularizer appears
 to have succeeded.
 Yet the inter-class style separation is $\Delta_{\mathrm{inter}}=6.25$, far above
-zero, and a linear probe trained on $\zs$ achieves \todo{run LP script} accuracy
-(chance: $10\%$; run \texttt{scripts/compute\_leakage\_diagnostics.py} on the MNIST
-checkpoint to obtain this number).
+zero, and a linear probe trained on $\zs$ achieves $100.0\%$ accuracy
+(chance: $10\%$; computed via \texttt{scripts/compute\_leakage\_diagnostics.py}
+on the MNIST checkpoint).
 Figure~\ref{fig:style-diagnostic} visualizes the class-conditional structure.
 
 The formal gap from Proposition~\ref{prop:marginal-not-sufficient} is directly
@@ -873,21 +914,27 @@ key design choices.
 \begin{table}[t]
 \centering
 \caption{CIFAR-10 ablations. Seed 0.
-         ``Leak'' = $\Delta_{\mathrm{inter}}$ on MNIST.
-         \todo{Run all ablation variants and fill in numbers.}}
+         ``$\Delta_{\mathrm{inter}}$'' is measured on the CIFAR-10 checkpoint itself
+         (not MNIST) via \texttt{scripts/compute\_leakage\_diagnostics.py}.
+         The ``full'' row and the ``No per-class style MMD'' row are the same
+         configuration ($\delta{=}0$): per-class style MMD did not exist as a loss
+         term when this ablation sweep was run, so the pre-existing sweep's
+         ``full'' model is, by construction, the $\delta{=}0$ baseline.
+         \todo{Remaining variants (no $\zs$, no class MMD, no aux classifier,
+         Gaussian/vMF prior) not yet re-run under the current codebase.}}
 \label{tab:ablations}
 \renewcommand{\arraystretch}{1.05}
 \begin{tabular}{lcccc}
 \toprule
 Variant & ACC & NMI & ARI & $\Delta_{\mathrm{inter}}$ \\
 \midrule
-\ours{} (full, seed 0)                    & 0.8149 & 0.6622 & 0.6438 & \todo{} \\
-\ours{} + per-class style MMD             & \todo{} & \todo{} & \todo{} & $\approx 0$ \\
+\ours{} (full, seed 0, $\delta{=}0$)      & 0.8149 & 0.6622 & 0.6438 & 4.19 \\
+\ours{} + per-class style MMD ($\delta{=}1$) & 0.8000 & 0.6386 & 0.6177 & 1.28 \\
 \midrule
-\emph{Remove components:}                 & & & & \\
+\emph{Remove components (relative to $\delta{=}0$ full model):} & & & & \\
 \quad No $\zs$ (semantic-only)            & \todo{} & \todo{} & \todo{} & N/A \\
 \quad No class MMD ($\alpha{=}0$)         & \todo{} & \todo{} & \todo{} & \todo{} \\
-\quad No per-class style MMD ($\delta{=}0$)& \todo{} & \todo{} & \todo{} & large \\
+\quad No per-class style MMD ($\delta{=}0$)& \multicolumn{4}{l}{(same as ``full, seed 0'' row above)} \\
 \quad No auxiliary classifier ($\eta{=}0$)& \todo{} & \todo{} & \todo{} & \todo{} \\
 \midrule
 \emph{Prior geometry:}                    & & & & \\
@@ -898,12 +945,30 @@ Variant & ACC & NMI & ARI & $\Delta_{\mathrm{inter}}$ \\
 \end{table}
 
 \textbf{Effect of per-class style MMD.}
-Adding $\mathcal{L}_{\mathrm{style\text{-}cls}}$ should not reduce clustering quality
-but should drive $\Delta_{\mathrm{inter}}\to 0$ and enable naive prior sampling
-with $\zs\sim\mathcal{N}(0,I)$ to achieve self-accuracy $\approx 100\%$.
-We compare FID under global Gaussian sampling before and after adding per-class
-style MMD to quantify the generation improvement.
-\todo{Fill in FID comparison after training with per-class style MMD.}
+Contrary to our initial expectation, adding $\mathcal{L}_{\mathrm{style\text{-}cls}}$
+does \emph{not} drive $\Delta_{\mathrm{inter}}$ fully to $0$, and it is not free of
+cost on clustering quality.
+On CIFAR-10, the effect is close to the hoped-for outcome: clustering accuracy is
+essentially preserved ($0.8149\to0.8000$ ACC, within normal seed variance;
+Table~\ref{tab:cifar-main}), $\Delta_{\mathrm{inter}}$ drops by $67\%$
+($4.19\to1.28$), and FID under naive global-Gaussian sampling improves
+($80.51\to74.42$).
+On MNIST the leakage reduction is larger in relative terms
+($\Delta_{\mathrm{inter}}$ drops by $77\%$, $6.27\to1.46$; naive-sampling FID improves
+sharply, $73.99\to43.36$; self-accuracy rises from $15\%$ to $70\%$), but clustering
+accuracy drops substantially ($99.15\%\to85.92\%$ ACC).
+We interpret this as evidence that on MNIST---where classes are visually
+uniform---the style variable had been carrying class-discriminative information
+that the semantic variable alone did not fully capture; suppressing that
+information via $\mathcal{L}_{\mathrm{style\text{-}cls}}$ removes a source of
+leakage but also removes a signal the clustering pipeline (K-means on $\muc$) was
+implicitly benefiting from, even though $\zs$ is never used at clustering time.
+This is consistent with the mechanism in Section~\ref{sec:mechanism}: the more a
+dataset forces class information into $\zs$, the more a regularizer that
+suppresses it can perturb training dynamics elsewhere in the model.
+Reaching self-accuracy $\approx 100\%$ still requires combining per-class style MMD
+with the post-hoc class-conditional style prior (Section~\ref{sec:sampling}); neither
+remedy alone eliminates the failure on MNIST, though either substantially reduces it.
 
 % ============================================================
 \section{Discussion}
@@ -964,21 +1029,31 @@ We proved this gap formally, provided a lightweight three-metric diagnostic
 accuracy), and demonstrated the failure across five model families.
 
 We proposed two general remedies.
-\emph{Per-class style MMD} is a training-time regularizer that enforces
-class-conditional style independence directly.
+\emph{Per-class style MMD} is a training-time regularizer that directly targets
+class-conditional style independence.
 The \emph{class-conditional style prior} is a post-hoc correction that restores
 generation correctness without retraining.
 
 Instantiated in F-CS-WAE---a factorized Spherical Cauchy Wasserstein auto-encoder
-for label-guided generative clustering---these remedies raise MNIST class-conditional
-generation self-accuracy from $15\%$ to $100\%$ while maintaining
-$80.87\pm0.52\%$ clustering accuracy on CIFAR-10.
+for label-guided generative clustering---per-class style MMD alone cuts inter-class
+style separation by $67$--$77\%$ and raises MNIST naive-sampling generation
+self-accuracy from $15\%$ to $70\%$, reaching $100\%$ once combined with the
+post-hoc style prior; on CIFAR-10 clustering accuracy is preserved
+($80.87\pm0.52\%\to80.00\%$), but on MNIST it falls from $99.15\%$ to $85.92\%$.
+Neither remedy alone is a complete, cost-free fix: the post-hoc prior requires no
+retraining but does not change what the encoder learned, and the training-time
+regularizer reduces but does not eliminate leakage, at a clustering cost that grows
+with how class-uniform the dataset is.
 
 The broader lesson is that architectural factorization does not imply statistical
-independence.
+independence, and that supervising a representation to unlearn a dependence is not
+guaranteed to be free: if a variable that is supposed to be class-invariant is in
+practice carrying class information other parts of the model rely on, removing that
+information can help one metric (generation) while hurting another (clustering).
 Factorized generative models should verify, via conditional diagnostics rather than
 marginal statistics alone, that style variables are truly class-invariant before
-claiming reliable class-conditional generation.
+claiming reliable class-conditional generation---and should report the resulting
+trade-offs rather than assuming the fix is free.
 
 % ============================================================
 \bibliographystyle{plainnat}

@@ -1,0 +1,38 @@
+{
+  "VAE": {
+    "global_mmd": 0.00022836420358924792,
+    "delta_inter": 2.859010648727417,
+    "lp_accuracy": 0.8737999796867371,
+    "hsic": 0.0008793176966719329,
+    "gen_self_acc_global_gaussian": null
+  },
+  "WAE-MMD": {
+    "global_mmd": 0.05760179689675634,
+    "delta_inter": 9.379960335625542,
+    "lp_accuracy": 0.9297999739646912,
+    "hsic": 0.0008800948853604496,
+    "gen_self_acc_global_gaussian": null
+  },
+  "beta-TCVAE": {
+    "global_mmd": 0.00016414792058364944,
+    "delta_inter": 2.300855440563626,
+    "lp_accuracy": 0.7393999695777893,
+    "hsic": 0.0008798794005997479,
+    "gen_self_acc_global_gaussian": null
+  },
+  "FactorVAE": {
+    "global_mmd": 0.0008589929253241597,
+    "delta_inter": 2.27098933590783,
+    "lp_accuracy": 0.758899986743927,
+    "hsic": 0.0008799824281595647,
+    "gen_self_acc_global_gaussian": null
+  },
+  "F-CS-WAE": {
+    "global_mmd": 0.001252362940936759,
+    "delta_inter": 6.2709883689880375,
+    "lp_accuracy": 1.0,
+    "hsic": 0.0008801210788078606,
+    "gen_self_acc_global_gaussian": 0.15,
+    "_note": "Computed via scripts/compute_leakage_diagnostics.py on runs_f/mnist/seed_0/f_cs_wae_model.pth (baseline, no per-class style MMD); see runs_diag/fcswae_mnist_baseline/metrics.json"
+  }
+}

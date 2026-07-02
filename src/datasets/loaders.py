@@ -35,6 +35,11 @@ def get_loaders(dataset: str = "mnist", data_dir: str = "./data", seed: int | No
     raise ValueError(f"Unsupported dataset: {dataset}. Choose from {SUPPORTED_DATASETS}")
 
 
+def get_dataloader(dataset: str = "mnist", data_dir: str = "./data", seed: int | None = None, **kwargs):
+    """Backward-compatible wrapper for scripts expecting get_dataloader()."""
+    return get_loaders(dataset=dataset, data_dir=data_dir, seed=seed, **kwargs)
+
+
 def get_dataset_info(dataset: str = "mnist") -> dict:
     if dataset == "mnist":
         return get_mnist_info()

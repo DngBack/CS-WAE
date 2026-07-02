@@ -14,7 +14,7 @@ Usage
 -----
 python scripts/compute_leakage_diagnostics.py \\
     --model-type fcswae \\
-    --checkpoint runs_f/mnist/seed_0/best_model.pth \\
+    --checkpoint runs_f/mnist/seed_0/f_cs_wae_model.pth \\
     --dataset mnist \\
     --device cpu \\
     --n-samples 2048 \\
@@ -194,9 +194,10 @@ def compute_gen_self_accuracy(
                 std_k = style_stats["stds"][k]
                 z_s = mu_k + 0.25 * std_k * torch.randn(gen_per_class, z_s.shape[1], device=device)
 
-            x_gen = model.decoder(torch.cat([z_c, z_s], dim=1))
+            x_gen = model.decoder(torch.cat([z_c, z_s], dim=1)).clamp(0, 1)
 
-            logits = aux_classifier(x_gen)
+            mu_c_gen, _ = model.encode_to_distribution(x_gen)
+            logits = aux_classifier(mu_c_gen)
             preds = logits.argmax(dim=1)
             correct += (preds == k).sum().item()
             total += gen_per_class
@@ -379,7 +380,7 @@ def main():
         from src.models.f_cs_wae import FCSWAE
         from src.config_f_cs_wae import f_cs_wae_config as cfg
         from src.utils.dataset_config import apply_dataset_config
-        apply_dataset_config(cfg, args.dataset)
+        apply_dataset_config(cfg, args.dataset, backbone="resnet18")
         model = FCSWAE(
             semantic_dim=cfg.semantic_dim,
             style_dim=cfg.style_dim,

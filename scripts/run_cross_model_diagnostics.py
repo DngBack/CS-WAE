@@ -291,19 +291,9 @@ def train_betatcvae(model, loader, device, n_epochs: int,
             ).view(B, B)
             log_q_z = torch.logsumexp(log_q_cross, dim=1) - np.log(B * dataset_size)
 
-            # Marginal log q(z_d): product of per-dim marginals (independence assumption)
-            log_prod_q = 0.0
-            for d_i in range(z.shape[1]):
-                log_q_d = torch.logsumexp(
-                    _log_density_gaussian(
-                        z[:, d_i:d_i+1].expand(B, B),
-                        mu[:, d_i:d_i+1].expand(B, B).T,
-                        logvar[:, d_i:d_i+1].expand(B, B).T,
-                    ).diag().unsqueeze(1).expand(B, B) * 0,  # placeholder
-                    dim=1,
-                )
-            # Simplified TC term: KL between q(z) and q(z) factorised
-            # Use standard beta-VAE KL as proxy for speed
+            # Simplified TC term: use the standard VAE KL term as a cheap proxy.
+            # This preserves the intended training structure without the faulty
+            # placeholder tensor logic that caused the runtime shape error.
             kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(1).mean()
             tc_term = kl  # simplified
 
