@@ -1,0 +1,37 @@
+{
+  "global_gaussian": {
+    "self_acc": 0.11900000274181366,
+    "self_conf": 0.9109264016151428,
+    "min_class_acc": 0.0,
+    "pixel_diversity": 0.18712754547595978,
+    "mean_intensity": 0.4676785171031952
+  },
+  "class_mean": {
+    "self_acc": 0.699999988079071,
+    "self_conf": 0.9964811205863953,
+    "min_class_acc": 0.0,
+    "pixel_diversity": 0.07864942401647568,
+    "mean_intensity": 0.4645400941371918
+  },
+  "class_diag_t0.50": {
+    "self_acc": 0.6869999766349792,
+    "self_conf": 0.9696161150932312,
+    "min_class_acc": 0.25999999046325684,
+    "pixel_diversity": 0.13781164586544037,
+    "mean_intensity": 0.4624825417995453
+  },
+  "class_diag_t0.25": {
+    "self_acc": 0.6809999942779541,
+    "self_conf": 0.9754877686500549,
+    "min_class_acc": 0.0,
+    "pixel_diversity": 0.10126588493585587,
+    "mean_intensity": 0.4651126563549042
+  },
+  "class_empirical": {
+    "self_acc": 0.9589999914169312,
+    "self_conf": 0.9877206087112427,
+    "min_class_acc": 0.7900000214576721,
+    "pixel_diversity": 0.2410087138414383,
+    "mean_intensity": 0.48132187128067017
+  }
+}
