@@ -65,7 +65,9 @@ def build_dataset(dataset: str, root: Path, train: bool):
         return datasets.MNIST(root / "data", train=train, download=False, transform=transform)
     if dataset == "fashion_mnist":
         return datasets.FashionMNIST(root / "data", train=train, download=False, transform=transform)
-    raise ValueError("This diagnostic currently supports mnist and fashion_mnist.")
+    if dataset == "cifar10":
+        return datasets.CIFAR10(root / "data", train=train, download=False, transform=transform)
+    raise ValueError("This diagnostic currently supports mnist, fashion_mnist, and cifar10.")
 
 
 def load_model(run_dir: Path, dataset: str, device: torch.device) -> FCSWAE:
@@ -271,7 +273,7 @@ def save_strategy_panel(
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--dataset", default="mnist", choices=["mnist", "fashion_mnist"])
+    p.add_argument("--dataset", default="mnist", choices=["mnist", "fashion_mnist", "cifar10"])
     p.add_argument("--run-dir", default=None)
     p.add_argument("--output-dir", default=None)
     p.add_argument("--device", default=None)

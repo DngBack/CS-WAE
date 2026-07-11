@@ -35,12 +35,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.datasets.loaders import get_dataloader
+from src.utils.seed import set_seed
 
 
 # ---------------------------------------------------------------------------
@@ -131,11 +132,16 @@ def compute_linear_probe(
     labels_val: torch.Tensor | None = None,
     n_epochs: int = 100,
     lr: float = 1e-2,
-) -> float:
+    return_model: bool = False,
+):
     """Train a linear probe z_s → y and return accuracy.
 
     Trains on (z_s, labels), evaluates on (z_s_val, labels_val) if provided,
     else uses the same training set for evaluation (quick estimate).
+
+    If return_model is True, returns (accuracy, trained probe) instead of
+    just accuracy — callers that need to evaluate the probe on synthetic
+    z_s draws afterward (e.g. a wrong-style-rate diagnostic) need the model.
     """
     n_classes = int(labels.max().item()) + 1
     d = z_s.shape[1]
@@ -155,7 +161,8 @@ def compute_linear_probe(
         l_eval = labels_val if labels_val is not None else labels
         preds = clf(z_eval).argmax(dim=1)
         acc = (preds == l_eval).float().mean().item()
-    return acc
+
+    return (acc, clf) if return_model else acc
 
 
 def compute_gen_self_accuracy(
@@ -246,6 +253,33 @@ def extract_style_latents(model, loader, device, model_type: str = "fcswae"):
     return torch.cat(z_s_list, dim=0), torch.cat(label_list, dim=0)
 
 
+@torch.no_grad()
+def extract_full_encodings(model, loader, device):
+    """Return (mu_c, mu_s, labels) — deterministic (posterior-mean) encodings.
+
+    Unlike extract_style_latents (which reparameterizes z_s with sampling
+    noise), this returns the raw posterior means for both the semantic and
+    style heads. Used by diagnostics that intervene directly on latent
+    points (latent swap, conditional-MMD) where isolating "which point in
+    latent space" from reparameterization noise matters. fcswae-only.
+    """
+    model.eval()
+    mu_c_list, mu_s_list, label_list = [], [], []
+
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+        mu_c, _rho_c, mu_s, _logvar_s = model.encode(x)
+        mu_c_list.append(mu_c.cpu())
+        mu_s_list.append(mu_s.cpu())
+        label_list.append(y.cpu())
+
+    return (
+        torch.cat(mu_c_list, dim=0),
+        torch.cat(mu_s_list, dim=0),
+        torch.cat(label_list, dim=0),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Full diagnostic suite
 # ---------------------------------------------------------------------------
@@ -291,6 +325,13 @@ def run_diagnostics(
     # 5. Gen self-ACC (only for models with sample_from_class_prior)
     results["gen_self_acc_global_gaussian"] = None
     results["gen_self_acc_class_diag_t025"] = None
+
+    if aux_classifier is None and hasattr(model, "classifier"):
+        # FCSWAE's own jointly-trained classifier head is the natural default
+        # aux classifier — without this, gen_self_acc_* silently stays null
+        # unless a separate --aux-classifier-checkpoint is passed (none exists
+        # in this repo today).
+        aux_classifier = model.classifier
 
     if aux_classifier is not None and hasattr(model, "sample_from_class_prior"):
         print("Computing gen self-accuracy (global Gaussian style)...")
@@ -342,6 +383,58 @@ def run_diagnostics(
 
 
 # ---------------------------------------------------------------------------
+# Shared loading helpers (reused by other diagnostic scripts — see
+# scripts/latent_swap_diagnostics.py, conditional_mmd_diagnostics.py,
+# wrong_style_rate_diagnostics.py, run_delta_sweep.py)
+# ---------------------------------------------------------------------------
+
+def load_fcswae_checkpoint(checkpoint_path, dataset: str, device):
+    """Load a trained FCSWAE model from a checkpoint for the given dataset."""
+    from src.models.f_cs_wae import FCSWAE
+    from src.config_f_cs_wae import f_cs_wae_config as cfg
+    from src.utils.dataset_config import apply_dataset_config
+
+    apply_dataset_config(cfg, dataset, backbone="resnet18")
+    model = FCSWAE(
+        semantic_dim=cfg.semantic_dim,
+        style_dim=cfg.style_dim,
+        n_classes=cfg.n_classes,
+        in_channels=cfg.in_channels,
+        image_size=cfg.image_size,
+    ).to(device)
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    state = ckpt.get("model_state_dict", ckpt)
+    model.load_state_dict(state)
+    model.eval()
+    return model
+
+
+def get_eval_subset_loader(
+    dataset: str,
+    n_samples: int,
+    batch_size: int = 256,
+    seed: int = 0,
+    split: str = "test",
+    num_workers: int = 0,
+) -> DataLoader:
+    """Build a seeded, reproducible subset DataLoader for diagnostics.
+
+    split: "train" or "test" — which underlying loader's dataset to subset.
+    Seeded so repeated invocations (e.g. across delta-sweep checkpoints)
+    evaluate on the same subset instead of adding unnecessary extra noise
+    on top of single-seed training runs.
+    """
+    train_loader, test_loader = get_dataloader(dataset, batch_size=batch_size, num_workers=num_workers)
+    base_loader = train_loader if split == "train" else test_loader
+    full_dataset = base_loader.dataset
+    n = min(n_samples, len(full_dataset))
+    generator = torch.Generator().manual_seed(seed)
+    indices = torch.randperm(len(full_dataset), generator=generator)[:n].tolist()
+    subset = Subset(full_dataset, indices)
+    return DataLoader(subset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -359,7 +452,10 @@ def parse_args():
     p.add_argument("--gen-per-class", type=int, default=50,
                    help="Generated images per class for self-ACC")
     p.add_argument("--aux-classifier-checkpoint", default=None,
-                   help="Path to auxiliary classifier checkpoint for gen self-ACC")
+                   help="Path to auxiliary classifier checkpoint for gen self-ACC "
+                        "(defaults to the model's own jointly-trained classifier head)")
+    p.add_argument("--seed", type=int, default=0,
+                   help="Seed for reproducible eval-subset sampling")
     p.add_argument("--out", default=None, help="Save results JSON to this path")
     return p.parse_args()
 
@@ -367,51 +463,30 @@ def parse_args():
 def main():
     args = parse_args()
     device = torch.device(args.device)
+    set_seed(args.seed)
 
-    # Load test data
-    print(f"Loading {args.dataset} test set...")
-    _, test_loader = get_dataloader(args.dataset, batch_size=256, num_workers=0)
-
-    # Load model
     print(f"Loading {args.model_type} from {args.checkpoint}...")
-    ckpt = torch.load(args.checkpoint, map_location=device)
-
     if args.model_type == "fcswae":
-        from src.models.f_cs_wae import FCSWAE
-        from src.config_f_cs_wae import f_cs_wae_config as cfg
-        from src.utils.dataset_config import apply_dataset_config
-        apply_dataset_config(cfg, args.dataset, backbone="resnet18")
-        model = FCSWAE(
-            semantic_dim=cfg.semantic_dim,
-            style_dim=cfg.style_dim,
-            n_classes=cfg.n_classes,
-            in_channels=cfg.in_channels,
-            image_size=cfg.image_size,
-        ).to(device)
-        state = ckpt.get("model_state_dict", ckpt)
-        model.load_state_dict(state)
+        model = load_fcswae_checkpoint(args.checkpoint, args.dataset, device)
     else:
         raise NotImplementedError(
             f"Loading for model_type={args.model_type} not implemented yet. "
             "Add model-specific loading here."
         )
 
-    # Optionally load auxiliary classifier
+    # Optionally load a separate auxiliary classifier; run_diagnostics()
+    # falls back to model.classifier when this stays None.
     aux_clf = None
     if args.aux_classifier_checkpoint:
         print(f"Loading aux classifier from {args.aux_classifier_checkpoint}...")
         clf_ckpt = torch.load(args.aux_classifier_checkpoint, map_location=device)
-        # Assumes a simple linear classifier over images; replace with your classifier
         aux_clf = nn.Linear(model.semantic_dim, 10).to(device)
         aux_clf.load_state_dict(clf_ckpt)
 
-    # Subset loader
-    from torch.utils.data import Subset
-    dataset = test_loader.dataset
-    n = min(args.n_samples, len(dataset))
-    indices = torch.randperm(len(dataset))[:n].tolist()
-    subset = Subset(dataset, indices)
-    loader = DataLoader(subset, batch_size=256, shuffle=False, num_workers=0)
+    print(f"Loading {args.dataset} test subset (n={args.n_samples}, seed={args.seed})...")
+    loader = get_eval_subset_loader(
+        args.dataset, args.n_samples, batch_size=256, seed=args.seed, split="test",
+    )
 
     results = run_diagnostics(
         model, loader, device,

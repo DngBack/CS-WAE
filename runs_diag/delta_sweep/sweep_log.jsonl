@@ -1,0 +1,8 @@
+{"dataset": "mnist", "delta": "0.03", "returncode": 0, "elapsed_sec": 24548.678936719894, "log": "/home/bachdx2/CS-WAE/runs_f/mnist/seed_0_delta0.03.log", "timestamp": "2026-07-09T16:15:00.011069"}
+{"dataset": "cifar10", "delta": "0.03", "returncode": 0, "elapsed_sec": 20663.98460316658, "log": "/home/bachdx2/CS-WAE/runs_f/cifar10/seed_0_delta0.03.log", "timestamp": "2026-07-09T21:59:24.094984"}
+{"dataset": "mnist", "delta": "0.1", "returncode": 0, "elapsed_sec": 23758.548352718353, "log": "/home/bachdx2/CS-WAE/runs_f/mnist/seed_0_delta0.1.log", "timestamp": "2026-07-10T04:35:22.644268"}
+{"dataset": "cifar10", "delta": "0.1", "returncode": 0, "elapsed_sec": 20845.214081287384, "log": "/home/bachdx2/CS-WAE/runs_f/cifar10/seed_0_delta0.1.log", "timestamp": "2026-07-10T10:22:47.859333"}
+{"dataset": "mnist", "delta": "0.3", "returncode": 0, "elapsed_sec": 24464.858786821365, "log": "/home/bachdx2/CS-WAE/runs_f/mnist/seed_0_delta0.3.log", "timestamp": "2026-07-10T17:10:32.719924"}
+{"dataset": "cifar10", "delta": "0.3", "returncode": 0, "elapsed_sec": 23764.21942448616, "log": "/home/bachdx2/CS-WAE/runs_f/cifar10/seed_0_delta0.3.log", "timestamp": "2026-07-10T23:46:36.940449"}
+{"dataset": "mnist", "delta": "3.0", "returncode": 0, "elapsed_sec": 24253.382313728333, "log": "/home/bachdx2/CS-WAE/runs_f/mnist/seed_0_delta3.0.log", "timestamp": "2026-07-11T06:36:47.719697"}
+{"dataset": "cifar10", "delta": "3.0", "returncode": 0, "elapsed_sec": 20709.93390727043, "log": "/home/bachdx2/CS-WAE/runs_f/cifar10/seed_0_delta3.0.log", "timestamp": "2026-07-11T12:21:57.654638"}

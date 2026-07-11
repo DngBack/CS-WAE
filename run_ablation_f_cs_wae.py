@@ -78,7 +78,7 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
         from src.utils.loss_f_cs_wae import calculate_f_cs_wae_loss
 
         self.model.train()
-        alpha, beta, gamma, eta = self.get_phase_weights(epoch)
+        alpha, beta, gamma, delta, eta = self.get_phase_weights(epoch)
 
         # Override weights per variant config
         vc = self.model.variant_config
@@ -88,9 +88,12 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
             gamma = 0.0
         if not vc["use_classifier"]:
             eta = 0.0
+        # None of the 9 ABLATION_VARIANTS touch per-class style MMD (delta) —
+        # it is orthogonal to this axis, so it passes through unmodified,
+        # matching the "full" trainer's behavior.
 
         acc = {k: 0.0 for k in
-               ("total", "rec", "class_mmd", "agg_mmd", "style_mmd", "cls", "var")}
+               ("total", "rec", "class_mmd", "agg_mmd", "style_mmd", "style_cls_mmd", "cls", "var")}
 
         mu_c_accum: list[torch.Tensor] = []
         y_accum:    list[torch.Tensor] = []
@@ -99,7 +102,7 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
         pbar = tqdm(
             self.train_loader,
             desc=f"Epoch {epoch + 1} [{self.model.variant_name}] "
-                 f"α={alpha:.2f} β={beta:.2f} γ={gamma:.2f} η={eta:.2f}",
+                 f"α={alpha:.2f} β={beta:.2f} γ={gamma:.2f} δ={delta:.2f} η={eta:.2f}",
         )
 
         for data, labels in pbar:
@@ -116,12 +119,14 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
                 mu_s_ph    = z_s_ph
                 logvar_s_ph = z_s_ph
                 gamma_eff  = 0.0
+                delta_eff  = 0.0
                 lv_eff     = 0.0
             else:
                 z_s_ph     = z_s
                 mu_s_ph    = mu_s
                 logvar_s_ph = logvar_s
                 gamma_eff  = gamma
+                delta_eff  = delta
                 lv_eff     = cfg.lambda_var
 
             # Classifier placeholder if not used
@@ -130,11 +135,11 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
             else:
                 eta_eff = eta
 
-            total, L_rec, L_class, L_agg, L_style, L_cls, L_var = (
+            total, L_rec, L_class, L_agg, L_style, L_style_cls, L_cls, L_var = (
                 calculate_f_cs_wae_loss(
                     data, labels, x_hat, z_c, z_s_ph, mu_c, mu_s_ph, logvar_s_ph,
                     self.model, self.loss_fn_vgg,
-                    alpha, beta, gamma_eff, eta_eff, lv_eff,
+                    alpha, beta, gamma_eff, delta_eff, eta_eff, lv_eff,
                 )
             )
 
@@ -142,13 +147,14 @@ class FCSWAEAblationTrainer(FCSWAETrainer):
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), cfg.grad_clip)
             self.optimizer.step()
 
-            acc["total"]     += total.item()
-            acc["rec"]       += L_rec.item()
-            acc["class_mmd"] += L_class.item()
-            acc["agg_mmd"]   += L_agg.item()
-            acc["style_mmd"] += L_style.item()
-            acc["cls"]       += L_cls.item()
-            acc["var"]       += L_var.item()
+            acc["total"]         += total.item()
+            acc["rec"]           += L_rec.item()
+            acc["class_mmd"]     += L_class.item()
+            acc["agg_mmd"]       += L_agg.item()
+            acc["style_mmd"]     += L_style.item()
+            acc["style_cls_mmd"] += L_style_cls.item()
+            acc["cls"]           += L_cls.item()
+            acc["var"]           += L_var.item()
 
             pbar.set_postfix({"Loss": f"{total.item():.3f}", "Rec": f"{L_rec.item():.3f}"})
 
