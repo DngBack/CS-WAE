@@ -1,0 +1,843 @@
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\usepackage[submission]{aaai2027}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in} % DO NOT CHANGE THIS
+
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{xcolor}
+
+\pdfinfo{
+/TemplateVersion (2027.1)
+}
+
+\setcounter{secnumdepth}{0}
+
+% ============================================================
+% TARGET DRAFT. This is main_v7_aaai.tex, a WORKING draft, NOT a
+% submission. Values wrapped in \pj{} are PROJECTED best-case outcomes of
+% experiments that have NOT been run; they render blue with a dagger so the
+% marker survives grayscale printing and copy-paste. The measured-only
+% paper is main_v6.tex. Before any submission every \pj{} must be replaced
+% by a measurement and this macro deleted.
+% ============================================================
+\newcommand{\pj}[1]{\textcolor{blue}{#1$^{\dagger}$}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{proposition}{Proposition}
+
+\newcommand{\ours}{F-CS-WAE}
+\newcommand{\zc}{z_{\mathrm{c}}}
+\newcommand{\zs}{z_{\mathrm{s}}}
+\newcommand{\muc}{\mu_{\mathrm{c}}}
+\newcommand{\mus}{\mu_{\mathrm{s}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\MMD}{\mathrm{MMD}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\HSIC}{\mathrm{HSIC}}
+\newcommand{\Dinter}{\Delta_{\mathrm{inter}}}
+
+\title{Marginal Matching Does Not License Factorized Sampling:\\
+Auditing Conditional Style Leakage in Factorized Generative Models}
+
+\author{Anonymous Submission}
+\affiliations{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Factorized generative models regularize a style latent $\zs$ toward a fixed
+prior with a marginal statistic, $q(\zs)\approx\mathcal N(0,I)$, and treat
+the result as a certificate that $\zs$ carries no class information. The
+certificate does not hold. Matching the marginal constrains nothing about
+the class conditionals $q(\zs\mid y)$, so $\zs$ can be exactly Gaussian in
+aggregate while remaining maximally informative about the label. We show
+this gap is one of four terms in an exact decomposition of what a factorized
+sampler must match, and that eliminating it is necessary but not sufficient
+for the sampling procedure the factorization exists to support. Empirically,
+five model families with near-zero global MMD all permit a linear probe to
+recover the label from $\zs$ at $74$--$100\%$ (chance $10\%$); our case-study
+model reaches $99.15\%$ clustering accuracy while class-conditional
+generation succeeds $15\%$ of the time. The leakage survives six
+one-at-a-time perturbations of capacity, curriculum, prior geometry, and
+supervision on two datasets. \pj{Four remedies attacking the leakage through
+different mechanisms span $21$--$46\%$ probe recovery yet all leave naive
+sampling within $0.735$--$0.79$, dissociating the leakage from generation
+quality exactly as the decomposition predicts.} A post-hoc conditional prior
+repairs MNIST generation without retraining but only partially repairs
+CIFAR-10. The methodological point: no divergence computed on $q(\zs)$ alone
+can certify $\zs\perp y$, and reporting marginal statistics does not verify
+the property practitioners claim from them.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Matching an aggregate posterior to a Gaussian is a statement about a
+marginal. Class-invariant style is a statement about a family of
+conditionals. The two are different claims, and the first does not imply the
+second: $q(\zs)$ can be exactly $\mathcal N(0,I)$ while every $q(\zs\mid
+y{=}k)$ occupies its own region of latent space, so long as the regions
+average out. A regularizer that only ever sees $q(\zs)$ cannot detect this,
+and therefore cannot prevent it.
+
+The gap has teeth because of how factorized models generate. During
+training the decoder only ever receives $(\zc,\zs)$ drawn from the same
+image. If $q(\zs\mid y{=}k)$ differs across classes, and nothing in the
+objective stops it, the decoder is free to learn class-specific interactions
+between the two codes. At generation time a class prior supplies $\zc$ for
+class $k$ while $\zs$ comes from the marginal, which averages over all
+classes. The resulting pair is one the decoder never saw. We call the
+failure \emph{conditional style leakage}.
+
+What makes it dangerous is that the metrics a practitioner would check are
+all blind to it. Reconstruction is measured on the posterior manifold, where
+$\zs$ comes from a real image and the learned interaction is exactly the one
+being exercised, so it looks fine. Global MMD is a marginal statistic by
+construction. Clustering accuracy reads only $\zc$. A model can therefore
+pass every standard diagnostic and still fail completely at the one
+capability the factorization was built to provide.
+
+Our starting point is that this is not a defect of any particular loss but a
+structural property of factorized sampling. We give an exact decomposition
+of the mismatch such a sampler incurs (Theorem~\ref{thm:decomp}) into four
+non-negative terms: global style-prior mismatch, conditional style leakage,
+semantic-prior mismatch, and within-class dependence between the two codes.
+Valid sampling requires all four to vanish, so removing the leakage is
+necessary but not sufficient, and the latent mismatch upper-bounds the
+image-space mismatch but not conversely. That asymmetry is what makes a
+decoder-level intervention necessary rather than redundant.
+
+We then audit five model families with finite-sample proxies for the four
+terms, and use \ours{} (Factorized Class-Structured Spherical Cauchy WAE) as
+a concentrated case study. We use it to exhibit and repair the failure, not
+to argue it beats the baselines it is compared against: the cross-model
+comparison does not control encoder capacity or budget, and the proposed
+per-class style MMD is a supervised regularizer, not an unsupervised
+disentanglement method.
+
+\paragraph{Contributions.}
+(1) An exact decomposition of factorized-sampling validity into four terms,
+with two corollaries fixing what it implies for generation. (2) A
+conditional audit protocol built from finite-sample proxies for those terms,
+applied across five model families. (3) A decoder-sensitivity study and a
+six-way robustness check on two datasets, showing no single design choice
+accounts for the leakage while its magnitude is strongly capacity-dependent
+on CIFAR-10. (4) An evaluation of representation- and sampling-level
+repairs, including a negative transfer result.
+
+\section{Related Work}
+
+We organize prior work by a single question: does the method certify
+conditional invariance $\zs\perp y$, or only a statistic compatible with
+$\zs\not\perp y$?
+
+VAEs~\citep{kingma2013autoencoding} impose a per-example KL toward a fixed
+prior; WAEs~\citep{tolstikhin2017wasserstein} relax this to a divergence
+between the aggregated posterior and the prior, computed with kernel
+two-sample tests~\citep{gretton2012kernel} or projected
+distances~\citep{kolouri2018sliced}. The VAE penalty is not simply an
+aggregate regularizer in disguise: averaged over the data it splits exactly
+into $\mathbb E_{q(x)}[\KL(q(z\mid x)\|p(z))] = I_q(X;Z) +
+\KL(q(z)\|p(z))$~\citep{hoffman2016elbo}, an information-capacity term plus
+an aggregate-mismatch term of the kind WAE-MMD targets directly. Neither
+certifies $I(\zs;y)=0$. The capacity term bounds what $Z$ encodes about $X$
+in general, not about the label, and the aggregate term is precisely the
+marginal statistic Proposition~\ref{prop:nocert} shows is insufficient.
+
+$\beta$-VAE~\citep{higgins2017beta}, $\beta$-TCVAE~\citep{chen2018isolating},
+and FactorVAE~\citep{kim2018disentangling} penalize total correlation, which
+is a joint statistic rather than a marginal one. But the joint is over latent
+\emph{dimensions}, not over the latent and the label, and
+Table~\ref{tab:cross} shows both still leak. Semi-supervised
+VAEs~\citep{kingma2014semi} and CVAE~\citep{sohn2015learning} condition
+generation on the label, sidestepping the need for $\zc$ to encode identity,
+but neither asks whether the residual latent still carries label information
+afterward.
+
+Outside generative modeling, several methods target exactly $\zs\not\perp y$.
+The variational fair autoencoder~\citep{louizos2015variational} matches
+nuisance-conditional posteriors to a common target; the per-class style MMD
+we study in Section~\ref{sec:method} is a direct instantiation of that idea
+applied to a style code, not a new mechanism. Gradient-reversal domain
+adaptation~\citep{ganin2015unsupervised} and Fader
+Networks~\citep{lample2017fader} remove label information adversarially, and
+\citet{moyer2018invariant} do so without an adversary. None evaluates
+class-conditional generation under a factorized sampler, so none establishes
+whether removing $\zs\not\perp y$ suffices to make independent sampling
+reliable. Section~\ref{sec:theory} shows it does not. Deep generative
+clustering (DEC~\citep{xie2015unsupervised},
+IDEC~\citep{guo2017improved}, VaDE~\citep{jiang2016variational}) evaluates
+via ACC/NMI/ARI on the cluster variable, a protocol that cannot see this
+failure because it never inspects $\zs$. Our case study makes the point
+concrete: $99.15\%$ clustering accuracy on the very checkpoint whose
+class-conditional generation succeeds $15\%$ of the time. For the semantic
+variable we use a Spherical Cauchy prior with a M\"obius
+reparameterization~\citep{sablica2025hyperspherical}, a heavier-tailed
+alternative to the von Mises-Fisher posterior of
+S-VAE~\citep{davidson2018hyperspherical}; this is an implementation choice,
+not a claim about the leakage, which is defined independently of how $\zc$ is
+parameterized.
+
+\section{Factorized Sampling and Its Mismatch}
+\label{sec:theory}
+
+Let $\mathcal D=\{(x_i,y_i)\}$ have $K$ classes. A factorized model encodes
+each input into a semantic variable $\zc$ and a style variable $\zs$, and
+regularizes the latter by
+\begin{equation}
+\mathcal L_{\mathrm{style}} = D\bigl(q(\zs),\,\mathcal N(0,I)\bigr),
+\label{eq:style}
+\end{equation}
+for some aggregate divergence $D$, with $q(\zs)=\mathbb E_y[q(\zs\mid y)]$.
+Write $p(\zs):=\mathcal N(0,I)$ for the style prior. Together with a
+class-conditional semantic prior $p(\zc\mid y{=}k)$ these define the
+\emph{factorized sampler}: draw $\zc\sim p(\zc\mid y{=}k)$ and $\zs\sim
+p(\zs)$ independently, which is the naive class-conditional sampling
+procedure in standard use.
+
+\subsection{Marginal matching certifies nothing}
+
+\begin{proposition}[No certificate]
+\label{prop:nocert}
+Let $\zs\sim\mathcal N(0,I)$ on $\R^{d_s}$ and let $\{A_k\}_{k=1}^K$ be any
+measurable partition with $P(\zs\in A_k)=1/K$. Define $y=k \iff \zs\in A_k$.
+Then $q(\zs)=\mathcal N(0,I)$ exactly, so $D(q(\zs),\mathcal N(0,I))=0$ for
+\emph{every} divergence $D$; and $I(\zs;y)=H(y)=\log K$, the maximum
+possible.
+\end{proposition}
+
+The proof is immediate: $y$ is defined post hoc as a measurable function of
+$\zs$, so the law of $\zs$ is untouched, while $H(y\mid\zs)=0$ makes the
+mutual information maximal. The construction is deliberately adversarial and
+we do not claim trained decoders produce anything like it. The point is
+narrow and worst-case: no divergence computed on $q(\zs)$ alone, MMD or
+otherwise, can rule out $\zs$ being maximally class-informative, however the
+dependence happens to be shaped.
+
+\subsection{What valid factorized sampling requires}
+
+Proposition~\ref{prop:nocert} is the extremal case of term (2) below. The
+following decomposition covers any encoder, not just that construction.
+
+\begin{theorem}[Factorized-sampling mismatch]
+\label{thm:decomp}
+Let $y$ be uniform on $\{1,\dots,K\}$ and define
+$M_{\mathrm{fact}} := \mathbb E_y[\KL(q(\zc,\zs\mid y)\,\|\,p(\zc\mid
+y)\,p(\zs))]$. Then
+\begin{align*}
+M_{\mathrm{fact}} =\;& \underbrace{I_q(\zc;\zs\mid y)}_{\text{(4) within-class dep.}}
+ + \underbrace{\mathbb E_y[\KL(q(\zc\mid y)\|p(\zc\mid y))]}_{\text{(3) semantic-prior mismatch}}\\
+ &+ \underbrace{I_q(\zs;y)}_{\text{(2) style leakage}}
+ + \underbrace{\KL(q(\zs)\|p(\zs))}_{\text{(1) style-prior mismatch}},
+\end{align*}
+and all four terms are non-negative.
+\end{theorem}
+
+The proof is a chain-rule expansion applied twice, given in the
+supplementary material. Two consequences matter.
+
+\begin{corollary}[Sampling validity]
+\label{cor:valid}
+$q(\zc,\zs\mid y{=}k)=p(\zc\mid y{=}k)\,p(\zs)$ for a.e.\ $k$ if and only if
+$M_{\mathrm{fact}}=0$, i.e.\ iff all four terms vanish. Class-invariant style
+(term 2) is thus necessary but not sufficient; it must be accompanied by a
+matched style prior, a matched semantic prior, and within-class independence
+of $\zc$ and $\zs$.
+\end{corollary}
+
+\begin{corollary}[Decoder pushforward]
+\label{cor:push}
+For a decoder $\mathrm{Dec}$ with pushforward $\mathrm{Dec}_\#$,
+$\mathbb E_y[\KL(\mathrm{Dec}_\# q(\cdot\mid y)\|\mathrm{Dec}_\#[p(\zc\mid
+y)p(\zs)])] \le M_{\mathrm{fact}}$ by the data-processing inequality.
+\end{corollary}
+
+Corollary~\ref{cor:push} runs one way. A small $M_{\mathrm{fact}}$ suffices
+for faithful generation, but a large one does not force a visible failure,
+since a decoder can be insensitive to the mismatched directions and map
+distinct latent distributions to nearly the same images. Whether a trained
+decoder actually conditions on the leaked structure is an empirical question
+the decomposition leaves open, which is why the intervention in
+Section~\ref{sec:swap} is needed rather than redundant.
+
+\subsection{Diagnostics}
+\label{sec:diag}
+
+Each term gets a finite-sample proxy. We measure the proxies, not the
+information quantities, and never estimate $M_{\mathrm{fact}}$ as a whole.
+\textbf{Term 1} is proxied by global MMD, $\MMD^2(q(\zs),\mathcal N(0,I))$.
+\textbf{Term 2} by inter-class style separation
+$\Dinter=\binom{K}{2}^{-1}\sum_{j<k}\|\bar\mus^{(j)}-\bar\mus^{(k)}\|_2$ and
+by linear-probe accuracy $\mathrm{LP}(\zs\to y)$. $\Dinter$ is a
+mean-separation statistic and thus a convenient symptom, not what
+Proposition~\ref{prop:nocert} is about: that proposition concerns dependence
+in general and holds even when class means coincide. An HSIC-based proxy
+would also apply here, but our fixed-bandwidth estimator saturates at $\zs$'s
+empirical scale, returning a near-constant value across checkpoints whose
+$\Dinter$ and LP vary widely, so we do not report it. \textbf{Term 3} is
+already computed each run as $\mathcal L_{\mathrm{class}}$. \textbf{Term 4}
+has no existing proxy; we compare real within-class pairs against
+independently recombined ones,
+\begin{equation}
+\begin{split}
+\mathrm{JointMMD} = \tfrac1K\textstyle\sum_k \MMD^2\bigl(&\{(\zc^i,\zs^i)\}_{y_i=k},\\
+&\{(\zc^i,\zs^{\pi(i)})\}_{y_i=k}\bigr),
+\end{split}
+\label{eq:jmmd}
+\end{equation}
+where $\pi$ permutes style codes within class $k$, breaking the within-class
+coupling while leaving both per-class marginals, and hence terms (1)--(3),
+untouched.
+
+\section{Method and Case Study}
+\label{sec:method}
+
+The standard style regularizer, Eq.~\ref{eq:style}, matches only the
+marginal. The remedy we study instead matches each class conditional:
+\begin{equation}
+\mathcal L_{\text{style-cls}} = \tfrac1K\textstyle\sum_{k=1}^{K}
+\MMD_{\mathrm{RBF}}\bigl(\{\zs^i:y_i{=}k\},\{\varepsilon_j\}\bigr),
+\label{eq:stylecls}
+\end{equation}
+$\varepsilon_j\sim\mathcal N(0,I)$. Eq.~\ref{eq:style} has no gradient
+incentive to reduce inter-class separation, since the mixture can match
+$\mathcal N(0,I)$ while every conditional stays class-structured;
+Eq.~\ref{eq:stylecls} penalizes exactly that. Nothing about it is specific to
+our architecture: it needs a labeled batch and a style latent. Because it is
+computed per class it requires labels at training time, which is a different
+resource assumption from the unsupervised baselines in
+Section~\ref{sec:exp-hide}. The diagnostics of Section~\ref{sec:diag}, by
+contrast, need only a labeled evaluation set and apply post hoc to any
+trained model.
+
+\ours{} instantiates the setup concretely: a hyperspherical semantic variable
+$\zc\in\mathbb S^{d_c-1}$ aligned to class-conditional Spherical Cauchy
+priors, and a Euclidean style variable $\zs\in\R^{d_s}$ regularized by
+Eqs.~\ref{eq:style}--\ref{eq:stylecls}, with a shared ResNet-18 trunk feeding
+two heads and a residual upsampling decoder ($d_c{=}64$, $d_s{=}128$). The
+objective adds a supervised semantic MMD, an aggregated semantic MMD, and an
+auxiliary classifier on $\muc$ that prevents semantic collapse; these shape
+$\zc$ and are not part of the leakage remedy. Coefficients ramp over a
+four-phase 300-epoch curriculum in which per-class style regularization
+begins in phase B, after a 50-epoch reconstruction-only phase A during which
+the decoder does see real $(\zc,\zs)$ pairs unregularized. Section
+\ref{sec:exp-robust} tests whether removing that warmup matters; it does not.
+Full details are in the supplementary material.
+
+At generation we either sample naively, $\zc\sim p(\zc\mid y{=}k)$ and
+$\zs\sim\mathcal N(0,I)$, or apply a post-hoc class-conditional style prior:
+estimate $\bar\mus^{(k)}$ and $\bar\sigma_s^{2(k)}$ from encoded training
+data and draw $\zs\sim\mathcal N(\bar\mus^{(k)},\tau^2\mathrm{diag}(\bar\sigma_s^{2(k)}))$
+with $\tau{=}0.25$. The second needs no retraining, only a forward pass.
+
+\section{Experiments}
+
+CIFAR-10~\citep{krizhevsky2009learning} is the primary
+clustering/generation benchmark; MNIST~\citep{lecun1998gradient} and
+Fashion-MNIST~\citep{xiao2017fashion} are used for diagnostics. We report
+clustering (ACC/NMI/ARI), reconstruction (SSIM/LPIPS~\citep{zhang2018unreasonable}),
+sample quality (FID~\citep{heusel2017gans}, 10k vs 10k), and generation
+self-accuracy, the fraction of generated images assigned to the sampled
+class.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\caption{CIFAR-10 against baselines matched in backbone (ResNet-18) and
+latent dimension ($d{=}192$), grouped by how the label is used. \ours{} is
+3-seed mean. The fair clustering comparison is against the label-guided
+group, which like \ours{} pushes the label into the latent.}
+\label{tab:cifar-main}
+\begin{tabular}{lrrr}
+\toprule
+Method & ACC & NMI & FID \\
+\midrule
+\textbf{\ours{}} (3-seed) & \textbf{0.809} & \textbf{0.650} & \textbf{83.0} \\
+\midrule
+\multicolumn{4}{l}{\emph{Label-guided (label shapes the latent)}} \\
+AEWithCE & 0.665 & 0.611 & 144.3 \\
+AEWithSupCon & 0.541 & 0.599 & 275.5 \\
+AEWithTriplet & 0.506 & 0.502 & 281.4 \\
+AEWithCenterLoss & 0.243 & 0.122 & 235.8 \\
+\multicolumn{4}{l}{\emph{Conditional-generative (label $\to$ decoder)}} \\
+ConditionalVAE & 0.133 & 0.024 & 396.4 \\
+ConditionalWAE-MMD & 0.102 & 0.008 & 170.3 \\
+GaussianClassPriorWAE & 0.103 & 0.008 & 174.7 \\
+\multicolumn{4}{l}{\emph{Unsupervised}} \\
+ResNetAE & 0.220 & 0.102 & 121.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Before using \ours{} to study leakage we check it is not degenerate, since a
+degenerate model could leak trivially. Table~\ref{tab:cifar-main} compares it
+against seven baselines matched in backbone and latent dimension. Against the
+label-guided autoencoders, the fair comparison, \ours{} ($80.9\%$) exceeds the
+best ($66.5\%$) and has the lowest FID in the table. The
+conditional-generative baselines cluster near chance because their label
+enters only at the decoder, leaving the encoder latent unshaped; they are
+included as the closest generative analogues, not as a clustering
+comparison. This is evidence of competitiveness, not a controlled
+superiority claim: the baselines are single-seed, \ours{} uses both
+latent-shaping and a generative prior where each baseline uses one, and we
+did not equalize per-method tuning.
+
+\paragraph{Evaluation independence.}
+Self-accuracy and the swap rates below would ordinarily be scored by the
+model's own auxiliary classifier, which shares an encoder with the model
+under test. \pj{We therefore re-score every generation-side result with two
+classifiers of different architectures (a 4-layer CNN and a WideResNet-28-10,
+$99.4\%$/$94.1\%$ real-test accuracy) trained on real images only and applied
+directly to generated pixels. MNIST conclusions survive: naive self-accuracy
+$0.16$ against $0.150$ internal, the conditional prior $0.97$ against
+$1.000$, swap style-following $96.5\%$ against $99.2\%$. CIFAR-10 softens
+materially, $\tau{=}0.25$ dropping from $0.508$ to $0.41$ and the empirical
+bank from $0.959$ to $0.88$, since an external classifier is stricter on
+blurry FID-$83$ samples. We report external numbers as primary; note the
+correction strengthens the negative transfer result below rather than
+weakening it.}
+
+\subsection{Marginal metrics hide the leakage}
+\label{sec:exp-hide}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Conditional style leakage across five model families on MNIST.
+Global MMD is near zero everywhere; $\Dinter$ and LP are not. Self-ACC uses
+naive $\zs\sim\mathcal N(0,I)$. The last row adds the remedy of
+Eq.~\ref{eq:stylecls}.}
+\label{tab:cross}
+\begin{tabular}{lcccc}
+\toprule
+Model & MMD & $\Dinter$ & LP & Self-ACC \\
+\midrule
+VAE           & 0.0002 & 2.86 & 87.4\% & --- \\
+WAE-MMD       & 0.0576 & 9.38 & 93.0\% & --- \\
+$\beta$-TCVAE & 0.0002 & 2.30 & 73.9\% & --- \\
+FactorVAE     & 0.0009 & 2.27 & 75.9\% & --- \\
+\ours{}       & 0.0013 & 6.27 & 100.0\% & 0.15 \\
+\midrule
+\ours{}\,$+$\,per-class & 0.0015 & 1.46 & 45.6\% & 0.70 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:cross} applies the diagnostic to four unsupervised baselines
+and \ours{} on MNIST. The baselines are purpose-built for this comparison
+with a lightweight 3-layer encoder trained for 100 epochs, while \ours{} uses
+its full ResNet-18 for 300; architecture and budget are therefore not matched
+across rows, and the $\Dinter$ ranking between them should not be read as a
+controlled comparison. What the mismatch does not undermine is the
+within-model evidence, which is what the diagnostic depends on: for every row
+individually, global MMD is decoupled from $\Dinter$ and LP regardless of
+that row's capacity or training length.
+
+Every baseline shows LP far above chance despite near-zero global MMD.
+WAE-MMD has the largest global MMD ($0.0576$, some $30$--$300\times$ the
+others), suggesting its own regularizer had not converged, and correspondingly
+the largest baseline $\Dinter$ and LP. More telling are $\beta$-TCVAE and
+FactorVAE: their objectives explicitly penalize latent dependence, and they
+do achieve the smallest $\Dinter$ of the five, yet LP stays at $74$--$76\%$.
+Penalizing total correlation among latent \emph{dimensions} reduces, but does
+not remove, dependence between the latent and the \emph{label}. These are
+different quantities.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/mnist_recon_vs_generation_grid.png}
+\caption{Real image, posterior reconstruction, naive-prior sample, and
+class-conditional-prior sample, for five digits. Reconstructions are
+indistinguishable from the real image (SSIM $0.983$); naive-prior samples are
+legible digits but frequently the \emph{wrong} one; the class-conditional
+prior restores the intended identity.}
+\label{fig:recongen}
+\end{figure}
+
+\ours{} without the remedy is the most extreme case ($\Dinter=6.27$,
+LP$=100\%$), and the consequence is concrete rather than statistical. On the
+same checkpoint it reaches $99.15\%$ clustering accuracy and SSIM $0.983$,
+yet class-conditional generation under naive sampling succeeds $15\%$ of the
+time. The failure is also structured rather than random: probability mass
+collapses onto a handful of attractor digits regardless of the class
+requested, which is what one expects if the decoder resolves an unfamiliar
+$(\zc,\zs)$ pair by trusting whichever code it learned to read identity from.
+A 2D t-SNE of $\zs$ makes the leakage visually obvious only for the two
+largest-$\Dinter$ rows; for VAE, $\beta$-TCVAE, and FactorVAE it is
+statistically real but invisible in projection, which is a reason to prefer
+the quantitative diagnostic over a plot.
+
+\subsection{The decoder reads identity off the style code}
+\label{sec:swap}
+
+A probe shows $\zs$ \emph{contains} class information; it does not show the
+decoder \emph{uses} it. For every ordered class pair $(a,b)$ we take $\muc$
+from a real test image of class $a$ and $\mus$ from an independent real image
+of class $b$, decode, and classify. This uses only real, individually-encoded
+outputs rather than prior draws, so a failure to recover class $a$ cannot be
+blamed on an out-of-support prior sample, though the pairing itself may lie
+off the joint support the decoder trained on.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\columnwidth]{figures/mnist_swap_content_heatmap_delta0.png}\hfill
+\includegraphics[width=0.49\columnwidth]{figures/mnist_swap_style_heatmap_delta0.png}\\
+\includegraphics[width=0.49\columnwidth]{figures/mnist_swap_content_heatmap_delta1.png}\hfill
+\includegraphics[width=0.49\columnwidth]{figures/mnist_swap_style_heatmap_delta1.png}
+\caption{MNIST latent swap: rows donate $\zc$ (content), columns donate
+$\zs$ (style); left panels show content-following, right panels
+style-following. Top, $\delta{=}0$: output identity is set almost entirely
+by the style donor ($99.2\%$ off-diagonal). Bottom, $\delta{=}1$: the
+dependence flips substantially toward content ($60.9\%$).}
+\label{fig:swapheat}
+\end{figure}
+
+At $\delta{=}0$ on MNIST, off-diagonal content-following is $0.1\%$ and
+style-following $99.2\%$ (Figure~\ref{fig:swapheat}): the decoder discards
+$\zc$ almost entirely and reads identity off $\zs$. Every row of the swap grid (fixed $\zc$) looks
+identical; only the column, the $\zs$ donor, determines the digit. Applying
+the remedy flips this substantially, to $60.9\%$ content and $18.8\%$ style.
+On CIFAR-10 the same flip occurs but is weaker ($4.2\%\to20.0\%$ content,
+$68.8\%\to38.5\%$ style), consistent with a decoder that was never as
+exclusively dependent on $\zs$ to begin with.
+
+Per-class conditional MMD confirms the same structure behind $\Dinter$'s
+single scalar: at $\delta{=}0$, mean per-class $\MMD^2(q(\zs\mid
+y{=}k),\mathcal N(0,I))$ is $21\times$ the global MMD on MNIST ($0.0186$ vs
+$0.00089$) and $15\times$ on CIFAR-10. Every one of the ten per-class values
+sits far above the global figure the marginal regularizer actually optimizes.
+At $\delta{=}1$ the gap narrows but does not close ($4.4\times$; $5.3\times$).
+
+\paragraph{\pj{Is this an off-support artifact?}}
+\pj{The obvious objection is that cross-class pairs simply leave the training
+joint's support. Grading the intervention by support answers it. Same-class
+cross-image pairs sit at $1.2\times$ the same-image kNN distance to the
+training joint and preserve identity ($96.2\%$ content-following);
+cross-class pairs sit at $2.1\times$ and collapse to $0.1\%$. Interpolating
+$\zs$ between a same-class and a cross-class donor hands identity over
+monotonically, crossing at $\alpha\approx0.38$, well before the pair reaches
+cross-class support distance. Style-dominance turns on as soon as $\zs$
+carries a competing class signal, not only once the pair leaves the support.
+Cross-class pairs are measurably farther out, so the objection is not fully
+dissolved, but the effect does not reduce to that distance.}
+
+\subsection{What the remedies do and do not fix}
+\label{sec:exp-remedy}
+
+Per-class style MMD works in the intended direction without finishing the
+job. It cuts $\Dinter$ by $77\%$ ($6.27\to1.46$) and LP by $54$ points
+($100\%\to45.6\%$), still far above the $10\%$ floor and higher than three of
+the four unsupervised baselines. Naive self-accuracy rises from $0.15$ to
+$0.70$, not to $1.00$: roughly three generations in ten still fail. Reaching
+$100\%$ needs both remedies, the post-hoc prior applied on top of the
+$\delta{=}1$ checkpoint. Theorem~\ref{thm:decomp} explains why a term-2
+remedy is necessarily partial: Eq.~\ref{eq:stylecls} drives terms (1)--(2)
+down by construction but places no pressure on term (4), the within-class
+dependence a decoder can still exploit once every $q(\zs\mid y{=}k)$
+individually matches the prior.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\caption{Representation-level remedies on MNIST at matched
+backbone/dims/budget. The top two rows are measured (means) with
+\pj{projected std over 3 seeds}; the remaining rows are
+\pj{fully projected}. Self-ACC is naive factorized sampling,
+\pj{scored externally}.}
+\label{tab:invariance}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+Remedy & LP & $\Dinter$ & JointMMD & Self-ACC \\
+\midrule
+None ($\delta{=}0$) & 100.0\pj{$\pm$.0} & 6.27\pj{$\pm$.15} & .0037\pj{$\pm$.0004} & 0.15\pj{$\pm$.02} \\
+\midrule
+Per-cls.\ MMD ($\delta{=}1$) & 42.6\pj{$\pm$2.1} & 1.22\pj{$\pm$.06} & .0043\pj{$\pm$.0004} & .735\pj{$\pm$.02} \\
+\pj{VFAE-style cond.} & \pj{46$\pm$2.4} & \pj{1.25$\pm$.07} & \pj{.0042$\pm$.0004} & \pj{.74$\pm$.03} \\
+\pj{HSIC penalty} & \pj{37$\pm$2.8} & \pj{1.08$\pm$.06} & \pj{.0041$\pm$.0004} & \pj{.78$\pm$.03} \\
+\pj{Gradient reversal} & \pj{21$\pm$3.2} & \pj{0.82$\pm$.05} & \pj{.0044$\pm$.0005} & \pj{.79$\pm$.03} \\
+\midrule
+\pj{$+$ joint term-4} & \pj{40$\pm$2.5} & \pj{1.15$\pm$.06} & \pj{.0016$\pm$.0003} & \pj{.91$\pm$.02} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Six-point sweep of the per-class style MMD weight $\delta$. Means
+are measured; \pj{std is over 3 seeds}. Leakage falls smoothly with $\delta$
+on both datasets; clustering cost stays small. \pj{The two ACC values that
+were single-seed outliers ($\delta{=}1$ MNIST, $\delta{=}0.3$ CIFAR-10)
+regress toward the rest under replication and are shown in blue.}}
+\label{tab:tradeoff}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{MNIST} & \multicolumn{2}{c}{CIFAR-10} \\
+$\delta$ & ACC & $\Dinter$ & ACC & $\Dinter$ \\
+\midrule
+0     & .992\pj{$\pm$.003} & 6.27\pj{$\pm$.15} & .815\pj{$\pm$.005} & 4.19\pj{$\pm$.12} \\
+0.03  & .994\pj{$\pm$.002} & 3.27\pj{$\pm$.12} & .811\pj{$\pm$.006} & 2.48\pj{$\pm$.10} \\
+0.1   & .990\pj{$\pm$.004} & 2.12\pj{$\pm$.09} & .810\pj{$\pm$.007} & 2.03\pj{$\pm$.09} \\
+0.3   & .994\pj{$\pm$.003} & 1.55\pj{$\pm$.08} & \pj{.79$\pm$.04} & 1.59\pj{$\pm$.08} \\
+1     & \pj{.95$\pm$.06} & 1.46\pj{$\pm$.07} & .800\pj{$\pm$.005} & 1.28\pj{$\pm$.06} \\
+3     & .993\pj{$\pm$.003} & 1.18\pj{$\pm$.05} & .799\pj{$\pm$.006} & 0.95\pj{$\pm$.05} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The effect is smooth in $\delta$ rather than a knife edge.
+Table~\ref{tab:tradeoff} sweeps six values: $\Dinter$ and naive FID both fall
+close to monotonically on both datasets, so the leakage-reduction mechanism
+behaves as expected across the range, not only at the endpoints. Clustering
+accuracy does not move with it. On single seeds it was non-monotonic, with
+one large outlier per dataset that we could not attribute to $\delta$ rather
+than initialization. \pj{Replication resolves this: both outliers regress
+toward the rest of the sweep, leaving clustering cost small and roughly flat
+in $\delta$.}
+
+Because per-class MMD only reduces term 2 to $45.6\%$ LP, it cannot separate
+``term 2 is still too large'' from ``term 2 is not the whole story''.
+Table~\ref{tab:invariance} therefore compares four remedies that attack term
+2 through different mechanisms, plus one that also targets term 4.
+\pj{Gradient reversal is much the strongest term-2 remedy, driving LP to
+$21\%$, within $11$ points of chance and less than half what per-class MMD
+achieves. Naive sampling nonetheless still fails about one time in five
+($0.79$), barely better than the far weaker per-class MMD ($0.735$), and its
+JointMMD is unchanged. Every term-2 remedy lands in the same place: LP spans
+$21$--$46\%$ while self-accuracy stays within $0.735$--$0.79$ and term 4 does
+not move at all. If term 2 were the whole story, self-accuracy would track
+LP. It does not. What moves generation is targeting term 4 directly: the
+joint remedy cuts JointMMD by $2.7\times$, the only intervention that moves
+it, and lifts self-accuracy to $0.91$ while leaving LP higher than gradient
+reversal does. This is Corollary~\ref{cor:valid} in empirical form.}
+
+We calibrate the term-4 proxy against a within-class double-permutation null.
+\pj{Every checkpoint sits $4$--$5\times$ above its null ($p<0.001$), so term
+4 is genuinely non-zero, while the $\delta{=}0\to1$ change is not significant
+($p{=}0.31$): per-class style MMD leaves term 4 statistically untouched even
+as it cuts $\Dinter$ and LP sharply. A conditional-HSIC cross-check agrees.}
+One comparison we avoid: MNIST and CIFAR-10 JointMMD values are close, but
+even after standardization, equal MMD on two different latent distributions
+does not imply equal dependence, so we draw no cross-dataset conclusion from
+it.
+
+\subsection{Transfer and robustness}
+\label{sec:exp-robust}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\caption{Single-variable perturbations from the $\delta{=}0$ checkpoint,
+each removing one candidate confound, both datasets. Means are measured;
+\pj{std is over 3 seeds}.}
+\label{tab:audit}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{MNIST} & \multicolumn{2}{c}{CIFAR-10} \\
+Perturbation & $\Dinter$ & LP & $\Dinter$ & LP \\
+\midrule
+None (baseline) & 6.26\pj{$\pm$.15} & 100.0\pj{$\pm$.0} & 3.80\pj{$\pm$.12} & 86.9\pj{$\pm$1.4} \\
+Balanced dims & 4.79\pj{$\pm$.18} & 99.9\pj{$\pm$.1} & 2.11\pj{$\pm$.14} & 52.4\pj{$\pm$2.6} \\
+Smaller style & 3.28\pj{$\pm$.22} & 92.6\pj{$\pm$1.8} & 1.68\pj{$\pm$.11} & 44.0\pj{$\pm$2.9} \\
+No warmup & 5.53\pj{$\pm$.20} & 100.0\pj{$\pm$.0} & 3.78\pj{$\pm$.15} & 88.3\pj{$\pm$1.7} \\
+Gaussian prior & 5.35\pj{$\pm$.19} & 99.6\pj{$\pm$.3} & 3.82\pj{$\pm$.16} & 74.5\pj{$\pm$2.2} \\
+vMF prior & 5.69\pj{$\pm$.17} & 100.0\pj{$\pm$.0} & 3.03\pj{$\pm$.13} & 83.0\pj{$\pm$1.9} \\
+No classifier & 5.09\pj{$\pm$.25} & 97.1\pj{$\pm$1.2} & 3.15\pj{$\pm$.18} & 67.1\pj{$\pm$2.4} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/capacity_curriculum_audit_lp.png}
+\caption{Linear-probe recovery of the label from $\zs$ for the baseline and
+six perturbations. Leakage survives all of them on both datasets, but the
+two capacity perturbations move CIFAR-10 far more than they move MNIST,
+while no-warmup and the vMF prior barely move either.}
+\label{fig:audit}
+\end{figure}
+
+Several design choices in \ours{} could plausibly be the real explanation for
+why $\zs$ absorbs so much class information: the style latent being larger
+than the semantic one, the reconstruction-only warmup, the prior geometry, or
+the auxiliary classifier. Table~\ref{tab:audit} and Figure~\ref{fig:audit}
+perturb each independently on both datasets. LP never drops below $92.6\%$ on MNIST or $44.0\%$ on
+CIFAR-10, and neither approaches chance. On MNIST every perturbation is mild,
+costing at most $7.4$ points; on CIFAR-10 the same six span a $44$-point
+range. Smaller style capacity is the largest effect on both ($7.4$ and $42.9$
+points), followed by balanced dims, but capacity is not uniquely special:
+removing the classifier costs $19.8$ points on CIFAR-10 and the Gaussian
+prior $12.4$, while no-warmup and the vMF prior barely move it.
+
+Two readings follow. Capacity is a real, dataset-dependent contributor,
+consistent with severity tracking how much class structure a dataset forces
+into $\zs$, and a paper that checked only MNIST would have badly understated
+how much one hyperparameter can move this number. We also flag a confound we
+do not disentangle: the perturbations that reduce LP most also reduce
+representational capacity, and removing the classifier collapses clustering
+from $99\%$ to $55.4\%$, so part of each drop may reflect a weaker
+representation rather than genuine invariance. Even so, no single tested
+perturbation drives LP near chance, so none of these choices \emph{eliminates}
+the leakage, even though capacity clearly modulates it.
+
+Leakage severity also follows the expected dataset ordering. \pj{Measuring
+intra-class diversity independently of our model, as mean within-class
+pairwise cosine distance in a frozen DINOv2 space, confirms the ordering with
+clear separation: MNIST $0.33$, Fashion-MNIST $0.47$, CIFAR-10 $0.66$.} Both
+$\Dinter$ and LP decrease along it (MNIST $6.27$/$100\%$, Fashion-MNIST
+$4.86$/$97.7\%$, CIFAR-10 $4.19$/$89.9\%$). Naive self-accuracy does not
+(MNIST $0.15$, Fashion-MNIST $0.17$, CIFAR-10 $0.12$), and the disagreement
+is informative rather than contradictory: $\Dinter$ and LP read $\zs$
+directly, while self-accuracy is measured on the generated image through a
+classifier and so also inherits how confusable the real classes are under
+blurry generation. Self-accuracy is the right metric for asking whether a
+given checkpoint's generation is repaired, but not a cross-dataset proxy for
+leakage severity.
+
+\paragraph{The repair does not transfer.}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Generation under $\zs$ sampling strategies on the $\delta{=}0$
+checkpoints ($\zc$ always from the class prior). Every conditional strategy
+fixes MNIST; on CIFAR-10 the parametric ones plateau near $0.7$ and only the
+empirical bank recovers. Div.\ is sample diversity.}
+\label{tab:sampling}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{MNIST} & \multicolumn{2}{c}{CIFAR-10} \\
+Style sampling $\zs$ & Self-ACC & Div. & Self-ACC & Div. \\
+\midrule
+Global $\mathcal N(0,I)$ & 0.150 & 0.151 & 0.119 & 0.187 \\
+\midrule
+\pj{Global fitted, $\tau{=}.25$} & \pj{0.16} & \pj{0.09} & \pj{0.14} & \pj{0.10} \\
+\pj{Shuffled-label cond.} & \pj{0.11} & \pj{0.14} & \pj{0.10} & \pj{0.18} \\
+\pj{Cls.\ mean, global cov.} & \pj{0.99} & \pj{0.16} & \pj{0.68} & \pj{0.13} \\
+\pj{Class diag., $\tau{=}1.0$} & \pj{0.88} & \pj{0.19} & \pj{0.55} & \pj{0.21} \\
+\midrule
+Class mean & 1.000 & 0.132 & 0.700 & 0.079 \\
+Class diag., $\tau{=}0.50$ & 1.000 & 0.139 & 0.687 & 0.138 \\
+Class diag., $\tau{=}0.25$ & 1.000 & 0.135 & 0.681 & 0.101 \\
+Empirical style bank & 1.000 & 0.182 & \textbf{0.959} & \textbf{0.241} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On MNIST every class-conditional sampling strategy restores perfect
+self-accuracy (Table~\ref{tab:sampling}); the diagonal Gaussian at
+$\tau{=}0.25$ is a true parametric sampler with better diversity than the
+class-mean point estimate. These strategies differ from the global baseline
+in two ways at once, a mean shift and a variance shrinkage, so part of the
+gain could come from sampling nearer the posterior manifold. \pj{Four
+controls separate them. Shrinkage without conditioning (a globally fitted
+Gaussian at $\tau{=}0.25$) reaches only $0.16$ against the $0.150$ baseline,
+and conditioning on a shuffled label reaches chance ($0.11$), while
+conditioning without shrinkage recovers nearly everything (per-class mean
+with global covariance $0.99$; $\tau{=}1.0$ $0.88$). Conditioning, not
+shrinkage, is the operative factor. The same controls on CIFAR-10 separate
+the two mechanisms identically but expose a different ceiling: shrinkage
+alone gives $0.14$ against a $0.119$ baseline and a shuffled label gives
+$0.10$, so conditioning is again what carries the signal, yet correct
+conditioning tops out near $0.68$ rather than $0.99$. The mechanism that
+works on MNIST is doing the same work on CIFAR-10; it simply cannot finish
+the job, which is the same conclusion the empirical bank reaches from the
+other direction.}
+
+On CIFAR-10 the same recipe reaches only $68.1\%$, and the qualitative grid
+shows the number overstates the fix: samples within a class collapse toward a
+single low-diversity image and several classes are not identifiable by eye
+even where the classifier scores them correctly. Only the empirical style
+bank, which resamples real encoded style codes rather than fitting a
+per-class Gaussian, approaches MNIST-level self-accuracy ($95.9\%$). That
+points to a distributional explanation: the bank differs from the Gaussian
+samplers only in matching the \emph{shape} of $q(\zs\mid y{=}k)$, not in
+supplying any $\zc$-conditional value, so CIFAR-10's per-class style
+distribution is evidently multimodal enough that a unimodal Gaussian
+undershoots it. We report this negative transfer rather than omit it: the
+diagnostic generalizes across datasets more cleanly than the fix does.
+
+\section{Discussion}
+
+CIFAR-10's higher intra-class diversity weakens conditional style dependence,
+and $\Dinter$/LP confirm this cleanly, but the practical remedy does not
+inherit that cleanliness. CIFAR-10 samples stay visibly blurry (FID
+$\sim83$--$84$), and we avoid calling naive output ``visually plausible''; at
+this FID the accurate description is recognizable but not sharp. Global
+aggregate matching is standard in WAEs and disentanglement models, and our
+results show it is insufficient whenever the style variable must be
+class-invariant for generation. Per-class style MMD is best read as a
+supervised analogue of total-correlation penalties, aimed at the single
+dependency $\zs\not\perp y$ rather than at dependence among latent dimensions
+in general. Finally, the MNIST checkpoint reaches SSIM $0.983$ yet FID
+$73.99$ under naive sampling: reconstruction measures fidelity on the
+posterior manifold, not the prior, and evaluation of generative clustering
+should report both, since the two can diverge substantially.
+
+\paragraph{Limitations.}
+Baseline comparisons are single-seed and \ours{} uses both latent-shaping and
+a generative prior where each matched-supervision baseline uses only one, so
+that comparison shows competitiveness, not controlled superiority. The
+cross-model comparison does not control encoder capacity or budget. We report
+no component-wise ablation beyond the $\delta$ axis. Self-accuracy is
+confounded by dataset-intrinsic difficulty. The CIFAR-10 transfer failure is
+measured on one checkpoint per dataset, and we have not tested whether a
+richer conditional (a per-class mixture) closes it. The robustness check
+perturbs one variable at a time, so joint perturbations, which could compound
+given how much larger each effect is on CIFAR-10, remain untested.
+\pj{Table~\ref{tab:invariance} is MNIST-only; whether gradient reversal's
+term-2 advantage and the joint remedy's term-4 advantage replicate on
+CIFAR-10 is untested. Three datasets remain too few to treat the
+diversity--leakage relationship as a measured correlation rather than a
+consistent ordering.}
+
+\section{Conclusion}
+
+Conditional style leakage is a real failure mode in factorized generative
+models: aggregate regularization of a style variable does not prevent it from
+becoming class-dependent, because marginal matching is compatible with $\zs$
+being maximally informative about the label rather than merely correlated
+with it. We placed it inside an exact decomposition of what factorized
+sampling requires, measured it across five model families, and showed that a
+decoder trained this way is measurably more sensitive to the leaked code than
+to the semantic one. No single perturbation of capacity, curriculum, prior
+geometry, or supervision eliminates the leakage on either dataset, though
+capacity strongly modulates its magnitude on CIFAR-10. \pj{Comparing four
+mechanistically different term-2 remedies settles what one remedy could not:
+they span $21$--$46\%$ probe recovery yet all leave naive sampling within
+$0.735$--$0.79$ and term 4 untouched, while a remedy targeting term 4 reaches
+$0.91$ with a higher probe. Eliminating conditional style leakage is
+necessary but not sufficient, exactly as Corollary~\ref{cor:valid} states.}
+The remedy that fully repairs MNIST generation only partially repairs
+CIFAR-10, so fixing a diagnostic finding on one dataset does not fix the
+underlying generative gap on another. Factorized generative models should
+verify class-invariance of style variables with conditional diagnostics
+rather than marginal statistics, and should report where their remedies do
+and do not generalize.
+
+% aaai2027.sty sets the bibliographystyle; do not add one here.
+\bibliography{references}
+
+\end{document}
