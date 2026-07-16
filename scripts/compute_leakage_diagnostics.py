@@ -125,6 +125,73 @@ def compute_delta_inter(z_s: torch.Tensor, labels: torch.Tensor, n_classes: int)
     return total / count if count > 0 else 0.0
 
 
+# ---------------------------------------------------------------------------
+# JointMMD — proxy for Theorem term (4), I_q(z_c; z_s | y) (main_v6.tex Sec. 3.5)
+# ---------------------------------------------------------------------------
+
+_SIGMAS_SPHERICAL = [0.1, 0.3, 0.5, 1.0, 2.0]  # chordal dist_sq in [0,4] for unit vectors
+_SIGMAS_EUCLIDEAN = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]  # matches mmd2_rbf's ladder
+
+
+def _kc_multiscale(zc_a: torch.Tensor, zc_b: torch.Tensor) -> torch.Tensor:
+    """Multi-scale spherical RBF kernel matrix on unit-norm z_c vectors."""
+    from src.utils.utils import rbf_kernel as _rbf_spherical
+    k = torch.zeros(zc_a.shape[0], zc_b.shape[0], device=zc_a.device)
+    for s in _SIGMAS_SPHERICAL:
+        k = k + _rbf_spherical(zc_a, zc_b, s)
+    return k / len(_SIGMAS_SPHERICAL)
+
+
+def _ks_multiscale(zs_a: torch.Tensor, zs_b: torch.Tensor) -> torch.Tensor:
+    """Multi-scale Euclidean RBF kernel matrix on z_s vectors (same ladder as mmd2_rbf)."""
+    k = torch.zeros(zs_a.shape[0], zs_b.shape[0], device=zs_a.device)
+    for s in _SIGMAS_EUCLIDEAN:
+        k = k + _rbf(zs_a, zs_b, s)
+    return k / len(_SIGMAS_EUCLIDEAN)
+
+
+def _joint_product_mmd2(zc1, zs1, zc2, zs2) -> float:
+    """Biased MMD² between two sets of (z_c, z_s) pairs under a product kernel
+    (spherical on z_c, Euclidean on z_s). Both kernel components use a
+    multi-scale bandwidth ladder rather than a single fixed sigma, to avoid
+    the saturation failure mode found in this script's own hsic() (single
+    sigma_z=1.0, empirically flat regardless of true dependence — see
+    main_v6.tex's HSIC discussion)."""
+    def K(zc_a, zs_a, zc_b, zs_b):
+        return _kc_multiscale(zc_a, zc_b) * _ks_multiscale(zs_a, zs_b)
+    k11 = K(zc1, zs1, zc1, zs1).mean()
+    k22 = K(zc2, zs2, zc2, zs2).mean()
+    k12 = K(zc1, zs1, zc2, zs2).mean()
+    return (k11 + k22 - 2.0 * k12).item()
+
+
+def compute_joint_mmd(mu_c: torch.Tensor, mu_s: torch.Tensor, labels: torch.Tensor,
+                       n_classes: int, seed: int = 0) -> float:
+    """JointMMD (main_v6.tex Eq. in Sec. 3.5, Theorem term (4) proxy):
+
+        (1/K) sum_k MMD²( {(z_c^i,z_s^i)}_{y_i=k}, {(z_c^i,z_s^{pi(i)})}_{y_i=k} )
+
+    pi permutes style codes within class k, breaking exactly the within-class
+    z_c-z_s coupling while leaving both per-class marginals (terms 1-3)
+    unchanged. mu_c must already be unit-norm (posterior-mean semantic codes);
+    mu_s is the posterior-mean style code. Requires >=4 samples per class to
+    form a stable permuted comparison; classes with fewer are skipped.
+    """
+    zc_all = F.normalize(mu_c, p=2, dim=1)
+    generator = torch.Generator().manual_seed(seed)
+    vals = []
+    for k in range(n_classes):
+        mask = labels == k
+        n_k = int(mask.sum().item())
+        if n_k < 4:
+            continue
+        zc_k = zc_all[mask]
+        zs_k = mu_s[mask]
+        perm = torch.randperm(n_k, generator=generator)
+        vals.append(_joint_product_mmd2(zc_k, zs_k, zc_k, zs_k[perm]))
+    return float(sum(vals) / len(vals)) if vals else 0.0
+
+
 def compute_linear_probe(
     z_s: torch.Tensor,
     labels: torch.Tensor,
@@ -322,6 +389,20 @@ def run_diagnostics(
     idx = torch.randperm(z_s.shape[0])[:n_hsic]
     results["hsic"] = hsic(z_s[idx], labels[idx])
 
+    # 4b. JointMMD — Theorem term (4) proxy, I_q(z_c;z_s|y). fcswae-only:
+    # needs both z_c and z_s from the *same* forward pass (extract_full_encodings),
+    # not just z_s (extract_style_latents above already discarded z_c).
+    results["joint_mmd"] = None
+    if model_type == "fcswae" and hasattr(model, "encode"):
+        print("Computing JointMMD (term 4 proxy)...")
+        mu_c_full, mu_s_full, labels_full = extract_full_encodings(model, loader, device)
+        n_jmmd = min(2048, mu_c_full.shape[0])
+        idx_j = torch.randperm(mu_c_full.shape[0])[:n_jmmd]
+        results["joint_mmd"] = compute_joint_mmd(
+            mu_c_full[idx_j].to(device), mu_s_full[idx_j].to(device),
+            labels_full[idx_j].to(device), n_classes,
+        )
+
     # 5. Gen self-ACC (only for models with sample_from_class_prior)
     results["gen_self_acc_global_gaussian"] = None
     results["gen_self_acc_class_diag_t025"] = None
@@ -373,6 +454,8 @@ def run_diagnostics(
         print(f"  Δ_inter (inter-class sep)     : {results['delta_inter']:.4f}  (should ≈ 0)")
         print(f"  LP(z_s → y) accuracy          : {results['lp_accuracy']:.4f}  (should ≈ {1/n_classes:.2f})")
         print(f"  HSIC(z_s, y)                  : {results['hsic']:.6f}  (should ≈ 0)")
+        if results["joint_mmd"] is not None:
+            print(f"  JointMMD (term 4 proxy)       : {results['joint_mmd']:.6f}  (should ≈ 0)")
         if results["gen_self_acc_global_gaussian"] is not None:
             print(f"  Gen self-ACC (global N(0,I)) : {results['gen_self_acc_global_gaussian']:.4f}  (should ≈ 1.0)")
         if results["gen_self_acc_class_diag_t025"] is not None:
@@ -388,22 +471,45 @@ def run_diagnostics(
 # wrong_style_rate_diagnostics.py, run_delta_sweep.py)
 # ---------------------------------------------------------------------------
 
-def load_fcswae_checkpoint(checkpoint_path, dataset: str, device):
-    """Load a trained FCSWAE model from a checkpoint for the given dataset."""
-    from src.models.f_cs_wae import FCSWAE
+def load_fcswae_checkpoint(checkpoint_path, dataset: str, device, variant: str | None = None):
+    """Load a trained FCSWAE (or FCSWAEAblation) model from a checkpoint.
+
+    variant: an ABLATION_VARIANTS key (e.g. "no_classifier", "gaussian_class_prior")
+    if the checkpoint came from run_ablation_f_cs_wae.py -- its encoder/decoder
+    structure (e.g. euclidean vs. spherical z_c, presence of a classifier head)
+    differs from plain FCSWAE, so the state_dict keys would otherwise mismatch.
+    """
     from src.config_f_cs_wae import f_cs_wae_config as cfg
     from src.utils.dataset_config import apply_dataset_config
 
     apply_dataset_config(cfg, dataset, backbone="resnet18")
-    model = FCSWAE(
-        semantic_dim=cfg.semantic_dim,
-        style_dim=cfg.style_dim,
-        n_classes=cfg.n_classes,
-        in_channels=cfg.in_channels,
-        image_size=cfg.image_size,
-    ).to(device)
     ckpt = torch.load(checkpoint_path, map_location=device)
     state = ckpt.get("model_state_dict", ckpt)
+    # Infer semantic_dim/style_dim directly from the checkpoint rather than
+    # trusting cfg's defaults: checkpoints trained with --dc/--ds overrides
+    # (e.g. capacity-ablation runs) have non-default dims that a fresh cfg
+    # instance in this process has no way to know about.
+    semantic_dim = state["encoder.fc_mu_c.weight"].shape[0]
+    style_dim = state["encoder.fc_mu_s.weight"].shape[0]
+    if variant is not None:
+        from src.models.f_cs_wae_ablation import create_f_cs_wae_ablation
+        model = create_f_cs_wae_ablation(
+            variant,
+            semantic_dim=semantic_dim,
+            style_dim=style_dim,
+            n_classes=cfg.n_classes,
+            in_channels=cfg.in_channels,
+            image_size=cfg.image_size,
+        ).to(device)
+    else:
+        from src.models.f_cs_wae import FCSWAE
+        model = FCSWAE(
+            semantic_dim=semantic_dim,
+            style_dim=style_dim,
+            n_classes=cfg.n_classes,
+            in_channels=cfg.in_channels,
+            image_size=cfg.image_size,
+        ).to(device)
     model.load_state_dict(state)
     model.eval()
     return model
@@ -444,6 +550,11 @@ def parse_args():
                    choices=["fcswae", "vae", "waemmd", "betavae", "factorvae", "betatcvae"],
                    help="Model type to load")
     p.add_argument("--checkpoint", required=True, help="Path to model checkpoint (.pth)")
+    p.add_argument("--variant", default=None,
+                   help="F-CS-WAE ablation variant key (e.g. no_classifier, "
+                        "gaussian_class_prior) if the checkpoint was produced by "
+                        "run_ablation_f_cs_wae.py rather than train_f_cs_wae.py. "
+                        "Default: plain FCSWAE.")
     p.add_argument("--dataset", default="mnist",
                    choices=["mnist", "fashion_mnist", "cifar10"])
     p.add_argument("--device", default="cpu")
@@ -467,7 +578,7 @@ def main():
 
     print(f"Loading {args.model_type} from {args.checkpoint}...")
     if args.model_type == "fcswae":
-        model = load_fcswae_checkpoint(args.checkpoint, args.dataset, device)
+        model = load_fcswae_checkpoint(args.checkpoint, args.dataset, device, variant=args.variant)
     else:
         raise NotImplementedError(
             f"Loading for model_type={args.model_type} not implemented yet. "

@@ -1,0 +1,9 @@
+{
+  "global_mmd": 0.0013140951295234438,
+  "delta_inter": 6.264059511820475,
+  "lp_accuracy": 1.0,
+  "hsic": 0.0008791157742962241,
+  "joint_mmd": 0.0037184089422225954,
+  "gen_self_acc_global_gaussian": 0.124,
+  "gen_self_acc_class_diag_t025": 1.0
+}

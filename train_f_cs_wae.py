@@ -48,6 +48,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--delta-final", type=float, default=None,
                    help="Per-class style MMD weight (0=disabled, default: cfg.delta_final=1.0). "
                         "Set 0 to reproduce baseline without the proposed fix.")
+    p.add_argument("--dc",          type=int,   default=None,
+                   help="Override semantic_dim d_c (default: cfg.semantic_dim=64)")
+    p.add_argument("--ds",          type=int,   default=None,
+                   help="Override style_dim d_s (default: cfg.style_dim=128)")
+    p.add_argument("--phase-a-end", type=int,   default=None,
+                   help="Override cfg.phase_a_end (default 50). Set 0 to skip the "
+                        "reconstruction-only warmup and start style/class regularization "
+                        "from epoch 0.")
     p.add_argument("--output-dir",  type=str,   default=None,
                    help="Output directory (default: runs_f/<dataset>/seed_<N>)")
     p.add_argument("--skip-eval",   action="store_true",
@@ -73,6 +81,12 @@ def main() -> None:
     n_centers = args.n_centers or cfg.n_centers
     if args.delta_final is not None:
         cfg.delta_final = args.delta_final
+    cfg.semantic_dim = args.dc if args.dc is not None else cfg.semantic_dim
+    cfg.style_dim    = args.ds if args.ds is not None else cfg.style_dim
+    if args.phase_a_end is not None:
+        cfg.phase_a_end = args.phase_a_end
+        assert cfg.phase_a_end < cfg.phase_b_end, \
+            f"--phase-a-end ({cfg.phase_a_end}) must be < phase_b_end ({cfg.phase_b_end})"
 
     print("=" * 60)
     print("F-CS-WAE Training")
@@ -85,6 +99,7 @@ def main() -> None:
     print(f"  delta_final: {cfg.delta_final}  (per-class style MMD; 0=disabled)")
     print(f"  Output     : {save_dir}")
     print(f"  semantic_dim: {cfg.semantic_dim}  style_dim: {cfg.style_dim}")
+    print(f"  phase_a_end: {cfg.phase_a_end}  (0 = skip reconstruction-only warmup)")
 
     # Save run metadata
     run_meta = config_to_dict(cfg)

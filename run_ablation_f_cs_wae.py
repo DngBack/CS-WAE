@@ -187,6 +187,10 @@ def parse_args() -> argparse.Namespace:
                    help=f"Variants to run (default: all). Choices: {ALL_VARIANTS}")
     p.add_argument("--results-dir", type=str, default=None,
                    help="Output directory for this ablation run")
+    p.add_argument("--delta-final", type=float, default=None,
+                   help="Per-class style MMD weight override (default: cfg.delta_final=1.0). "
+                        "Set 0 to disable the remedy, matching the delta=0 baseline in "
+                        "train_f_cs_wae.py.")
     p.add_argument("--summarize-only", action="store_true",
                    help="Load saved metrics and print table only")
     p.add_argument("--skip-aggregate", action="store_true",
@@ -266,6 +270,8 @@ def main() -> None:
 
     variants = args.variants or ALL_VARIANTS
     epochs   = args.epochs   or cfg.total_epochs
+    if args.delta_final is not None:
+        cfg.delta_final = args.delta_final
 
     print("=" * 60)
     print("F-CS-WAE Ablation Study")
@@ -273,6 +279,7 @@ def main() -> None:
     print(f"  Dataset  : {args.dataset}  Seed : {args.seed}  Device : {device}")
     print(f"  Variants : {variants}")
     print(f"  Epochs   : {epochs}")
+    print(f"  delta_final: {cfg.delta_final}")
     print(f"  Output   : {results_dir}")
 
     train_loader, test_loader = get_loaders(

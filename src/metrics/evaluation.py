@@ -53,10 +53,12 @@ class ModelEvaluator:
         model.eval()
         total_lpips_score = 0.0
         
+        needs_labels = type(model).__name__ == "ConditionalVAE"
+
         with torch.no_grad():
-            for images, _ in tqdm(test_loader, desc="Evaluating reconstruction"):
+            for images, labels in tqdm(test_loader, desc="Evaluating reconstruction"):
                 images = images.to(self.device)
-                
+
                 # Get reconstructions
                 if hasattr(model, 'encode_to_distribution'):
                     # CS-WAE model (both ablation and regular)
@@ -67,6 +69,9 @@ class ModelEvaluator:
                     else:
                         # Regular CS-WAE returns (x_hat, other_stuff)
                         reconstructed_images = model_output[0]
+                elif needs_labels:
+                    # ConditionalVAE.forward(x, y) requires the class label
+                    reconstructed_images = model(images, labels.to(self.device))[0]
                 else:
                     # Baseline models
                     if hasattr(model, 'reparameterize'):  # VAE or VaDE
@@ -115,7 +120,9 @@ class ModelEvaluator:
                     latent_vectors = torch.nn.functional.normalize(q_params[:, :-1], p=2, dim=1)
                 elif hasattr(model, 'encode'):
                     # Extended baselines: ResNetAE, AEWithCE, AEWithSupCon, etc.
-                    latent_vectors = model.encode(images)
+                    encoded = model.encode(images)
+                    # ConditionalVAE.encode returns (mu, logvar); others return z directly
+                    latent_vectors = encoded[0] if isinstance(encoded, tuple) else encoded
                 
                 all_latents.append(latent_vectors.cpu().numpy())
                 all_labels.append(labels.numpy())

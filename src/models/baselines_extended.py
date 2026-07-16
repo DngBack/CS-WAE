@@ -132,6 +132,7 @@ class AEWithCE(nn.Module):
         super().__init__()
         latent_dim = latent_dim or (cfg.semantic_dim + cfg.style_dim)
         n_classes  = n_classes  or cfg.n_classes
+        self.latent_dim = latent_dim
         self.lambda_ce = lambda_ce
 
         self.features, self.fc = _build_resnet_encoder(latent_dim, in_channels)
@@ -170,6 +171,7 @@ class AEWithSupCon(nn.Module):
     ):
         super().__init__()
         latent_dim = latent_dim or (cfg.semantic_dim + cfg.style_dim)
+        self.latent_dim = latent_dim
         self.temperature = temperature
         self.lambda_sc = lambda_sc
 
@@ -230,6 +232,7 @@ class AEWithCenterLoss(nn.Module):
         super().__init__()
         latent_dim = latent_dim or (cfg.semantic_dim + cfg.style_dim)
         n_classes  = n_classes  or cfg.n_classes
+        self.latent_dim = latent_dim
         self.lambda_cl = lambda_cl
 
         self.features, self.fc = _build_resnet_encoder(latent_dim, in_channels)
@@ -269,6 +272,7 @@ class AEWithTriplet(nn.Module):
     ):
         super().__init__()
         latent_dim = latent_dim or (cfg.semantic_dim + cfg.style_dim)
+        self.latent_dim = latent_dim
         self.lambda_tri = lambda_tri
         self.triplet_loss = nn.TripletMarginLoss(margin=margin, p=2)
 

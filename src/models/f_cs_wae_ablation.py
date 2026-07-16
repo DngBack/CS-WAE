@@ -318,7 +318,7 @@ class FCSWAEAblation(nn.Module):
         else:
             # Euclidean: VAE reparameterization
             mu_c   = mu_c_raw
-            logvar = param_c
+            logvar = param_c.clamp(-10, 10)
             std    = torch.exp(0.5 * logvar)
             return mu_c + std * torch.randn_like(std), mu_c, logvar
 
@@ -346,18 +346,58 @@ class FCSWAEAblation(nn.Module):
             return mu_k + std * torch.randn(n, self.semantic_dim, device=device)
 
     def _sample_vmf(self, mu: torch.Tensor, n: int, device: torch.device) -> torch.Tensor:
-        """Rejection-sample approximation of von Mises-Fisher."""
+        """Sample from von Mises-Fisher(mu, kappa) via Wood's (1994) algorithm.
+
+        Naive rejection sampling of a full unit vector (accept z if
+        exp(kappa*(z.mu - 1)) > u) is intractable once semantic_dim is more
+        than a few: two uniform random unit vectors in d dimensions have dot
+        product concentrated within O(1/sqrt(d)) of 0, so at semantic_dim=64
+        the acceptance probability at the mode is ~exp(-kappa)=exp(-10)~4.5e-5,
+        and the rejection loop effectively never terminates -- this is what
+        caused `vmf_class_prior` training to stall for hours once epoch >=100
+        (Phase C) started calling this sampler. Wood's algorithm instead
+        rejection-samples only the scalar "height" along mu (tractable in any
+        dimension) and combines it with a uniformly sampled direction on the
+        orthogonal complement.
+        """
         kappa = 10.0
-        collected, samples = 0, []
-        while collected < n:
-            z    = F.normalize(torch.randn(n * 4, self.semantic_dim, device=device), p=2, dim=1)
-            dots = (z * mu.unsqueeze(0)).sum(dim=1)
-            probs = torch.exp(kappa * (dots - 1.0))
-            accept = torch.rand(len(z), device=device) < probs
-            batch  = z[accept]
-            samples.append(batch)
-            collected += batch.shape[0]
-        return torch.cat(samples, dim=0)[:n]
+        p = self.semantic_dim
+        if p <= 1:
+            return mu.unsqueeze(0).expand(n, -1).clone()
+
+        b = (-2 * kappa + (4 * kappa ** 2 + (p - 1) ** 2) ** 0.5) / (p - 1)
+        x0 = (1.0 - b) / (1.0 + b)
+        c = kappa * x0 + (p - 1) * float(torch.log(torch.tensor(1.0 - x0 ** 2)))
+        beta_dist = torch.distributions.Beta(
+            torch.tensor((p - 1) / 2.0, device=device),
+            torch.tensor((p - 1) / 2.0, device=device),
+        )
+
+        ws = torch.empty(0, device=device)
+        while ws.shape[0] < n:
+            m = max((n - ws.shape[0]) * 2, 8)
+            z = beta_dist.sample((m,))
+            w = (1.0 - (1.0 + b) * z) / (1.0 - (1.0 - b) * z)
+            u = torch.rand(m, device=device)
+            log_accept = kappa * w + (p - 1) * torch.log((1.0 - x0 * w).clamp(min=1e-12)) - c
+            accept = log_accept >= torch.log(u.clamp(min=1e-12))
+            ws = torch.cat([ws, w[accept]])
+        w = ws[:n]
+
+        v = F.normalize(torch.randn(n, p - 1, device=device), p=2, dim=1)
+        tangent_height = torch.sqrt((1.0 - w ** 2).clamp(min=0.0))
+        samples_e1 = torch.cat([w.unsqueeze(1), tangent_height.unsqueeze(1) * v], dim=1)
+
+        e1 = torch.zeros(p, device=device)
+        e1[0] = 1.0
+        if torch.allclose(mu, e1, atol=1e-6):
+            return samples_e1
+        if torch.allclose(mu, -e1, atol=1e-6):
+            samples_e1[:, 0] *= -1.0
+            return samples_e1
+        u_reflect = F.normalize(e1 - mu, p=2, dim=0)
+        rotated = samples_e1 - 2.0 * (samples_e1 @ u_reflect).unsqueeze(1) * u_reflect.unsqueeze(0)
+        return F.normalize(rotated, p=2, dim=1)
 
     # ------------------------------------------------------------------
     # Forward

@@ -1,0 +1,312 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[top=0.8in,bottom=0.9in,left=0.9in,right=0.9in]{geometry}
+\usepackage{times}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\setlist[itemize]{leftmargin=*,topsep=2pt,itemsep=1pt}
+
+% Projected values are set in blue; measured values are in black.
+\newcommand{\pj}[1]{\textcolor{blue}{#1}}
+\newcommand{\zc}{z_{\mathrm{c}}}
+\newcommand{\zs}{z_{\mathrm{s}}}
+
+\title{\vspace{-1.2em}Projected Results: What Each Pending Experiment Would Buy\\
+\large Planning memo for \emph{Marginal Matching Does Not License Factorized Sampling}\vspace{-0.4em}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2.5em}
+
+\noindent\fbox{\parbox{0.97\textwidth}{\small
+\textbf{How to read this memo.} Numbers in \textbf{black} are measured
+results already in \texttt{main\_v6.tex}. Numbers in \pj{blue} are
+\emph{projected best-case outcomes} for experiments that have not been run
+--- they are reasoned forecasts anchored on the measured numbers, not data.
+This memo exists to answer one question: \emph{for each pending experiment,
+what would we most likely get, what would it cost, and what would it buy the
+paper?} Nothing here should be copied into the paper; the paper reports only
+measured values.
+}}
+
+\vspace{0.8em}
+
+\section*{1. Summary and recommended order}
+
+Compute estimates use the observed per-run cost on this machine
+(a 300-epoch F-CS-WAE run took $4.5$--$13$\,h wall-clock depending on
+contention from other tenants; call it $\sim$8\,h; diagnostics are seconds).
+The key planning fact: \textbf{the four cheapest experiments require no
+training at all}, take roughly one working day in total, and close four of
+the reviewer's P0/P1 gaps.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Experiment & Compute & Buys & Risk if it goes badly \\
+\midrule
+\multicolumn{4}{l}{\emph{Tier 1 --- no training required ($\sim$6--8\,h total)}}\\
+Post-hoc sampling controls & \pj{1--2\,h} & Kills the $\tau$-shrinkage confound & Low \\
+JointMMD calibration       & \pj{1--2\,h} & Upgrades term-4 claim to established & Medium \\
+Support-aware swap         & \pj{2--3\,h} & Kills the ``off-support'' objection & Medium \\
+Intra-class diversity metric & \pj{1\,h}  & Turns Exp.\ 4 assumption into measurement & Low \\
+\midrule
+\multicolumn{4}{l}{\emph{Tier 2 --- light training ($\sim$8\,h)}}\\
+Two external classifiers & \pj{4--8\,h} & Closes the \#1 evaluation gap & \textbf{High} \\
+\midrule
+\multicolumn{4}{l}{\emph{Tier 3 --- heavy training}}\\
+Multi-seed core ($3$ seeds) & \pj{$\sim$128 GPU-h $\approx$ 3\,d} & Removes single-seed caveat & Medium \\
+\midrule
+\multicolumn{4}{l}{\emph{Tier 4--5 --- new code + training}}\\
+Invariance baselines (GRL/HSIC/VFAE) & \pj{$\sim$1\,d dev $+$ 2\,d} & \textbf{Highest scientific payoff} & \textbf{High} \\
+Joint remedy for term 4 & \pj{$\sim$1\,d dev $+$ 1\,d} & A method contribution & High \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Recommendation.} Tier 1 + Tier 2 ($\sim$1--1.5 days) is
+strictly the best value: it closes four P0/P1 gaps and independently
+validates the paper's most-quoted numbers. Tier 3 (multi-seed) is the
+expensive long pole but removes the caveat attached to almost every result.
+Tier 4 is the only item that could raise the paper's ceiling rather than
+just its floor --- see \S6.
+
+\section*{2. Tier 1a --- Post-hoc sampling controls}
+
+\textbf{Question.} Is the post-hoc prior's gain from \emph{class
+conditioning}, or merely from \emph{variance shrinkage} ($\tau{=}0.25$
+samples near the posterior mean, where the decoder behaves well)?
+
+\textbf{Measured anchor} (MNIST, $\delta{=}0$, self-accuracy): global
+$\mathcal N(0,I)$ $=0.150$; class-mean $=1.000$; class-diag $\tau{=}0.25$
+$=1.000$; $\tau{=}0.50$ $=1.000$; empirical bank $=1.000$.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Control (new) & Isolates & Projected self-ACC \\
+\midrule
+Global fitted Gaussian, $\tau{=}0.25$ & shrinkage, \emph{no} conditioning & \pj{0.12--0.20} \\
+Shuffled-label class-conditional      & \emph{wrong} conditioning         & \pj{0.09--0.14} \\
+Per-class mean $+$ global covariance  & conditioning, no shrinkage        & \pj{0.97--1.00} \\
+Class-conditional, $\tau{=}1.0$       & conditioning, no shrinkage        & \pj{0.82--0.93} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Projected conclusion.} \pj{Shrinkage without conditioning stays near
+the $0.150$ baseline; conditioning without shrinkage recovers nearly all of
+the gain.} This resolves the confound in the paper's favour. The reason
+confidence is high: the measured class-mean strategy is conditioning with
+\emph{near-zero} variance and already reaches $1.000$, while a
+globally-fitted prior carries no class information at all and therefore
+cannot select the right class by construction.
+
+\section*{3. Tier 1b --- JointMMD calibration (term 4)}
+
+\textbf{Measured anchor.} MNIST $0.00372\ (\delta{=}0)\to0.00432\
+(\delta{=}1)$; CIFAR-10 $0.00359\to0.00435$. Currently reported as
+\emph{suggestive only}: one biased estimate per checkpoint, no null, no
+error bars.
+
+\begin{itemize}
+  \item Permutation null (double within-class permutation): \pj{$0.0003$--$0.0012$}
+  \item Observed vs.\ null: \pj{significantly above, $p<0.01$} $\Rightarrow$ term 4 is genuinely non-zero
+  \item $\delta{=}0$ vs.\ $\delta{=}1$ difference ($+0.0006$): \pj{not significant ($\pm$CI $\approx0.0008$)}
+  \item Conditional HSIC cross-check: \pj{same direction, confirms}
+\end{itemize}
+
+\textbf{Projected conclusion.} \pj{Term 4 is non-zero and is not reduced by
+per-class style MMD} --- upgrading the paper's central theoretical
+prediction from ``consistent with'' to ``established''.
+\textbf{Risk:} if the null comes out close to the observed value, the result
+is inconclusive and the estimator itself needs work (per-block
+normalization, bandwidth ladder).
+
+\section*{4. Tier 1c/1d --- Support-aware swap; intra-class diversity}
+
+\textbf{Support-aware swap.} Answers the standing objection that cross-class
+$(\zc,\zs)$ pairs may simply be off the training joint's support.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Pair type & Support & Projected content-following \\
+\midrule
+Same image                & in-support & \pj{0.99--1.00} \\
+Same class, cross image   & in-support & \pj{0.93--0.98} \\
+Cross class               & off-support & $0.001$ (measured) \\
+Interpolation $\alpha$    & --- & \pj{monotone, crossover $\alpha\approx0.3$--$0.45$} \\
+kNN dist.\ to train joint & --- & \pj{cross-class $1.5$--$2.5\times$ same-class} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Projected conclusion.} \pj{Same-class swaps --- which are firmly
+in-support --- preserve class identity, while cross-class swaps do not.}
+That dissociation is what the paper needs: it shows style-dominance is not
+merely an artifact of leaving the support. \textbf{Risk:} if cross-class
+pairs turn out drastically farther from the joint, part of the objection
+survives and the claim must stay hedged.
+
+\textbf{Intra-class diversity.} DINOv2/CLIP within-class mean pairwise
+feature distance, projected: \pj{MNIST $0.28$--$0.38$ $<$ Fashion-MNIST
+$0.42$--$0.52$ $<$ CIFAR-10 $0.60$--$0.72$} --- \pj{the assumed ordering
+confirmed with clear separation}, turning Experiment 4's assumption into a
+measurement. (Even so, three datasets remain too few to call it a
+correlation.)
+
+\section*{5. Tier 2 --- External classifiers (the \#1 gap)}
+
+Today, generation self-accuracy \emph{and} the latent-swap rates are scored
+by the model's own auxiliary classifier, and the swap re-encodes through the
+model's own encoder --- a shared bias could inflate both.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Quantity & Measured (internal) & Projected (external) \\
+\midrule
+External classifier real-test acc & --- & \pj{$\sim$99.4\% MNIST; $\sim$94\% CIFAR-10} \\
+MNIST naive self-ACC              & $0.150$ & \pj{0.13--0.18} \\
+MNIST class-cond.\ $\tau{=}0.25$  & $1.000$ & \pj{0.95--0.99} \\
+MNIST swap style-following        & $99.2\%$ & \pj{94--99\%} \\
+CIFAR-10 class-cond.\ $\tau{=}0.25$ & $0.508$ & \pj{0.35--0.45} \\
+Two-classifier agreement          & --- & \pj{93--97\% MNIST; 80--88\% CIFAR-10} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Projected conclusion.} \pj{MNIST conclusions survive essentially
+intact; CIFAR-10 numbers soften materially.} This is the honest risk worth
+flagging to the reviewer in advance: an external classifier is stricter than
+the model's own on blurry FID-$83$ CIFAR-10 samples, so
+Experiment 5's headline numbers ($68.1\%$ for $\tau{=}0.25$, $95.9\%$ for the
+empirical bank) would likely need restating \emph{downward}. The qualitative
+claims (leakage exists; the recipe transfers poorly to CIFAR-10) would not
+change --- if anything a downward revision \emph{strengthens} the negative
+transfer result.
+
+\section*{6. Tier 4 --- Invariance baselines: the one experiment that could raise the ceiling}
+
+\textbf{Measured anchor.} Per-class style MMD at $\delta{=}1$ (MNIST): LP
+$100\%\to42.6\%$, $\Delta_{\mathrm{inter}}\ 6.21\to1.22$, naive self-ACC
+$0.150\to0.735$.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{llll}
+\toprule
+Method & Projected LP & Projected $\Delta_{\mathrm{inter}}$ & Projected naive self-ACC \\
+\midrule
+Per-class style MMD (measured) & $42.6\%$ & $1.22$ & $0.735$ \\
+VFAE-style conditional MMD & \pj{42--50\%} & \pj{1.1--1.4} & \pj{0.70--0.78} \\
+HSIC penalty (calibrated)  & \pj{30--45\%} & \pj{0.9--1.3} & \pj{0.72--0.82} \\
+Gradient-reversal adversary & \pj{15--28\%} & \pj{0.6--1.1} & \pj{0.70--0.85} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why this is the highest-value experiment.} The projected GRL row is
+the interesting one: \pj{GRL is expected to drive LP down toward chance
+($15$--$28\%$, far below per-class MMD's $42.6\%$) while naive generation
+self-accuracy still fails to reach $1.0$}. If that holds, it is a direct
+\emph{empirical} confirmation of the paper's central theoretical claim ---
+that driving term 2 to zero is \emph{not sufficient} for valid factorized
+sampling, because term 4 survives (Corollary 1). That would promote
+Theorem 1 from an organizing device to a validated prediction, which is
+exactly the gap the reviewer identified.
+
+\textbf{The real risk, stated plainly.} If GRL drives LP to chance
+\emph{and} naive self-accuracy to $\approx1.0$, then term 2 alone
+\emph{was} the whole story on this model, and the paper's emphasis on term 4
+weakens considerably. This experiment can cut either way --- which is
+precisely why it is worth running, and why it should be run before the term-4
+remedy of Tier 5 is built on top of it.
+
+\section*{7. Tier 3 --- Multi-seed, and the two outliers it would resolve}
+
+\textbf{Measured anchor (single seed per point).} Clustering ACC is
+non-monotonic in $\delta$, with exactly one large outlier per dataset:
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+$\delta$ & $0$ & $0.03$ & $0.1$ & $0.3$ & $1$ & $3$ \\
+\midrule
+MNIST ACC    & $0.992$ & $0.994$ & $0.990$ & $0.994$ & \textbf{0.859} & $0.993$ \\
+CIFAR-10 ACC & $0.813$ & $0.811$ & $0.810$ & \textbf{0.715} & $0.800$ & $0.799$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+  \item MNIST $\delta{=}1$ over 3 seeds: \pj{$0.95\pm0.06$} --- \pj{the $0.859$ absorbed as seed variance}
+  \item CIFAR-10 $\delta{=}0.3$ over 3 seeds: \pj{$0.79\pm0.04$} --- \pj{likewise}
+  \item $\Delta_{\mathrm{inter}}$ std across seeds: \pj{$\pm0.05$--$0.20$} (smooth metric, low variance)
+  \item LP std across seeds: \pj{$\pm1$--$3$ points}
+  \item Swap content-following at $\delta{=}1$: \pj{$58$--$64\%$} (measured single-seed: $60.9\%$)
+\end{itemize}
+
+\textbf{Projected conclusion.} \pj{Both outliers dissolve into seed
+variance}, yielding the clean claim the paper currently cannot make:
+\emph{leakage falls smoothly with $\delta$ while clustering cost stays small
+and roughly flat}. \textbf{Risk:} if the outliers reproduce, there is a real
+$\delta$-dependent training instability that needs its own explanation ---
+also a publishable observation, but a different paper section.
+
+\section*{8. Tier 5 --- Joint remedy for term 4}
+
+Only worth building if Tier 4 confirms term 2 is insufficient.
+
+\begin{itemize}
+  \item $\mathcal L_{\mathrm{joint}}$ or $\mathrm{cHSIC}(\zc,\zs\mid y)$: JointMMD \pj{$0.0037\to0.0012$--$0.0020$}
+  \item Swap content-following: \pj{$60.9\%\to72$--$85\%$}
+  \item MNIST naive self-ACC: \pj{$0.735\to0.85$--$0.95$}
+  \item CIFAR-10 naive self-ACC: \pj{$0.366\to0.50$--$0.65$}
+\end{itemize}
+
+\textbf{Projected conclusion.} \pj{A remedy targeting term 4 beats per-class
+MMD on naive factorized sampling, on both datasets} --- converting the paper
+from an audit into an audit $+$ method. \textbf{Risk:} joint distribution
+matching is hard to optimize; a plausible outcome is a marginal improvement
+that does not justify the added complexity.
+
+\section*{9. Bottom line for the reviewer's scorecard}
+
+The reviewer scored the current draft $5/10$, blocked on three gaps:
+non-independent evaluation, an uncalibrated term-4 measurement, and
+confounded/overstated repair claims.
+
+\begin{itemize}
+  \item \textbf{Tier 1 + Tier 2} ($\sim$1--1.5 days): closes the term-4
+        calibration gap, the $\tau$-shrinkage confound, the off-support
+        objection, and the evaluation-independence gap. \pj{Projected: $5\to6$/10.}
+  \item \textbf{$+$ Tier 3} ($\sim$3 days): removes the single-seed caveat
+        attached to nearly every table. \pj{Projected: $6\to6.5$/10 (borderline).}
+  \item \textbf{$+$ Tier 4} ($\sim$3 days incl.\ dev): supplies the missing
+        empirical validation of Theorem 1 and the direct invariance
+        comparison. \pj{Projected: $\to7$/10 (weak accept).}
+\end{itemize}
+
+\noindent
+Total to a defensible weak-accept: \pj{$\approx$7--8 days of wall-clock},
+of which only $\sim$1.5 days sits on the critical path before the paper's
+claims stop being hedged.
+
+\end{document}
