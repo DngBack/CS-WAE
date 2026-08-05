@@ -1,2 +1,0 @@
-strategy,z_s,z_c,self_acc,self_conf,min_class_acc,pixel_diversity,mean_intensity
-prior_class_diag_t0.25,class_diag_t0.25,prior,1.0,0.9999977946281433,1.0,0.1345449537038803,0.12044962495565414
