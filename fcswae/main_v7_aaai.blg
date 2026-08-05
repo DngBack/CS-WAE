@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main_v7_aaai.aux
+The style file: aaai2027.bst
+Database file #1: references.bib
+Warning--can't use both volume and number fields in bouchacourt2018multilevel
+You've used 43 entries,
+            2840 wiz_defined-function locations,
+            782 strings with 12661 characters,
+and the built_in function-call counts, 30148 in all, are:
+= -- 2355
+> -- 1766
+< -- 7
++ -- 644
+- -- 596
+* -- 2159
+:= -- 4931
+add.period$ -- 172
+call.type$ -- 43
+change.case$ -- 389
+chr.to.int$ -- 44
+cite$ -- 44
+duplicate$ -- 2037
+empty$ -- 1926
+format.name$ -- 721
+if$ -- 5847
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 440
+newline$ -- 219
+num.names$ -- 172
+pop$ -- 1087
+preamble$ -- 1
+purify$ -- 340
+quote$ -- 0
+skip$ -- 994
+stack$ -- 0
+substring$ -- 1022
+swap$ -- 1039
+text.length$ -- 7
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 387
+warning$ -- 1
+while$ -- 214
+width$ -- 0
+write$ -- 542
+(There was 1 warning)

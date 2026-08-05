@@ -1,0 +1,224 @@
+\begin{thebibliography}{44}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Bouchacourt, Tomioka, and Nowozin(2018)}]{bouchacourt2018multilevel}
+Bouchacourt, D.; Tomioka, R.; and Nowozin, S. 2018.
+\newblock Multi-Level Variational Autoencoder: Learning Disentangled Representations from Grouped Observations.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial Intelligence}, volume~32, 2095--2102.
+
+\bibitem[{Chen et~al.(2018)Chen, Li, Grosse, and Duvenaud}]{chen2018isolating}
+Chen, R. T.~Q.; Li, X.; Grosse, R.; and Duvenaud, D. 2018.
+\newblock Isolating Sources of Disentanglement in Variational Autoencoders.
+\newblock \emph{arXiv preprint arXiv:1802.04942}.
+
+\bibitem[{Davidson et~al.(2018)Davidson, Falorsi, De~Cao, Kipf, and Tomczak}]{davidson2018hyperspherical}
+Davidson, T.~R.; Falorsi, L.; De~Cao, N.; Kipf, T.; and Tomczak, J.~M. 2018.
+\newblock Hyperspherical Variational Auto-Encoders.
+\newblock \emph{arXiv preprint arXiv:1804.00891}.
+
+\bibitem[{Gabbay and Hoshen(2020)}]{gabbay2020lord}
+Gabbay, A.; and Hoshen, Y. 2020.
+\newblock Demystifying Inter-Class Disentanglement.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Ganin and Lempitsky(2015)}]{ganin2015unsupervised}
+Ganin, Y.; and Lempitsky, V. 2015.
+\newblock Unsupervised Domain Adaptation by Backpropagation.
+\newblock In \emph{International Conference on Machine Learning}, 1180--1189.
+
+\bibitem[{Gretton et~al.(2012)Gretton, Borgwardt, Rasch, Sch{\"o}lkopf, and Smola}]{gretton2012kernel}
+Gretton, A.; Borgwardt, K.~M.; Rasch, M.~J.; Sch{\"o}lkopf, B.; and Smola, A. 2012.
+\newblock A Kernel Two-Sample Test.
+\newblock \emph{Journal of Machine Learning Research}, 13: 723--773.
+
+\bibitem[{Guo et~al.(2017)Guo, Gao, Liu, and Yin}]{guo2017improved}
+Guo, X.; Gao, L.; Liu, X.; and Yin, J. 2017.
+\newblock Improved Deep Embedded Clustering with Local Structure Preservation.
+\newblock In \emph{Proceedings of the International Joint Conference on Artificial Intelligence}, 1753--1759.
+
+\bibitem[{Heusel et~al.(2017)Heusel, Ramsauer, Unterthiner, Nessler, and Hochreiter}]{heusel2017gans}
+Heusel, M.; Ramsauer, H.; Unterthiner, T.; Nessler, B.; and Hochreiter, S. 2017.
+\newblock {GANs} Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium.
+\newblock In \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Higgins et~al.(2017)Higgins, Matthey, Pal, Burgess, Glorot, Botvinick, Mohamed, and Lerchner}]{higgins2017beta}
+Higgins, I.; Matthey, L.; Pal, A.; Burgess, C.; Glorot, X.; Botvinick, M.; Mohamed, S.; and Lerchner, A. 2017.
+\newblock {beta-VAE}: Learning Basic Visual Concepts with a Constrained Variational Framework.
+\newblock \emph{International Conference on Learning Representations}.
+
+\bibitem[{Hoffman and Johnson(2016)}]{hoffman2016elbo}
+Hoffman, M.~D.; and Johnson, M.~J. 2016.
+\newblock {ELBO} Surgery: Yet Another Way to Carve Up the Variational Evidence Lower Bound.
+\newblock In \emph{NIPS Workshop on Advances in Approximate Bayesian Inference}.
+
+\bibitem[{Huang et~al.(2018)Huang, Liu, Belongie, and Kautz}]{huang2018munit}
+Huang, X.; Liu, M.-Y.; Belongie, S.; and Kautz, J. 2018.
+\newblock Multimodal Unsupervised Image-to-Image Translation.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision}, 172--189.
+
+\bibitem[{Ilse et~al.(2020)Ilse, Tomczak, Louizos, and Welling}]{ilse2020diva}
+Ilse, M.; Tomczak, J.~M.; Louizos, C.; and Welling, M. 2020.
+\newblock {DIVA}: Domain Invariant Variational Autoencoders.
+\newblock In \emph{Proceedings of the Third Conference on Medical Imaging with Deep Learning}, volume 121 of \emph{Proceedings of Machine Learning Research}, 322--348.
+
+\bibitem[{Jha et~al.(2018)Jha, Anand, Singh, and Veeravasarapu}]{jha2018cycle}
+Jha, A.~H.; Anand, S.; Singh, M.; and Veeravasarapu, V. S.~R. 2018.
+\newblock Disentangling Factors of Variation with Cycle-Consistent Variational Auto-Encoders.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision}, 805--820.
+
+\bibitem[{Jiang et~al.(2016)Jiang, Zheng, Tan, Tang, and Zhou}]{jiang2016variational}
+Jiang, Z.; Zheng, Y.; Tan, H.; Tang, B.; and Zhou, H. 2016.
+\newblock Variational Deep Embedding: An Unsupervised and Generative Approach to Clustering.
+\newblock \emph{arXiv preprint arXiv:1611.05148}.
+
+\bibitem[{Kim and Mnih(2018)}]{kim2018disentangling}
+Kim, H.; and Mnih, A. 2018.
+\newblock Disentangling by Factorising.
+\newblock \emph{arXiv preprint arXiv:1802.05983}.
+
+\bibitem[{Kingma et~al.(2014)Kingma, Mohamed, Rezende, and Welling}]{kingma2014semi}
+Kingma, D.~P.; Mohamed, S.; Rezende, D.~J.; and Welling, M. 2014.
+\newblock Semi-Supervised Learning with Deep Generative Models.
+\newblock \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Kingma and Welling(2013)}]{kingma2013autoencoding}
+Kingma, D.~P.; and Welling, M. 2013.
+\newblock Auto-Encoding Variational Bayes.
+\newblock \emph{arXiv preprint arXiv:1312.6114}.
+
+\bibitem[{Klys, Snell, and Zemel(2018)}]{klys2018subspaces}
+Klys, J.; Snell, J.; and Zemel, R. 2018.
+\newblock Learning Latent Subspaces in Variational Autoencoders.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~31.
+
+\bibitem[{Kolouri et~al.(2018)Kolouri, Pope, Martin, and Rohde}]{kolouri2018sliced}
+Kolouri, S.; Pope, P.~E.; Martin, C.~E.; and Rohde, G.~K. 2018.
+\newblock Sliced-Wasserstein Autoencoder: An Embarrassingly Simple Generative Model.
+\newblock \emph{arXiv preprint arXiv:1804.01947}.
+
+\bibitem[{Krizhevsky(2009)}]{krizhevsky2009learning}
+Krizhevsky, A. 2009.
+\newblock Learning Multiple Layers of Features from Tiny Images.
+\newblock Technical report, University of Toronto.
+
+\bibitem[{Kumar, Sattigeri, and Balakrishnan(2018)}]{kumar2018dipvae}
+Kumar, A.; Sattigeri, P.; and Balakrishnan, A. 2018.
+\newblock Variational Inference of Disentangled Latent Concepts from Unlabeled Observations.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Lample et~al.(2017)Lample, Zeghidour, Usunier, Bordes, Denoyer, and Ranzato}]{lample2017fader}
+Lample, G.; Zeghidour, N.; Usunier, N.; Bordes, A.; Denoyer, L.; and Ranzato, M. 2017.
+\newblock Fader Networks: Manipulating Images by Sliding Attributes.
+\newblock In \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{LeCun et~al.(1998)LeCun, Bottou, Bengio, and Haffner}]{lecun1998gradient}
+LeCun, Y.; Bottou, L.; Bengio, Y.; and Haffner, P. 1998.
+\newblock Gradient-Based Learning Applied to Document Recognition.
+\newblock \emph{Proceedings of the IEEE}, 86(11): 2278--2324.
+
+\bibitem[{Lee et~al.(2018)Lee, Tseng, Huang, Singh, and Yang}]{lee2018drit}
+Lee, H.-Y.; Tseng, H.-Y.; Huang, J.-B.; Singh, M.; and Yang, M.-H. 2018.
+\newblock Diverse Image-to-Image Translation via Disentangled Representations.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision}, 35--51.
+
+\bibitem[{Locatello et~al.(2019)Locatello, Bauer, Lucic, Raetsch, Gelly, Sch{\"o}lkopf, and Bachem}]{locatello2019challenging}
+Locatello, F.; Bauer, S.; Lucic, M.; Raetsch, G.; Gelly, S.; Sch{\"o}lkopf, B.; and Bachem, O. 2019.
+\newblock Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations.
+\newblock In \emph{Proceedings of the 36th International Conference on Machine Learning}, volume~97 of \emph{Proceedings of Machine Learning Research}, 4114--4124.
+
+\bibitem[{Locatello et~al.(2020)Locatello, Poole, Raetsch, Sch{\"o}lkopf, Bachem, and Tschannen}]{locatello2020weakly}
+Locatello, F.; Poole, B.; Raetsch, G.; Sch{\"o}lkopf, B.; Bachem, O.; and Tschannen, M. 2020.
+\newblock Weakly-Supervised Disentanglement without Compromises.
+\newblock In \emph{Proceedings of the 37th International Conference on Machine Learning}, volume 119 of \emph{Proceedings of Machine Learning Research}, 6348--6359.
+
+\bibitem[{Louizos et~al.(2015)Louizos, Swersky, Li, Welling, and Zemel}]{louizos2015variational}
+Louizos, C.; Swersky, K.; Li, Y.; Welling, M.; and Zemel, R. 2015.
+\newblock The Variational Fair Autoencoder.
+\newblock \emph{arXiv preprint arXiv:1511.00830}.
+
+\bibitem[{Ma et~al.(2025)Ma, Yang, Li, Gui, Krause, Schusterbauer, and Ommer}]{ma2025scflow}
+Ma, P.; Yang, X.; Li, Y.; Gui, M.; Krause, F.; Schusterbauer, J.; and Ommer, B. 2025.
+\newblock {SCFlow}: Implicitly Learning Style and Content Disentanglement with Flow Models.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on Computer Vision}, 14919--14929.
+
+\bibitem[{Mathieu et~al.(2016)Mathieu, Zhao, Ramesh, Sprechmann, and LeCun}]{mathieu2016disentangling}
+Mathieu, M.~F.; Zhao, J.~J.; Ramesh, A.; Sprechmann, P.; and LeCun, Y. 2016.
+\newblock Disentangling Factors of Variation in Deep Representation Using Adversarial Training.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~29.
+
+\bibitem[{Moyer et~al.(2018)Moyer, Gao, Brekelmans, Galstyan, and Ver~Steeg}]{moyer2018invariant}
+Moyer, D.; Gao, S.; Brekelmans, R.; Galstyan, A.; and Ver~Steeg, G. 2018.
+\newblock Invariant Representations without Adversarial Training.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 9102--9111.
+
+\bibitem[{Ridgeway and Mozer(2018)}]{ridgeway2018leakage}
+Ridgeway, K.; and Mozer, M.~C. 2018.
+\newblock Open-Ended Content-Style Recombination via Leakage Filtering.
+\newblock \emph{arXiv preprint arXiv:1810.00110}.
+
+\bibitem[{Sablica and Hornik(2025)}]{sablica2025hyperspherical}
+Sablica, L.; and Hornik, K. 2025.
+\newblock Hyperspherical Variational Autoencoders Using Efficient Spherical Cauchy Distribution.
+\newblock \emph{arXiv preprint arXiv:2506.21278}.
+
+\bibitem[{Sohn, Lee, and Yan(2015)}]{sohn2015learning}
+Sohn, K.; Lee, H.; and Yan, X. 2015.
+\newblock Learning Structured Output Representation using Deep Conditional Generative Models.
+\newblock \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Szegedy et~al.(2016)Szegedy, Vanhoucke, Ioffe, Shlens, and Wojna}]{szegedy2016rethinking}
+Szegedy, C.; Vanhoucke, V.; Ioffe, S.; Shlens, J.; and Wojna, Z. 2016.
+\newblock Rethinking the Inception Architecture for Computer Vision.
+\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition}, 2818--2826.
+
+\bibitem[{Tenenbaum and Freeman(2000)}]{tenenbaum2000separating}
+Tenenbaum, J.~B.; and Freeman, W.~T. 2000.
+\newblock Separating Style and Content with Bilinear Models.
+\newblock \emph{Neural Computation}, 12(6): 1247--1283.
+
+\bibitem[{Tolstikhin et~al.(2017)Tolstikhin, Bousquet, Gelly, and Sch{\"o}lkopf}]{tolstikhin2017wasserstein}
+Tolstikhin, I.; Bousquet, O.; Gelly, S.; and Sch{\"o}lkopf, B. 2017.
+\newblock Wasserstein Auto-Encoders.
+\newblock \emph{arXiv preprint arXiv:1711.01558}.
+
+\bibitem[{Wu et~al.(2025)Wu, Wang, Raj, and Xia}]{wu2025variance}
+Wu, Y.; Wang, Z.; Raj, B.; and Xia, G. 2025.
+\newblock Unsupervised Disentanglement of Content and Style via Variance-Invariance Constraints.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Xiao, Rasul, and Vollgraf(2017)}]{xiao2017fashion}
+Xiao, H.; Rasul, K.; and Vollgraf, R. 2017.
+\newblock Fashion-{MNIST}: A Novel Image Dataset for Benchmarking Machine Learning Algorithms.
+\newblock \emph{arXiv preprint arXiv:1708.07747}.
+
+\bibitem[{Xie, Girshick, and Farhadi(2015)}]{xie2015unsupervised}
+Xie, J.; Girshick, R.; and Farhadi, A. 2015.
+\newblock Unsupervised Deep Embedding for Clustering Analysis.
+\newblock \emph{arXiv preprint arXiv:1511.06335}.
+
+\bibitem[{Yu et~al.(2019)Yu, Chen, Li, Liu, and Li}]{yu2019dmit}
+Yu, X.; Chen, Y.; Li, T.; Liu, S.; and Li, G. 2019.
+\newblock Multi-Mapping Image-to-Image Translation via Learning Disentanglement.
+\newblock In \emph{Advances in Neural Information Processing Systems}, volume~32.
+
+\bibitem[{Zagoruyko and Komodakis(2016)}]{zagoruyko2016wide}
+Zagoruyko, S.; and Komodakis, N. 2016.
+\newblock Wide Residual Networks.
+\newblock In \emph{Proceedings of the British Machine Vision Conference}.
+
+\bibitem[{Zhang et~al.(2018)Zhang, Isola, Efros, Shechtman, and Wang}]{zhang2018unreasonable}
+Zhang, R.; Isola, P.; Efros, A.~A.; Shechtman, E.; and Wang, O. 2018.
+\newblock The Unreasonable Effectiveness of Deep Features as a Perceptual Metric.
+\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition}.
+
+\bibitem[{Zheng and Sun(2019)}]{zheng2019label}
+Zheng, Z.; and Sun, L. 2019.
+\newblock Disentangling Latent Space for {VAE} by Label Relevant/Irrelevant Dimensions.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, 12192--12201.
+
+\bibitem[{Zhu et~al.(2025)Zhu, Wang, Zhou, Gu, and Ye}]{zhu2025less}
+Zhu, L.; Wang, X.; Zhou, C.; Gu, Q.; and Ye, N. 2025.
+\newblock Less is More: Masking Elements in Image Condition Features Avoids Content Leakages in Style Transfer Diffusion Models.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\end{thebibliography}
