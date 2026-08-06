@@ -70,9 +70,9 @@ def train_command(dataset: str, seed: int, delta_str: str, device: str, epochs, 
 
 def diag_command(
     checkpoint: Path, dataset: str, diag_device: str, n_samples: int,
-    gen_per_class: int, seed: int, out_json: Path,
+    gen_per_class: int, seed: int, out_json: Path, external_classifier: str | None = None,
 ) -> list[str]:
-    return [
+    cmd = [
         PYTHON, str(ROOT / "scripts" / "compute_leakage_diagnostics.py"),
         "--checkpoint", str(checkpoint),
         "--dataset", dataset,
@@ -82,6 +82,9 @@ def diag_command(
         "--seed", str(seed),
         "--out", str(out_json),
     ]
+    if external_classifier:
+        cmd += ["--external-classifier-checkpoint", external_classifier]
+    return cmd
 
 
 def parse_args():
@@ -94,8 +97,11 @@ def parse_args():
     p.add_argument("--device", default="cuda:0", help="Device for training")
     p.add_argument("--diag-device", default="cpu", help="Device for compute_leakage_diagnostics.py")
     p.add_argument("--epochs", type=int, default=None, help="Override total epochs (default: full 300)")
-    p.add_argument("--n-samples", type=int, default=5000)
+    p.add_argument("--n-samples", type=int, default=2048,
+                   help="Stage-0 evaluation subset size (default: 2048)")
     p.add_argument("--gen-per-class", type=int, default=100)
+    p.add_argument("--external-classifier-mnist", default=None)
+    p.add_argument("--external-classifier-cifar10", default=None)
     p.add_argument("--skip-existing", action=argparse.BooleanOptionalAction, default=True,
                    help="Skip training if the checkpoint already exists (default: on)")
     p.add_argument("--dry-run", action="store_true", help="Print the planned jobs and exit")
@@ -166,8 +172,13 @@ def main():
             pending_diag.wait()
 
         diag_out = sweep_dir / f"{dataset}_delta{delta}.json"
+        external_classifier = (
+            args.external_classifier_mnist if dataset == "mnist"
+            else args.external_classifier_cifar10
+        )
         cmd = diag_command(
-            ckpt_path, dataset, args.diag_device, args.n_samples, args.gen_per_class, args.seed, diag_out
+            ckpt_path, dataset, args.diag_device, args.n_samples, args.gen_per_class,
+            args.seed, diag_out, external_classifier,
         )
         diag_log = sweep_dir / f"{dataset}_delta{delta}.diag.log"
         print(f"[diag] {dataset} delta={delta} -> {diag_out} (backgrounded on {args.diag_device})")

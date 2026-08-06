@@ -136,6 +136,7 @@ See [paper/README.md](paper/README.md) for build details.
 |----------|-------------|
 | [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) | Environment, datasets, CLI reference, paper build |
 | [docs/EXPERIMENTS_REPORT.md](docs/EXPERIMENTS_REPORT.md) | Full results, ablations, file paths |
+| [docs/STAGE0_AUDIT_PROTOCOL.md](docs/STAGE0_AUDIT_PROTOCOL.md) | Canonical latent views, probes, estimators, external evaluators, and result manifests |
 | [paper/](paper/) | LaTeX manuscript |
 
 ---

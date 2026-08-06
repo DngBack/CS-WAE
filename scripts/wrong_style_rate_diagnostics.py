@@ -62,10 +62,11 @@ sys.path.insert(0, str(ROOT))
 from scripts.compute_leakage_diagnostics import (
     load_fcswae_checkpoint,
     get_eval_subset_loader,
-    extract_style_latents,
-    compute_linear_probe,
+    extract_full_encodings,
 )
 from scripts.analyze_fcswae_sampling_strategies import collect_style_stats, sample_zs
+from src.metrics.audit_protocol import DEFAULT_EVAL_SAMPLES, fit_logistic_probe, stratified_probe_split
+from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
 
 
@@ -74,24 +75,20 @@ from src.utils.seed import set_seed
 # ---------------------------------------------------------------------------
 
 def train_probe_on_real_zs(model, dataset, device, n_samples, seed, split="test"):
-    """Train/val-split real encoded z_s and fit a linear probe on the train half."""
+    """Fit a mean-view probe with a stratified 60/20/20 split."""
     loader = get_eval_subset_loader(dataset, n_samples, batch_size=256, seed=seed, split=split)
-    z_s, labels = extract_style_latents(model, loader, device, model_type="fcswae")
-    # extract_style_latents always returns CPU tensors regardless of `device`
-    # (mirrors run_diagnostics()'s own z_s.to(device) call) so the probe and
-    # subsequent sample_zs(..., device=device) draws land on the same device.
-    z_s, labels = z_s.to(device), labels.to(device)
-
-    n = z_s.shape[0]
-    generator = torch.Generator().manual_seed(seed)
-    perm = torch.randperm(n, generator=generator)
-    n_val = max(1, int(0.2 * n))
-    val_idx, train_idx = perm[:n_val], perm[n_val:]
-
-    val_acc, probe = compute_linear_probe(
-        z_s[train_idx], labels[train_idx], z_s[val_idx], labels[val_idx], return_model=True
+    _mu_c, mu_s, labels = extract_full_encodings(model, loader, device)
+    indices = stratified_probe_split(labels, seed=seed)
+    validation_accuracy, probe = fit_logistic_probe(
+        mu_s[indices.train], labels[indices.train],
+        mu_s[indices.validation], labels[indices.validation],
+        seed=seed,
     )
-    return probe, val_acc
+    probe = probe.to(device)
+    with torch.no_grad():
+        predictions = probe(mu_s[indices.test].to(device)).argmax(1).cpu()
+        test_accuracy = float((predictions == labels[indices.test]).float().mean().item())
+    return probe, validation_accuracy, test_accuracy, indices.metadata()
 
 
 @torch.no_grad()
@@ -156,7 +153,8 @@ def parse_args():
     p.add_argument("--dataset", required=True, choices=["mnist", "fashion_mnist", "cifar10"])
     p.add_argument("--tag", required=True)
     p.add_argument("--device", default="cpu")
-    p.add_argument("--n-samples", type=int, default=5000, help="Real z_s samples used to train the probe")
+    p.add_argument("--n-samples", type=int, default=DEFAULT_EVAL_SAMPLES,
+                   help=f"Real mu_s samples used by the probe protocol (default: {DEFAULT_EVAL_SAMPLES})")
     p.add_argument("--n-probe-draws", type=int, default=2000, help="Synthetic z_s draws per class per strategy")
     p.add_argument("--style-bank-max", type=int, default=12000)
     p.add_argument(
@@ -182,8 +180,10 @@ def main():
     n_classes = model.n_classes
 
     print(f"Training linear probe on real z_s -> y (n={args.n_samples}, seed={args.seed}) ...")
-    probe, val_acc = train_probe_on_real_zs(model, args.dataset, device, args.n_samples, args.seed)
-    print(f"Probe held-out val accuracy on real z_s: {val_acc:.4f}")
+    probe, val_acc, test_acc, probe_split = train_probe_on_real_zs(
+        model, args.dataset, device, args.n_samples, args.seed
+    )
+    print(f"Probe validation/test accuracy on real mu_s: {val_acc:.4f}/{test_acc:.4f}")
 
     print(f"Collecting style stats for class-conditional strategies (max={args.style_bank_max}) ...")
     stats = collect_style_stats(model, args.dataset, device, args.style_bank_max, batch_size=256)
@@ -213,11 +213,32 @@ def main():
         "dataset": args.dataset,
         "tag": args.tag,
         "n_classes": n_classes,
-        "probe_val_accuracy_on_real_zs": val_acc,
+        "latent_view": "mu_s",
+        "probe_validation_accuracy_on_real_mu_s": val_acc,
+        "probe_test_accuracy_on_real_mu_s": test_acc,
+        "probe_split": probe_split,
         "strategies": per_strategy,
     }
-    with (out_dir / "results.json").open("w") as f:
-        json.dump(results, f, indent=2)
+    manifest = build_manifest(
+        repository_root=ROOT,
+        checkpoint_path=args.checkpoint,
+        dataset=args.dataset,
+        seed=args.seed,
+        evaluation_config={
+            "n_samples": args.n_samples,
+            "n_probe_draws": args.n_probe_draws,
+            "style_bank_max": args.style_bank_max,
+            "strategies": args.strategies,
+            "latent_view": "mu_s",
+            "probe_split": [0.60, 0.20, 0.20],
+        },
+        model_config={
+            "semantic_dim": model.semantic_dim,
+            "style_dim": model.style_dim,
+            "n_classes": n_classes,
+        },
+    )
+    save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "results.csv").open("w", newline="") as f:
         writer = csv.writer(f)

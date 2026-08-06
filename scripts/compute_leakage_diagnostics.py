@@ -3,12 +3,14 @@ compute_leakage_diagnostics.py
 
 Compute conditional style leakage diagnostics for any factorized generative model.
 
-Diagnostics (Section 3.4 of paper):
-  1. Global MMD:     MMD²(q(z_s), N(0,I))           — should be ≈0 if global style reg works
-  2. Δ_inter:        mean inter-class style mean sep   — should be ≈0 if z_s ⊥ y
-  3. LP(z_s → y):    linear probe accuracy on z_s      — should be ≈ 1/K (10%) if z_s ⊥ y
-  4. HSIC(z_s, y):   kernel independence test          — should be ≈0 if z_s ⊥ y
-  5. Gen self-ACC:   classifier accuracy on generated  — should be ≈1.0 for class-cond gen
+Canonical Stage-0 diagnostics:
+  1. Sampling-contract view: posterior-sampled z_s, MMD²_U, Delta_inter,
+     calibrated multi-scale HSIC, and a secondary probe suite.
+  2. Representation view: deterministic mu_s, train/validation/test logistic,
+     MLP, RBF-SVM and k-NN probes, Delta_inter, and calibrated HSIC.
+  3. Within-class view: JointMMD²_U on deterministic (mu_c, mu_s).
+  4. Generation: primary pixel-space Gen-ACC from an independent real-image
+     classifier; the model's internal re-encoding score is robustness-only.
 
 Usage
 -----
@@ -20,7 +22,9 @@ python scripts/compute_leakage_diagnostics.py \\
     --n-samples 2048 \\
     --gen-per-class 50
 
-Model types supported: fcswae, vae, waemmd, vade, betavae, factorvae, betatcvae
+The CLI currently loads F-CS-WAE checkpoints.  Compatibility helpers for the
+historical cross-model script remain importable, but new baseline adapters
+must emit the same named-view result schema before their results are pooled.
 """
 
 from __future__ import annotations
@@ -31,16 +35,33 @@ import os
 import sys
 from pathlib import Path
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.datasets.loaders import get_dataloader
+from src.metrics.audit_protocol import (
+    AUDIT_PROTOCOL_VERSION,
+    DEFAULT_EVAL_SAMPLES,
+    DEFAULT_HSIC_PERMUTATIONS,
+    DEFAULT_HSIC_SAMPLES,
+    classwise_conditional_hsic_permutation_test,
+    delta_inter as protocol_delta_inter,
+    fit_logistic_probe,
+    global_mmd_to_standard_normal,
+    hsic_permutation_test,
+    joint_mmd_unbiased,
+    mmd2_unbiased,
+    multiscale_hsic_statistic,
+    rbf_kernel,
+    run_probe_suite,
+    stratified_probe_split,
+)
+from src.models.external_classifiers import load_external_classifier_checkpoint
+from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
 
 
@@ -49,57 +70,31 @@ from src.utils.seed import set_seed
 # ---------------------------------------------------------------------------
 
 def _rbf(x: torch.Tensor, y: torch.Tensor, sigma: float) -> torch.Tensor:
-    dist_sq = torch.cdist(x, y, p=2).pow(2)
-    return torch.exp(-dist_sq / (2.0 * sigma ** 2 + 1e-8))
+    """Compatibility alias for the canonical Stage-0 RBF kernel."""
+
+    return rbf_kernel(x, y, sigma)
 
 
 def mmd2_rbf(q: torch.Tensor, p: torch.Tensor) -> float:
-    """Multi-scale RBF MMD² between two Euclidean sample sets."""
-    if q.shape[0] < 2 or p.shape[0] < 2:
-        return 0.0
-    sigmas = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]
-    val = 0.0
-    for s in sigmas:
-        kqq = _rbf(q, q, s).mean().item()
-        kpp = _rbf(p, p, s).mean().item()
-        kqp = _rbf(q, p, s).mean().item()
-        val += kqq + kpp - 2.0 * kqp
-    return val / len(sigmas)
+    """Compatibility alias for evaluation MMD²_U (unbiased)."""
+
+    return mmd2_unbiased(q, p)
 
 
 def hsic(z: torch.Tensor, y: torch.Tensor, sigma_z: float = 1.0) -> float:
-    """Empirical HSIC between continuous z_s and discrete y (one-hot kernel).
+    """Compatibility scalar for multi-scale HSIC (use calibration in new runs)."""
 
-    Uses RBF kernel on z and delta kernel on y.
-    Reference: Gretton et al. 2005.
-    """
-    n = z.shape[0]
-    if n < 2:
-        return 0.0
-
-    # Kernel on z: RBF
-    Kz = _rbf(z, z, sigma_z)
-
-    # Kernel on y: delta (= outer equality product)
-    y_vec = y.unsqueeze(1).float()  # (n, 1)
-    Ky = (y_vec == y_vec.T).float()
-
-    # Centre both kernels
-    H = torch.eye(n, device=z.device) - 1.0 / n
-    KzH = Kz @ H
-    KyH = Ky @ H
-    hsic_val = (KzH * KyH.T).sum() / ((n - 1) ** 2)
-    return hsic_val.item()
+    del sigma_z
+    return multiscale_hsic_statistic(z, y)[0]
 
 
 # ---------------------------------------------------------------------------
 # Leakage metrics
 # ---------------------------------------------------------------------------
 
-def compute_global_mmd(z_s: torch.Tensor) -> float:
+def compute_global_mmd(z_s: torch.Tensor, seed: int = 0) -> float:
     """MMD²(q(z_s), N(0,I))."""
-    z_p = torch.randn_like(z_s)
-    return mmd2_rbf(z_s, z_p)
+    return global_mmd_to_standard_normal(z_s, seed=seed)
 
 
 def compute_delta_inter(z_s: torch.Tensor, labels: torch.Tensor, n_classes: int) -> float:
@@ -107,62 +102,7 @@ def compute_delta_inter(z_s: torch.Tensor, labels: torch.Tensor, n_classes: int)
 
     Δ_inter = (1 / C(K,2)) * Σ_{j<k} ||μ_s^(j) - μ_s^(k)||₂
     """
-    class_means = []
-    for k in range(n_classes):
-        mask = labels == k
-        if mask.sum() > 0:
-            class_means.append(z_s[mask].mean(dim=0))
-
-    if len(class_means) < 2:
-        return 0.0
-
-    total = 0.0
-    count = 0
-    for i in range(len(class_means)):
-        for j in range(i + 1, len(class_means)):
-            total += (class_means[i] - class_means[j]).norm().item()
-            count += 1
-    return total / count if count > 0 else 0.0
-
-
-# ---------------------------------------------------------------------------
-# JointMMD — proxy for Theorem term (4), I_q(z_c; z_s | y) (main_v6.tex Sec. 3.5)
-# ---------------------------------------------------------------------------
-
-_SIGMAS_SPHERICAL = [0.1, 0.3, 0.5, 1.0, 2.0]  # chordal dist_sq in [0,4] for unit vectors
-_SIGMAS_EUCLIDEAN = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]  # matches mmd2_rbf's ladder
-
-
-def _kc_multiscale(zc_a: torch.Tensor, zc_b: torch.Tensor) -> torch.Tensor:
-    """Multi-scale spherical RBF kernel matrix on unit-norm z_c vectors."""
-    from src.utils.utils import rbf_kernel as _rbf_spherical
-    k = torch.zeros(zc_a.shape[0], zc_b.shape[0], device=zc_a.device)
-    for s in _SIGMAS_SPHERICAL:
-        k = k + _rbf_spherical(zc_a, zc_b, s)
-    return k / len(_SIGMAS_SPHERICAL)
-
-
-def _ks_multiscale(zs_a: torch.Tensor, zs_b: torch.Tensor) -> torch.Tensor:
-    """Multi-scale Euclidean RBF kernel matrix on z_s vectors (same ladder as mmd2_rbf)."""
-    k = torch.zeros(zs_a.shape[0], zs_b.shape[0], device=zs_a.device)
-    for s in _SIGMAS_EUCLIDEAN:
-        k = k + _rbf(zs_a, zs_b, s)
-    return k / len(_SIGMAS_EUCLIDEAN)
-
-
-def _joint_product_mmd2(zc1, zs1, zc2, zs2) -> float:
-    """Biased MMD² between two sets of (z_c, z_s) pairs under a product kernel
-    (spherical on z_c, Euclidean on z_s). Both kernel components use a
-    multi-scale bandwidth ladder rather than a single fixed sigma, to avoid
-    the saturation failure mode found in this script's own hsic() (single
-    sigma_z=1.0, empirically flat regardless of true dependence — see
-    main_v6.tex's HSIC discussion)."""
-    def K(zc_a, zs_a, zc_b, zs_b):
-        return _kc_multiscale(zc_a, zc_b) * _ks_multiscale(zs_a, zs_b)
-    k11 = K(zc1, zs1, zc1, zs1).mean()
-    k22 = K(zc2, zs2, zc2, zs2).mean()
-    k12 = K(zc1, zs1, zc2, zs2).mean()
-    return (k11 + k22 - 2.0 * k12).item()
+    return protocol_delta_inter(z_s, labels, n_classes)
 
 
 def compute_joint_mmd(mu_c: torch.Tensor, mu_s: torch.Tensor, labels: torch.Tensor,
@@ -177,19 +117,7 @@ def compute_joint_mmd(mu_c: torch.Tensor, mu_s: torch.Tensor, labels: torch.Tens
     mu_s is the posterior-mean style code. Requires >=4 samples per class to
     form a stable permuted comparison; classes with fewer are skipped.
     """
-    zc_all = F.normalize(mu_c, p=2, dim=1)
-    generator = torch.Generator().manual_seed(seed)
-    vals = []
-    for k in range(n_classes):
-        mask = labels == k
-        n_k = int(mask.sum().item())
-        if n_k < 4:
-            continue
-        zc_k = zc_all[mask]
-        zs_k = mu_s[mask]
-        perm = torch.randperm(n_k, generator=generator)
-        vals.append(_joint_product_mmd2(zc_k, zs_k, zc_k, zs_k[perm]))
-    return float(sum(vals) / len(vals)) if vals else 0.0
+    return joint_mmd_unbiased(mu_c, mu_s, labels, n_classes, seed=seed)
 
 
 def compute_linear_probe(
@@ -203,33 +131,34 @@ def compute_linear_probe(
 ):
     """Train a linear probe z_s → y and return accuracy.
 
-    Trains on (z_s, labels), evaluates on (z_s_val, labels_val) if provided,
-    else uses the same training set for evaluation (quick estimate).
+    Trains on (z_s, labels), evaluates on a held-out set.  If no held-out set
+    is supplied, a deterministic stratified 60/20/20 split is created and
+    the test partition is reported.  Standardization is fitted on train only.
 
     If return_model is True, returns (accuracy, trained probe) instead of
     just accuracy — callers that need to evaluate the probe on synthetic
     z_s draws afterward (e.g. a wrong-style-rate diagnostic) need the model.
     """
-    n_classes = int(labels.max().item()) + 1
-    d = z_s.shape[1]
-    clf = nn.Linear(d, n_classes).to(z_s.device)
-    opt = torch.optim.Adam(clf.parameters(), lr=lr, weight_decay=1e-4)
+    del lr
+    original_device = z_s.device
+    if z_s_val is not None and labels_val is not None:
+        accuracy, probe = fit_logistic_probe(
+            z_s, labels, z_s_val, labels_val, seed=0, epochs=n_epochs
+        )
+        probe = probe.to(original_device)
+        return (accuracy, probe) if return_model else accuracy
 
-    for _ in range(n_epochs):
-        logits = clf(z_s.detach())
-        loss = F.cross_entropy(logits, labels)
-        opt.zero_grad()
-        loss.backward()
-        opt.step()
-
-    clf.eval()
+    split = stratified_probe_split(labels, seed=0)
+    _validation_accuracy, probe = fit_logistic_probe(
+        z_s[split.train], labels[split.train],
+        z_s[split.validation], labels[split.validation],
+        seed=0, epochs=n_epochs,
+    )
+    probe = probe.to(original_device)
     with torch.no_grad():
-        z_eval = z_s_val if z_s_val is not None else z_s
-        l_eval = labels_val if labels_val is not None else labels
-        preds = clf(z_eval).argmax(dim=1)
-        acc = (preds == l_eval).float().mean().item()
-
-    return (acc, clf) if return_model else acc
+        predictions = probe(z_s[split.test]).argmax(1)
+        accuracy = float((predictions == labels[split.test]).float().mean().item())
+    return (accuracy, probe) if return_model else accuracy
 
 
 def compute_gen_self_accuracy(
@@ -347,6 +276,82 @@ def extract_full_encodings(model, loader, device):
     )
 
 
+@torch.no_grad()
+def extract_latent_views(model, loader, device, model_type: str = "fcswae", seed: int = 0):
+    """Extract named posterior-sample and posterior-mean latent views once.
+
+    The seeded CPU generator makes posterior sampling reproducible across
+    repeated runs and independent of the accelerator's RNG state.
+    """
+
+    model.eval()
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    z_s_samples, mu_s_values, mu_c_values, labels_values = [], [], [], []
+    for images, labels in loader:
+        images = images.to(device)
+        if model_type == "fcswae":
+            mu_c, _rho_c, mu_s, logvar_s = model.encode(images)
+        else:
+            encoded = model.encode(images)
+            mu, logvar_s = encoded
+            split_at = mu.shape[1] // 2
+            mu_c, mu_s = mu[:, :split_at], mu[:, split_at:]
+            logvar_s = logvar_s[:, split_at:]
+        std_s = torch.exp(0.5 * logvar_s.clamp(-10, 10))
+        epsilon = torch.randn(std_s.shape, generator=generator, dtype=std_s.dtype).to(device)
+        z_s = mu_s + std_s * epsilon
+        z_s_samples.append(z_s.cpu())
+        mu_s_values.append(mu_s.cpu())
+        mu_c_values.append(mu_c.cpu())
+        labels_values.append(labels.cpu())
+    return {
+        "z_s_sample": torch.cat(z_s_samples),
+        "mu_s": torch.cat(mu_s_values),
+        "mu_c": torch.cat(mu_c_values),
+        "labels": torch.cat(labels_values),
+    }
+
+
+@torch.no_grad()
+def compute_external_generation_metrics(
+    model,
+    classifier: nn.Module,
+    n_classes: int,
+    gen_per_class: int,
+    device: torch.device,
+    style_mode: str,
+    style_stats: dict | None = None,
+) -> dict:
+    """Pixel-space generated-class metrics using an independent classifier."""
+
+    model.eval()
+    classifier.eval()
+    confusion = torch.zeros((n_classes, n_classes), dtype=torch.long)
+    for requested_class in range(n_classes):
+        z_c, z_s = model.sample_from_class_prior(requested_class, gen_per_class, device)
+        if style_mode == "global_gaussian":
+            z_s = torch.randn_like(z_s)
+        elif style_mode == "class_diag_t025" and style_stats is not None:
+            mean = style_stats["means"][requested_class]
+            std = style_stats["stds"][requested_class]
+            z_s = mean + 0.25 * std * torch.randn_like(z_s)
+        elif style_mode == "class_mean" and style_stats is not None:
+            z_s = style_stats["means"][requested_class].expand_as(z_s)
+        generated = model.decoder(torch.cat([z_c, z_s], dim=1)).clamp(0, 1)
+        predictions = classifier(generated).argmax(1).cpu()
+        confusion[requested_class] = torch.bincount(predictions, minlength=n_classes)
+    per_class = confusion.diagonal().float() / confusion.sum(1).clamp_min(1)
+    return {
+        "macro_gen_accuracy": float(per_class.mean().item()),
+        "micro_gen_accuracy": float(confusion.diagonal().sum().item() / confusion.sum().item()),
+        "per_class_gen_accuracy": per_class.tolist(),
+        "confusion_counts": confusion.tolist(),
+        "n_per_class": int(gen_per_class),
+        "style_mode": style_mode,
+        "evaluator": "independent pixel-space classifier",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Full diagnostic suite
 # ---------------------------------------------------------------------------
@@ -359,107 +364,161 @@ def run_diagnostics(
     model_type: str = "fcswae",
     gen_per_class: int = 50,
     aux_classifier: nn.Module | None = None,
+    external_classifier: nn.Module | None = None,
+    seed: int = 0,
+    probe_epochs: int = 300,
+    hsic_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
     verbose: bool = True,
 ) -> dict:
-    """Run all leakage diagnostics and return results dict."""
+    """Run the canonical Stage-0 diagnostic suite.
 
-    print("Extracting style latents...")
-    z_s, labels = extract_style_latents(model, loader, device, model_type)
-    z_s = z_s.to(device)
-    labels = labels.to(device)
+    Sampling-contract metrics use ``z_s_sample``.  Representation probes,
+    deterministic interventions, and JointMMD use posterior means.  The
+    output names both views and retains flat aliases for old plotting code.
+    """
 
-    results = {}
+    print("Extracting named latent views (z_s_sample, mu_s, mu_c)...")
+    views = extract_latent_views(model, loader, device, model_type=model_type, seed=seed)
+    z_s_sample = views["z_s_sample"].to(device)
+    mu_s = views["mu_s"].to(device)
+    mu_c = views["mu_c"].to(device)
+    labels = views["labels"].to(device)
 
-    # 1. Global MMD
-    print("Computing global MMD...")
-    results["global_mmd"] = compute_global_mmd(z_s)
+    print("Computing U-statistic global MMD on posterior samples...")
+    global_mmd = compute_global_mmd(z_s_sample, seed=seed)
+    delta_sample = compute_delta_inter(z_s_sample, labels, n_classes)
+    delta_mean = compute_delta_inter(mu_s, labels, n_classes)
 
-    # 2. Δ_inter
-    print("Computing inter-class style separation...")
-    results["delta_inter"] = compute_delta_inter(z_s, labels, n_classes)
+    print("Running train/validation/test probe suites...")
+    probes_mean = run_probe_suite(mu_s, labels, seed=seed, epochs=probe_epochs)
+    probes_sample = run_probe_suite(z_s_sample, labels, seed=seed, epochs=probe_epochs)
 
-    # 3. Linear probe LP(z_s → y)
-    print("Computing linear probe accuracy...")
-    results["lp_accuracy"] = compute_linear_probe(z_s, labels)
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    n_hsic = min(DEFAULT_HSIC_SAMPLES, labels.shape[0])
+    hsic_indices = torch.randperm(labels.shape[0], generator=generator)[:n_hsic].to(device)
+    print(f"Computing multi-scale HSIC calibration (n={n_hsic}, B={hsic_permutations})...")
+    hsic_mean = hsic_permutation_test(
+        mu_s[hsic_indices], labels[hsic_indices], seed=seed,
+        n_permutations=hsic_permutations,
+    )
+    hsic_sample = hsic_permutation_test(
+        z_s_sample[hsic_indices], labels[hsic_indices], seed=seed,
+        n_permutations=hsic_permutations,
+    )
 
-    # 4. HSIC(z_s, y)
-    print("Computing HSIC...")
-    # Use subset for HSIC (O(n²) kernel)
-    n_hsic = min(1024, z_s.shape[0])
-    idx = torch.randperm(z_s.shape[0])[:n_hsic]
-    results["hsic"] = hsic(z_s[idx], labels[idx])
-
-    # 4b. JointMMD — Theorem term (4) proxy, I_q(z_c;z_s|y). fcswae-only:
-    # needs both z_c and z_s from the *same* forward pass (extract_full_encodings),
-    # not just z_s (extract_style_latents above already discarded z_c).
-    results["joint_mmd"] = None
+    joint_mmd = None
+    conditional_hsic = None
     if model_type == "fcswae" and hasattr(model, "encode"):
-        print("Computing JointMMD (term 4 proxy)...")
-        mu_c_full, mu_s_full, labels_full = extract_full_encodings(model, loader, device)
-        n_jmmd = min(2048, mu_c_full.shape[0])
-        idx_j = torch.randperm(mu_c_full.shape[0])[:n_jmmd]
-        results["joint_mmd"] = compute_joint_mmd(
-            mu_c_full[idx_j].to(device), mu_s_full[idx_j].to(device),
-            labels_full[idx_j].to(device), n_classes,
+        print("Computing mean-view JointMMD²_U...")
+        joint_mmd = compute_joint_mmd(mu_c, mu_s, labels, n_classes, seed=seed)
+        print("Computing classwise conditional HSIC calibration...")
+        conditional_hsic = classwise_conditional_hsic_permutation_test(
+            mu_c, mu_s, labels, n_classes, seed=seed,
+            n_permutations=hsic_permutations,
         )
 
-    # 5. Gen self-ACC (only for models with sample_from_class_prior)
-    results["gen_self_acc_global_gaussian"] = None
-    results["gen_self_acc_class_diag_t025"] = None
-
-    if aux_classifier is None and hasattr(model, "classifier"):
-        # FCSWAE's own jointly-trained classifier head is the natural default
-        # aux classifier — without this, gen_self_acc_* silently stays null
-        # unless a separate --aux-classifier-checkpoint is passed (none exists
-        # in this repo today).
-        aux_classifier = model.classifier
-
-    if aux_classifier is not None and hasattr(model, "sample_from_class_prior"):
-        print("Computing gen self-accuracy (global Gaussian style)...")
-        results["gen_self_acc_global_gaussian"] = compute_gen_self_accuracy(
-            model, aux_classifier, n_classes, gen_per_class, device,
-            style_mode="global_gaussian",
-        )
-
-        # Compute class-conditional style stats for conditional sampling
-        print("Computing class style stats for conditional sampling...")
+    style_stats = None
+    if hasattr(model, "sample_from_class_prior"):
         class_means, class_stds = [], []
-        for k in range(n_classes):
-            mask = labels == k
-            if mask.sum() > 0:
-                zk = z_s[mask]
-                class_means.append(zk.mean(dim=0))
-                class_stds.append(zk.std(dim=0).clamp(min=1e-6))
+        for class_index in range(n_classes):
+            class_values = mu_s[labels == class_index]
+            if class_values.shape[0]:
+                class_means.append(class_values.mean(0))
+                class_stds.append(class_values.std(0).clamp_min(1e-6))
             else:
-                d = z_s.shape[1]
-                class_means.append(torch.zeros(d, device=device))
-                class_stds.append(torch.ones(d, device=device))
-        style_stats = {
-            "means": torch.stack(class_means),
-            "stds": torch.stack(class_stds),
+                class_means.append(torch.zeros(mu_s.shape[1], device=device))
+                class_stds.append(torch.ones(mu_s.shape[1], device=device))
+        style_stats = {"means": torch.stack(class_means), "stds": torch.stack(class_stds)}
+
+    external_generation = None
+    if external_classifier is not None and style_stats is not None:
+        print("Computing external pixel-space generation metrics...")
+        external_generation = {
+            "global_gaussian": compute_external_generation_metrics(
+                model, external_classifier, n_classes, gen_per_class, device, "global_gaussian"
+            ),
+            "class_diag_t025": compute_external_generation_metrics(
+                model, external_classifier, n_classes, gen_per_class, device,
+                "class_diag_t025", style_stats,
+            ),
         }
 
-        print("Computing gen self-accuracy (class diag t=0.25)...")
-        results["gen_self_acc_class_diag_t025"] = compute_gen_self_accuracy(
-            model, aux_classifier, n_classes, gen_per_class, device,
-            style_mode="class_diag_t025",
-            style_stats=style_stats,
-        )
+    internal_generation = None
+    if aux_classifier is None and hasattr(model, "classifier"):
+        aux_classifier = model.classifier
+    if aux_classifier is not None and style_stats is not None:
+        internal_generation = {
+            "warning": "robustness-only internal re-encoding evaluator; not a primary Gen-ACC",
+            "global_gaussian": compute_gen_self_accuracy(
+                model, aux_classifier, n_classes, gen_per_class, device, "global_gaussian"
+            ),
+            "class_diag_t025": compute_gen_self_accuracy(
+                model, aux_classifier, n_classes, gen_per_class, device,
+                "class_diag_t025", style_stats,
+            ),
+        }
+
+    results = {
+        "protocol": {
+            "version": AUDIT_PROTOCOL_VERSION,
+            "n_evaluation_samples": int(labels.shape[0]),
+            "latent_views": {
+                "z_s_sample": "primary for q(z_s), q(z_s|y), and sampling-contract metrics",
+                "mu_s": "primary for representation probes and deterministic interventions",
+                "mu_c_mu_s": "posterior-mean pair used by JointMMD",
+            },
+            "mmd_estimator": "unbiased U-statistic; fixed multi-scale RBF",
+            "probe_split": "stratified 60/20/20 train/validation/test",
+        },
+        "sampling_contract": {
+            "global_mmd2_u_z_s_sample": global_mmd,
+            "delta_inter_z_s_sample": delta_sample,
+            "hsic_z_s_sample": hsic_sample,
+            "probe_suite_z_s_sample": probes_sample,
+        },
+        "representation": {
+            "delta_inter_mu_s": delta_mean,
+            "hsic_mu_s": hsic_mean,
+            "probe_suite_mu_s": probes_mean,
+        },
+        "within_class_dependence": {
+            "joint_mmd2_u_mu_c_mu_s": joint_mmd,
+            "classwise_conditional_hsic_mu_c_mu_s": conditional_hsic,
+        },
+        "generation": {
+            "external": external_generation,
+            "internal_robustness_only": internal_generation,
+        },
+        # Compatibility fields for legacy aggregators.  New tables should use
+        # the explicitly named nested fields above.
+        "global_mmd": global_mmd,
+        "delta_inter": delta_sample,
+        "lp_accuracy": probes_mean["models"]["logistic"]["test"]["accuracy"],
+        "hsic": hsic_mean["statistic"],
+        "joint_mmd": joint_mmd,
+        "gen_self_acc_global_gaussian": None if internal_generation is None else internal_generation["global_gaussian"],
+        "gen_self_acc_class_diag_t025": None if internal_generation is None else internal_generation["class_diag_t025"],
+    }
 
     if verbose:
         print("\n" + "=" * 60)
         print("LEAKAGE DIAGNOSTIC RESULTS")
         print("=" * 60)
-        print(f"  Global MMD²(q(z_s), N(0,I))  : {results['global_mmd']:.6f}  (should ≈ 0)")
-        print(f"  Δ_inter (inter-class sep)     : {results['delta_inter']:.4f}  (should ≈ 0)")
-        print(f"  LP(z_s → y) accuracy          : {results['lp_accuracy']:.4f}  (should ≈ {1/n_classes:.2f})")
-        print(f"  HSIC(z_s, y)                  : {results['hsic']:.6f}  (should ≈ 0)")
+        print(f"  Global MMD²_U(z_s_sample)     : {global_mmd:.6f}")
+        print(f"  Δ_inter(z_s_sample)           : {delta_sample:.4f}")
+        print(f"  Δ_inter(mu_s)                 : {delta_mean:.4f}")
+        print(f"  Logistic probe(mu_s) test ACC : {results['lp_accuracy']:.4f}")
+        print(f"  HSIC(mu_s,y), permutation p   : {hsic_mean['statistic']:.6f}, p={hsic_mean['p_value']:.4f}")
         if results["joint_mmd"] is not None:
-            print(f"  JointMMD (term 4 proxy)       : {results['joint_mmd']:.6f}  (should ≈ 0)")
-        if results["gen_self_acc_global_gaussian"] is not None:
-            print(f"  Gen self-ACC (global N(0,I)) : {results['gen_self_acc_global_gaussian']:.4f}  (should ≈ 1.0)")
-        if results["gen_self_acc_class_diag_t025"] is not None:
-            print(f"  Gen self-ACC (class t=0.25)  : {results['gen_self_acc_class_diag_t025']:.4f}  (should ≈ 1.0)")
+            print(f"  JointMMD²_U(mu_c,mu_s|y)      : {results['joint_mmd']:.6f}")
+        if conditional_hsic is not None:
+            print(
+                "  Conditional HSIC, permutation p: "
+                f"{conditional_hsic['statistic']:.6f}, p={conditional_hsic['p_value']:.4f}"
+            )
+        if external_generation is not None:
+            score = external_generation["global_gaussian"]["macro_gen_accuracy"]
+            print(f"  External macro Gen-ACC        : {score:.4f}")
         print("=" * 60)
 
     return results
@@ -558,16 +617,22 @@ def parse_args():
     p.add_argument("--dataset", default="mnist",
                    choices=["mnist", "fashion_mnist", "cifar10"])
     p.add_argument("--device", default="cpu")
-    p.add_argument("--n-samples", type=int, default=2048,
-                   help="Number of test samples to use")
+    p.add_argument("--n-samples", type=int, default=DEFAULT_EVAL_SAMPLES,
+                   help=f"Number of test samples to use (Stage-0 default: {DEFAULT_EVAL_SAMPLES})")
     p.add_argument("--gen-per-class", type=int, default=50,
                    help="Generated images per class for self-ACC")
+    p.add_argument("--probe-epochs", type=int, default=300,
+                   help="Maximum epochs for fixed Torch probes")
+    p.add_argument("--hsic-permutations", type=int, default=DEFAULT_HSIC_PERMUTATIONS,
+                   help="Permutation count for calibrated multi-scale HSIC")
+    p.add_argument("--external-classifier-checkpoint", default=None,
+                   help="Stage-0 independent pixel classifier checkpoint. Required for primary Gen-ACC.")
     p.add_argument("--aux-classifier-checkpoint", default=None,
-                   help="Path to auxiliary classifier checkpoint for gen self-ACC "
-                        "(defaults to the model's own jointly-trained classifier head)")
+                   help="Legacy latent classifier checkpoint for robustness-only internal self-ACC")
     p.add_argument("--seed", type=int, default=0,
                    help="Seed for reproducible eval-subset sampling")
-    p.add_argument("--out", default=None, help="Save results JSON to this path")
+    p.add_argument("--out", default=None,
+                   help="Result JSON path (default: runs_diag/stage0/<dataset>/<checkpoint>_seed<N>.json)")
     return p.parse_args()
 
 
@@ -585,14 +650,23 @@ def main():
             "Add model-specific loading here."
         )
 
-    # Optionally load a separate auxiliary classifier; run_diagnostics()
-    # falls back to model.classifier when this stays None.
+    # Optional robustness-only latent classifier.  Primary generation metrics
+    # require the independent pixel classifier loaded below.
     aux_clf = None
     if args.aux_classifier_checkpoint:
         print(f"Loading aux classifier from {args.aux_classifier_checkpoint}...")
         clf_ckpt = torch.load(args.aux_classifier_checkpoint, map_location=device)
         aux_clf = nn.Linear(model.semantic_dim, 10).to(device)
         aux_clf.load_state_dict(clf_ckpt)
+
+    external_clf = None
+    external_metadata = None
+    if args.external_classifier_checkpoint:
+        print(f"Loading external pixel classifier from {args.external_classifier_checkpoint}...")
+        external_clf, external_metadata = load_external_classifier_checkpoint(
+            args.external_classifier_checkpoint, args.dataset, device
+        )
+        print(f"  real-test accuracy: {external_metadata.get('real_test_accuracy')}")
 
     print(f"Loading {args.dataset} test subset (n={args.n_samples}, seed={args.seed})...")
     loader = get_eval_subset_loader(
@@ -605,15 +679,64 @@ def main():
         model_type=args.model_type,
         gen_per_class=args.gen_per_class,
         aux_classifier=aux_clf,
+        external_classifier=external_clf,
+        seed=args.seed,
+        probe_epochs=args.probe_epochs,
+        hsic_permutations=args.hsic_permutations,
         verbose=True,
     )
+    if external_metadata is not None:
+        results["generation"]["external_classifier_metadata"] = external_metadata
 
-    if args.out:
-        out_path = Path(args.out)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_path, "w") as f:
-            json.dump(results, f, indent=2)
-        print(f"\nResults saved to {out_path}")
+    checkpoint_path = Path(args.checkpoint)
+    run_config_path = checkpoint_path.parent / "run_config.json"
+    if run_config_path.exists():
+        with run_config_path.open() as handle:
+            model_config = json.load(handle)
+    else:
+        model_config = {
+            "semantic_dim": getattr(model, "semantic_dim", None),
+            "style_dim": getattr(model, "style_dim", None),
+            "n_classes": getattr(model, "n_classes", None),
+            "variant": args.variant,
+            "run_config_missing": True,
+        }
+    subset_indices = getattr(loader.dataset, "indices", [])
+    subset_digest = None
+    if subset_indices:
+        packed = torch.tensor(subset_indices, dtype=torch.int64).numpy().tobytes()
+        import hashlib
+        subset_digest = hashlib.sha256(packed).hexdigest()
+    evaluation_config = {
+        "n_samples": args.n_samples,
+        "actual_n_samples": len(loader.dataset),
+        "eval_subset_seed": args.seed,
+        "eval_subset_indices_sha256": subset_digest,
+        "probe_epochs": args.probe_epochs,
+        "probe_models": ["logistic", "mlp", "rbf_svm", "knn"],
+        "probe_split": [0.60, 0.20, 0.20],
+        "hsic_max_samples": DEFAULT_HSIC_SAMPLES,
+        "hsic_permutations": args.hsic_permutations,
+        "gen_per_class": args.gen_per_class,
+        "latent_primary_sampling_contract": "z_s_sample",
+        "latent_primary_probe_swap": "mu_s",
+    }
+    manifest = build_manifest(
+        repository_root=ROOT,
+        checkpoint_path=args.checkpoint,
+        dataset=args.dataset,
+        seed=args.seed,
+        evaluation_config=evaluation_config,
+        model_config=model_config,
+        external_classifier_path=args.external_classifier_checkpoint,
+    )
+    out_path = Path(args.out) if args.out else (
+        ROOT / "runs_diag" / "stage0" / args.dataset /
+        f"{checkpoint_path.stem}_seed{args.seed}.json"
+    )
+    digest = save_result_with_manifest(out_path, results, manifest)
+    print(f"\nResults saved to {out_path}")
+    print(f"Result SHA-256: {digest}")
 
 
 if __name__ == "__main__":

@@ -54,6 +54,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from scripts.run_delta_sweep import resolve_run_dir
+from src.utils.provenance import unwrap_result_payload
 
 DEFAULT_DELTAS = ["0.0", "0.03", "0.1", "0.3", "1.0", "3.0"]
 DEFAULT_DATASETS = ["mnist", "cifar10"]
@@ -75,7 +76,7 @@ def load_point(dataset: str, delta: str, seed: int):
     with metrics_path.open() as f:
         metrics = json.load(f)
     with diag_path.open() as f:
-        diag = json.load(f)
+        diag = unwrap_result_payload(json.load(f))
 
     return {
         "dataset": dataset,

@@ -71,6 +71,8 @@ from scripts.compute_leakage_diagnostics import (
     compute_global_mmd,
     compute_delta_inter,
 )
+from src.metrics.audit_protocol import DEFAULT_EVAL_SAMPLES
+from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
 
 
@@ -193,7 +195,8 @@ def parse_args():
     p.add_argument("--tag", required=True)
     p.add_argument("--device", default="cpu")
     p.add_argument("--split", default="test", choices=["train", "test"])
-    p.add_argument("--n-samples", type=int, default=5000)
+    p.add_argument("--n-samples", type=int, default=DEFAULT_EVAL_SAMPLES,
+                   help=f"Stage-0 evaluation subset size (default: {DEFAULT_EVAL_SAMPLES})")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--output-dir", default=None, help="Defaults to runs_diag/conditional_mmd/<tag>/")
     return p.parse_args()
@@ -218,7 +221,7 @@ def main():
     z_s, labels = extract_style_latents(model, loader, device, model_type="fcswae")
 
     print("Computing global MMD / Delta_inter (cross-check vs committed baseline) ...")
-    global_mmd = compute_global_mmd(z_s)
+    global_mmd = compute_global_mmd(z_s, seed=args.seed)
     delta_inter = compute_delta_inter(z_s, labels, n_classes)
 
     print("Computing per-class and pairwise conditional MMD ...")
@@ -232,6 +235,8 @@ def main():
         "dataset": args.dataset,
         "tag": args.tag,
         "n_classes": n_classes,
+        "latent_view": "z_s_sample",
+        "mmd_estimator": "unbiased U-statistic; negative finite-sample estimates retained",
         "global_mmd": global_mmd,
         "delta_inter": delta_inter,
         "mmd_to_prior": mmd_to_prior.tolist(),
@@ -243,8 +248,24 @@ def main():
             "mean_pairwise_mmd": float(pairwise_mmd[~np.eye(n_classes, dtype=bool)].mean()),
         },
     }
-    with (out_dir / "results.json").open("w") as f:
-        json.dump(results, f, indent=2)
+    manifest = build_manifest(
+        repository_root=ROOT,
+        checkpoint_path=args.checkpoint,
+        dataset=args.dataset,
+        seed=args.seed,
+        evaluation_config={
+            "split": args.split,
+            "n_samples": args.n_samples,
+            "latent_view": "z_s_sample",
+            "mmd_estimator": "unbiased U-statistic",
+        },
+        model_config={
+            "semantic_dim": model.semantic_dim,
+            "style_dim": model.style_dim,
+            "n_classes": n_classes,
+        },
+    )
+    save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "pairwise_mmd.csv").open("w", newline="") as f:
         writer = csv.writer(f)

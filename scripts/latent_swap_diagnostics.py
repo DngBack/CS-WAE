@@ -9,7 +9,7 @@ For every ordered class pair (a, b):
     z_c_a = mu_c of a real image from class a   (content donor)
     z_s_b = mu_s of a real image from class b   (style donor)
     x_hat = model.decoder(cat(z_c_a, z_s_b))
-    re-encode x_hat -> mu_c_hat -> model.classifier -> prediction
+    external pixel classifier(x_hat) -> prediction
 
     content_rate[a, b] = P(prediction == a)   "identity follows z_c"
     style_rate[a, b]   = P(prediction == b)   "identity follows leaked z_s"
@@ -17,6 +17,8 @@ For every ordered class pair (a, b):
 
 Uses deterministic mu_c/mu_s (not resampled z_c/z_s) so the intervention
 isolates "which point in latent space" from reparameterization noise.
+If no external-classifier checkpoint is supplied, the historical internal
+re-encoding evaluator is used and the result is marked robustness-only.
 
 Usage
 -----
@@ -63,6 +65,9 @@ from scripts.compute_leakage_diagnostics import (
     extract_full_encodings,
 )
 from scripts.analyze_fcswae_sampling_strategies import save_class_grid
+from src.metrics.audit_protocol import DEFAULT_EVAL_SAMPLES
+from src.models.external_classifiers import load_external_classifier_checkpoint
+from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
 
 
@@ -71,7 +76,8 @@ from src.utils.seed import set_seed
 # ---------------------------------------------------------------------------
 
 @torch.no_grad()
-def run_swap(model, mu_c, mu_s, labels, n_classes, n_per_pair, device, seed):
+def run_swap(model, mu_c, mu_s, labels, n_classes, n_per_pair, device, seed,
+             external_classifier=None):
     """Compute content/style/neither-following rate matrices over all (a, b)."""
     generator = torch.Generator().manual_seed(seed)
     class_idx = [torch.nonzero(labels == k, as_tuple=True)[0] for k in range(n_classes)]
@@ -95,8 +101,11 @@ def run_swap(model, mu_c, mu_s, labels, n_classes, n_per_pair, device, seed):
             z_c = mu_c[idx_a].to(device)
             z_s = mu_s[idx_b].to(device)
             x_hat = model.decoder(torch.cat([z_c, z_s], dim=1)).clamp(0, 1)
-            mu_c_hat, _ = model.encode_to_distribution(x_hat)
-            pred = model.classifier(mu_c_hat).argmax(dim=1).cpu()
+            if external_classifier is not None:
+                pred = external_classifier(x_hat).argmax(dim=1).cpu()
+            else:
+                mu_c_hat, _ = model.encode_to_distribution(x_hat)
+                pred = model.classifier(mu_c_hat).argmax(dim=1).cpu()
 
             c_rate = (pred == a).float().mean().item()
             s_rate = (pred == b).float().mean().item()
@@ -164,11 +173,14 @@ def parse_args():
     p.add_argument("--tag", required=True, help="Run identifier, used for the output subdir and plot titles")
     p.add_argument("--device", default="cpu")
     p.add_argument("--split", default="test", choices=["train", "test"])
-    p.add_argument("--n-samples", type=int, default=5000, help="Eval subset size used to draw donors")
+    p.add_argument("--n-samples", type=int, default=DEFAULT_EVAL_SAMPLES,
+                   help=f"Eval subset size used to draw donors (Stage-0 default: {DEFAULT_EVAL_SAMPLES})")
     p.add_argument("--n-per-pair", type=int, default=100, help="Donor draws per (a, b) class pair")
     p.add_argument("--grid-donor-index", type=int, default=0,
                    help="Which occurrence of each class (in the eval subset) to use for the qualitative grid")
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--external-classifier-checkpoint", default=None,
+                   help="Independent pixel classifier. Without it, scores are robustness-only internal scores.")
     p.add_argument("--output-dir", default=None,
                    help="Defaults to runs_diag/latent_swap/<tag>/")
     return p.parse_args()
@@ -185,6 +197,12 @@ def main():
     print(f"Loading model from {args.checkpoint} ...")
     model = load_fcswae_checkpoint(args.checkpoint, args.dataset, device)
     n_classes = model.n_classes
+    external_classifier = None
+    external_metadata = None
+    if args.external_classifier_checkpoint:
+        external_classifier, external_metadata = load_external_classifier_checkpoint(
+            args.external_classifier_checkpoint, args.dataset, device
+        )
 
     print(f"Loading {args.dataset} {args.split} subset (n={args.n_samples}, seed={args.seed}) ...")
     loader = get_eval_subset_loader(
@@ -195,7 +213,8 @@ def main():
     print(f"Running latent-swap intervention over all {n_classes}x{n_classes} class pairs "
           f"({args.n_per_pair} draws/pair) ...")
     content_rate, style_rate, neither_rate = run_swap(
-        model, mu_c, mu_s, labels, n_classes, args.n_per_pair, device, args.seed
+        model, mu_c, mu_s, labels, n_classes, args.n_per_pair, device, args.seed,
+        external_classifier=external_classifier,
     )
 
     offdiag_mask = ~np.eye(n_classes, dtype=bool)
@@ -211,13 +230,34 @@ def main():
         "tag": args.tag,
         "n_classes": n_classes,
         "n_per_pair": args.n_per_pair,
+        "latent_view": "deterministic posterior means mu_c and mu_s",
+        "evaluator": "external_pixel_classifier" if external_classifier is not None else "internal_reencode_robustness_only",
+        "external_classifier_metadata": external_metadata,
         "content_rate": content_rate.tolist(),
         "style_rate": style_rate.tolist(),
         "neither_rate": neither_rate.tolist(),
         "summary": summary,
     }
-    with (out_dir / "results.json").open("w") as f:
-        json.dump(results, f, indent=2)
+    manifest = build_manifest(
+        repository_root=ROOT,
+        checkpoint_path=args.checkpoint,
+        dataset=args.dataset,
+        seed=args.seed,
+        evaluation_config={
+            "split": args.split,
+            "n_samples": args.n_samples,
+            "n_per_pair": args.n_per_pair,
+            "latent_view": "mu_c_mu_s",
+            "evaluator": results["evaluator"],
+        },
+        model_config={
+            "semantic_dim": model.semantic_dim,
+            "style_dim": model.style_dim,
+            "n_classes": n_classes,
+        },
+        external_classifier_path=args.external_classifier_checkpoint,
+    )
+    save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "results.csv").open("w", newline="") as f:
         writer = csv.writer(f)
