@@ -1,0 +1,617 @@
+{
+  "manifest": {
+    "audit_protocol_version": "stage0-1.0.0",
+    "checkpoint": {
+      "path": "/media/drive-2t/CS-WAE-bachdx2/runs_f/mnist/seed_0/f_cs_wae_model.pth",
+      "sha256": "c947f8020d9b70e5381589b26e30dcd2b231e42cf9da1e72d29cd1064a9f0216"
+    },
+    "created_at_utc": "2026-08-07T02:53:19.248166+00:00",
+    "dataset": "mnist",
+    "evaluation_config": {
+      "actual_n_samples": 2048,
+      "eval_subset_indices_sha256": "9b688085f4c569455cc7724595152bdb71d3b5218f4cb266197e8cf62402651f",
+      "eval_subset_seed": 0,
+      "gen_per_class": 50,
+      "hsic_max_samples": 1024,
+      "hsic_permutations": 200,
+      "latent_primary_probe_swap": "mu_s",
+      "latent_primary_sampling_contract": "z_s_sample",
+      "n_samples": 2048,
+      "probe_epochs": 300,
+      "probe_models": [
+        "logistic",
+        "mlp",
+        "rbf_svm",
+        "knn"
+      ],
+      "probe_split": [
+        0.6,
+        0.2,
+        0.2
+      ]
+    },
+    "external_classifier": {
+      "path": "/home/bachdx2/CS-WAE/external_classifiers/mnist/grayscale_cnn_4conv_seed0.pth",
+      "sha256": "888e2ea1694f8f9c94d67418d76bfdd9535069141ed8efcd235e6ccae3d504d9"
+    },
+    "model_config": {
+      "backbone": "resnet18",
+      "config": {
+        "backbone": "resnet18",
+        "dataset": "mnist",
+        "epochs": 300,
+        "n_centers": 1,
+        "seed": 0
+      },
+      "dataset": "mnist",
+      "epochs": 300,
+      "n_centers": 1,
+      "seed": 0,
+      "timestamp": "2026-06-26T14:06:38.627016"
+    },
+    "repository": {
+      "commit": "2ce672e1f618c89222ff969120dcee47d7199274",
+      "dirty": true
+    },
+    "runtime": {
+      "cuda_available": true,
+      "cuda_version": "12.4",
+      "python": "3.10.12",
+      "torch": "2.6.0+cu124"
+    },
+    "schema_version": "audit-result-1.0.0",
+    "seed": 0
+  },
+  "results": {
+    "delta_inter": 6.264158248901367,
+    "gen_self_acc_class_diag_t025": 1.0,
+    "gen_self_acc_global_gaussian": 0.108,
+    "generation": {
+      "external": {
+        "class_diag_t025": {
+          "confusion_counts": [
+            [
+              50,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              50,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              50,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              50,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              50,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              50,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              50
+            ]
+          ],
+          "evaluator": "independent pixel-space classifier",
+          "macro_gen_accuracy": 1.0,
+          "micro_gen_accuracy": 1.0,
+          "n_per_class": 50,
+          "per_class_gen_accuracy": [
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "style_mode": "class_diag_t025"
+        },
+        "global_gaussian": {
+          "confusion_counts": [
+            [
+              4,
+              0,
+              5,
+              10,
+              2,
+              6,
+              2,
+              10,
+              6,
+              5
+            ],
+            [
+              4,
+              1,
+              6,
+              6,
+              2,
+              5,
+              3,
+              1,
+              15,
+              7
+            ],
+            [
+              1,
+              4,
+              5,
+              10,
+              5,
+              4,
+              2,
+              1,
+              8,
+              10
+            ],
+            [
+              5,
+              1,
+              7,
+              10,
+              2,
+              3,
+              3,
+              2,
+              11,
+              6
+            ],
+            [
+              3,
+              1,
+              6,
+              12,
+              2,
+              6,
+              2,
+              5,
+              11,
+              2
+            ],
+            [
+              5,
+              1,
+              4,
+              12,
+              2,
+              5,
+              3,
+              5,
+              9,
+              4
+            ],
+            [
+              4,
+              1,
+              1,
+              10,
+              3,
+              4,
+              2,
+              2,
+              14,
+              9
+            ],
+            [
+              3,
+              3,
+              5,
+              6,
+              3,
+              7,
+              3,
+              6,
+              12,
+              2
+            ],
+            [
+              2,
+              1,
+              6,
+              11,
+              6,
+              4,
+              3,
+              3,
+              8,
+              6
+            ],
+            [
+              1,
+              0,
+              7,
+              8,
+              4,
+              6,
+              3,
+              7,
+              6,
+              8
+            ]
+          ],
+          "evaluator": "independent pixel-space classifier",
+          "macro_gen_accuracy": 0.10199999809265137,
+          "micro_gen_accuracy": 0.102,
+          "n_per_class": 50,
+          "per_class_gen_accuracy": [
+            0.07999999821186066,
+            0.019999999552965164,
+            0.10000000149011612,
+            0.20000000298023224,
+            0.03999999910593033,
+            0.10000000149011612,
+            0.03999999910593033,
+            0.11999999731779099,
+            0.1599999964237213,
+            0.1599999964237213
+          ],
+          "style_mode": "global_gaussian"
+        }
+      },
+      "external_classifier_metadata": {
+        "architecture": "grayscale_cnn_4conv",
+        "audit_protocol_version": "stage0-1.0.0",
+        "batch_size": 128,
+        "best_validation_accuracy": 0.995,
+        "created_at_utc": "2026-08-06T02:10:47.383012+00:00",
+        "dataset": "mnist",
+        "epochs": 20,
+        "n_classes": 10,
+        "preprocessing": {
+          "input_range": [
+            0.0,
+            1.0
+          ],
+          "normalization": "none",
+          "test_augmentation": "none",
+          "train_augmentation": "none",
+          "validation_augmentation": "none"
+        },
+        "real_test_accuracy": 0.9934,
+        "real_test_loss": 0.018588236814657284,
+        "seed": 0,
+        "test_size": 10000,
+        "train_size": 54000,
+        "validation_size": 6000
+      },
+      "internal_robustness_only": {
+        "class_diag_t025": 1.0,
+        "global_gaussian": 0.108,
+        "warning": "robustness-only internal re-encoding evaluator; not a primary Gen-ACC"
+      }
+    },
+    "global_mmd": 0.0005719661712646484,
+    "hsic": 0.002134784124791622,
+    "joint_mmd": -0.004314061999320984,
+    "lp_accuracy": 0.9975609756097561,
+    "protocol": {
+      "latent_views": {
+        "mu_c_mu_s": "posterior-mean pair used by JointMMD",
+        "mu_s": "primary for representation probes and deterministic interventions",
+        "z_s_sample": "primary for q(z_s), q(z_s|y), and sampling-contract metrics"
+      },
+      "mmd_estimator": "unbiased U-statistic; fixed multi-scale RBF",
+      "n_evaluation_samples": 2048,
+      "probe_split": "stratified 60/20/20 train/validation/test",
+      "version": "stage0-1.0.0"
+    },
+    "representation": {
+      "delta_inter_mu_s": 6.264143466949463,
+      "hsic_mu_s": {
+        "estimator": "biased centered HSIC with permutation calibration",
+        "n_permutations": 200,
+        "n_samples": 1024,
+        "null_mean": 0.0006313618159038014,
+        "null_quantiles": {
+          "q90": 0.0006381365354172885,
+          "q95": 0.0006393717136234045,
+          "q99": 0.0006421610154211521
+        },
+        "null_std": 4.957305915533259e-06,
+        "p_value": 0.004975124378109453,
+        "sigmas": [
+          0.5,
+          1.0,
+          2.0,
+          5.0,
+          10.0,
+          20.0,
+          50.0
+        ],
+        "statistic": 0.002134784124791622
+      },
+      "probe_suite_mu_s": {
+        "feature_standardization": "mean/std fitted on train split only",
+        "models": {
+          "knn": {
+            "test": {
+              "accuracy": 0.9780487804878049,
+              "macro_f1": 0.9775585171158709
+            },
+            "train": {
+              "accuracy": 1.0,
+              "macro_f1": 1.0
+            },
+            "validation": {
+              "accuracy": 0.9707317073170731,
+              "macro_f1": 0.9709398850140669
+            }
+          },
+          "logistic": {
+            "test": {
+              "accuracy": 0.9975609756097561,
+              "macro_f1": 0.9975913978494624
+            },
+            "train": {
+              "accuracy": 1.0,
+              "macro_f1": 1.0
+            },
+            "validation": {
+              "accuracy": 0.9853658536585366,
+              "macro_f1": 0.9853660569384042
+            }
+          },
+          "mlp": {
+            "test": {
+              "accuracy": 0.9951219512195122,
+              "macro_f1": 0.9951803593599925
+            },
+            "train": {
+              "accuracy": 0.998371335504886,
+              "macro_f1": 0.9983508537547658
+            },
+            "validation": {
+              "accuracy": 0.9804878048780488,
+              "macro_f1": 0.9802303828168173
+            }
+          },
+          "rbf_svm": {
+            "test": {
+              "accuracy": 0.9975609756097561,
+              "macro_f1": 0.9975889615105302
+            },
+            "train": {
+              "accuracy": 0.999185667752443,
+              "macro_f1": 0.9991542739370679
+            },
+            "validation": {
+              "accuracy": 0.9902439024390244,
+              "macro_f1": 0.9903394197119237
+            }
+          }
+        },
+        "split": {
+          "indices_sha256": "15abaf2e506468b8a5da145048fe415b4f31d2ebe5c0f8124a314f199eee6535",
+          "test_size": 410,
+          "train_size": 1228,
+          "validation_size": 410
+        }
+      }
+    },
+    "sampling_contract": {
+      "delta_inter_z_s_sample": 6.264158248901367,
+      "global_mmd2_u_z_s_sample": 0.0005719661712646484,
+      "hsic_z_s_sample": {
+        "estimator": "biased centered HSIC with permutation calibration",
+        "n_permutations": 200,
+        "n_samples": 1024,
+        "null_mean": 0.000631363385473378,
+        "null_quantiles": {
+          "q90": 0.000638132740277797,
+          "q95": 0.0006393421586835757,
+          "q99": 0.0006421639962354675
+        },
+        "null_std": 4.958216293336706e-06,
+        "p_value": 0.004975124378109453,
+        "sigmas": [
+          0.5,
+          1.0,
+          2.0,
+          5.0,
+          10.0,
+          20.0,
+          50.0
+        ],
+        "statistic": 0.0021348309237509966
+      },
+      "probe_suite_z_s_sample": {
+        "feature_standardization": "mean/std fitted on train split only",
+        "models": {
+          "knn": {
+            "test": {
+              "accuracy": 0.9780487804878049,
+              "macro_f1": 0.9775585171158709
+            },
+            "train": {
+              "accuracy": 1.0,
+              "macro_f1": 1.0
+            },
+            "validation": {
+              "accuracy": 0.9707317073170731,
+              "macro_f1": 0.9709398850140669
+            }
+          },
+          "logistic": {
+            "test": {
+              "accuracy": 0.9975609756097561,
+              "macro_f1": 0.9975913978494624
+            },
+            "train": {
+              "accuracy": 1.0,
+              "macro_f1": 1.0
+            },
+            "validation": {
+              "accuracy": 0.9853658536585366,
+              "macro_f1": 0.9853660569384042
+            }
+          },
+          "mlp": {
+            "test": {
+              "accuracy": 0.9951219512195122,
+              "macro_f1": 0.9951803593599925
+            },
+            "train": {
+              "accuracy": 0.998371335504886,
+              "macro_f1": 0.9983508537547658
+            },
+            "validation": {
+              "accuracy": 0.9804878048780488,
+              "macro_f1": 0.9802303828168173
+            }
+          },
+          "rbf_svm": {
+            "test": {
+              "accuracy": 0.9975609756097561,
+              "macro_f1": 0.9975889615105302
+            },
+            "train": {
+              "accuracy": 0.999185667752443,
+              "macro_f1": 0.9991542739370679
+            },
+            "validation": {
+              "accuracy": 0.9902439024390244,
+              "macro_f1": 0.9903394197119237
+            }
+          }
+        },
+        "split": {
+          "indices_sha256": "15abaf2e506468b8a5da145048fe415b4f31d2ebe5c0f8124a314f199eee6535",
+          "test_size": 410,
+          "train_size": 1228,
+          "validation_size": 410
+        }
+      }
+    },
+    "within_class_dependence": {
+      "classwise_conditional_hsic_mu_c_mu_s": {
+        "estimator": "mean classwise centered HSIC; within-class permutation calibration",
+        "n_permutations": 200,
+        "null_mean": 0.0012432181448384656,
+        "null_quantiles": {
+          "q90": 0.0012492496659979224,
+          "q95": 0.0012515597091987728,
+          "q99": 0.0012537530150148087
+        },
+        "null_std": 4.749663632923834e-06,
+        "p_value": 0.004975124378109453,
+        "per_class_statistic": {
+          "0": 0.0029762457124888897,
+          "1": 0.0034663889091461897,
+          "2": 0.0021325077395886183,
+          "3": 0.0023773072753101587,
+          "4": 0.0025827500503510237,
+          "5": 0.0025958751793950796,
+          "6": 0.002260147826746106,
+          "7": 0.0020233280956745148,
+          "8": 0.002192319370806217,
+          "9": 0.001791513990610838
+        },
+        "statistic": 0.0024398384150117634
+      },
+      "joint_mmd2_u_mu_c_mu_s": -0.004314061999320984
+    }
+  }
+}

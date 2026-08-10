@@ -3,6 +3,8 @@ Comprehensive evaluation metrics for CS-WAE and baseline models
 Includes FID, SSIM, PSNR, LPIPS, clustering accuracy, NMI, and ARI
 """
 import os
+import shutil
+import tempfile
 import torch
 import torchvision
 import numpy as np
@@ -162,32 +164,39 @@ class ModelEvaluator:
             return {"FID": 0.0}
             
         print(f"Calculating FID for {model_name} (this may take several minutes)...")
-        
-        # Create directories for real and generated images
-        real_img_dir = os.path.join(save_dir, f"fid_images_{model_name}", "real")
-        gen_img_dir = os.path.join(save_dir, f"fid_images_{model_name}", "generated")
+
+        # Save images to a temporary directory so they never accumulate on disk;
+        # the whole tree is removed as soon as FID has been computed.
+        fid_tmp_dir = tempfile.mkdtemp(prefix=f"fid_images_{model_name}_")
+        real_img_dir = os.path.join(fid_tmp_dir, "real")
+        gen_img_dir = os.path.join(fid_tmp_dir, "generated")
         os.makedirs(real_img_dir, exist_ok=True)
         os.makedirs(gen_img_dir, exist_ok=True)
-        
-        # Save real images (only if not already done)
-        if not os.listdir(real_img_dir):
-            from ..datasets.loaders import build_test_dataset
 
-            test_dataset = build_test_dataset(self.dataset, self.data_dir)
-            
-            for i, (img, _) in enumerate(tqdm(test_dataset, desc="Saving real images")):
-                current_config = ablation_config if ablation_config else config
-                if i >= current_config.num_images_for_fid:
-                    break
-                save_img = img if img.shape[0] == 3 else img.repeat(3, 1, 1)
-                torchvision.utils.save_image(
-                    save_img, os.path.join(real_img_dir, f"real_{i}.png")
-                )
-        
+        try:
+            return self._compute_fid(model, model_name, real_img_dir, gen_img_dir)
+        finally:
+            shutil.rmtree(fid_tmp_dir, ignore_errors=True)
+
+    def _compute_fid(self, model, model_name, real_img_dir, gen_img_dir):
+        # Save real images
+        from ..datasets.loaders import build_test_dataset
+
+        test_dataset = build_test_dataset(self.dataset, self.data_dir)
+
+        for i, (img, _) in enumerate(tqdm(test_dataset, desc="Saving real images")):
+            current_config = ablation_config if ablation_config else config
+            if i >= current_config.num_images_for_fid:
+                break
+            save_img = img if img.shape[0] == 3 else img.repeat(3, 1, 1)
+            torchvision.utils.save_image(
+                save_img, os.path.join(real_img_dir, f"real_{i}.png")
+            )
+
         # Generate and save fake images
         model.eval()
         generated_count = 0
-        
+
         with torch.no_grad():
             current_config = ablation_config if ablation_config else config
             while generated_count < current_config.num_images_for_fid:
