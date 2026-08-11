@@ -1,0 +1,446 @@
+\section{Proofs}
+\label{app:proofs}
+
+\subsection{Proof of Proposition~\ref{prop:nocert}}
+
+The label is defined after drawing $\zs$ and therefore does not alter the
+marginal law of $\zs$.  Hence $q(\zs)=\mathcal N(0,I)$ and any divergence
+between these two identical measures is zero.  Because $y$ is a deterministic
+function of $\zs$, $H(y\mid\zs)=0$.  The equal-probability partition gives
+$H(y)=\log K$, and consequently
+$I(\zs;y)=H(y)-H(y\mid\zs)=\log K$.
+
+\subsection{A smooth, full-support construction}
+
+Let $z\sim\mathcal N(0,1)$ and, conditional on $z$, draw a binary label with
+\begin{equation}
+P(y=1\mid z)=\sigma(az),\qquad P(y=0\mid z)=\sigma(-az),
+\end{equation}
+where $a>0$ and $\sigma(t)=(1+e^{-t})^{-1}$.  Since the standard normal
+density $\phi$ is symmetric and $\sigma(t)+\sigma(-t)=1$,
+\begin{align}
+P(y=1)
+&=\int_{\mathbb R}\phi(z)\sigma(az)\,dz\\
+&=\frac12\int_{\mathbb R}\phi(z)
+\bigl[\sigma(az)+\sigma(-az)\bigr]\,dz=\frac12.
+\end{align}
+The generative construction starts with the standard normal and changes only
+the conditional label law, so the marginal of $z$ remains exactly standard
+normal.  Bayes' rule gives
+\begin{equation}
+q(z\mid y=1)=2\phi(z)\sigma(az),\qquad
+q(z\mid y=0)=2\phi(z)\sigma(-az).
+\end{equation}
+Both densities are smooth and strictly positive on $\mathbb R$.  When
+$a\rightarrow\infty$, the conditional label approaches the indicator of the
+sign of $z$ outside a set of Gaussian measure zero.  Thus
+$H(y\mid z)\rightarrow0$ and $I(z;y)\rightarrow\log2$ while the marginal
+remains unchanged.
+
+\subsection{Proof of Theorem~\ref{thm:decomp}}
+
+For a fixed $y$, insert the product of the encoder conditionals and apply the
+KL chain rule:
+\begin{align}
+&\KL\!\left(q(\zc,\zs\mid y)\|p(\zc\mid y)p(\zs)\right)\\
+={}&\KL\!\left(q(\zc,\zs\mid y)\|q(\zc\mid y)q(\zs\mid y)\right)\nonumber\\
+&+\KL(q(\zc\mid y)\|p(\zc\mid y))
++\KL(q(\zs\mid y)\|p(\zs)).
+\end{align}
+The first term is $I_q(\zc;\zs\mid y)$ at that label.  Averaging over
+$q(y)$ gives term 4 and term 3 of Eq.~\ref{eq:decomp}.  For the last term,
+insert the aggregate posterior $q(\zs)$:
+\begin{align}
+\mathbb E_{q(y)}\KL(q(\zs\mid y)\|p(\zs))
+={}&\mathbb E_{q(y)}\KL(q(\zs\mid y)\|q(\zs))\nonumber\\
+&+\KL(q(\zs)\|p(\zs))\\
+={}&I_q(\zs;y)+\KL(q(\zs)\|p(\zs)).
+\end{align}
+This establishes the equality for arbitrary $q(y)$.  Non-negativity follows
+from non-negativity of KL divergence and mutual information.
+
+\subsection{Proof of Corollary~\ref{cor:valid}}
+
+An expectation of a non-negative KL is zero iff its integrand is zero for
+$q(y)$-almost every $y$, which holds iff the two latent conditional measures
+are equal.  The pushforward inequality follows by applying the data-processing
+inequality to the deterministic Markov kernel induced by the decoder for each
+$y$, then averaging over $q(y)$.
+
+\section{Architecture and Training}
+\label{app:model}
+
+\subsection{Architecture}
+
+The shared encoder is a ResNet-18 adapted to small images: its first
+$7\times7$, stride-2 convolution is replaced by a $3\times3$, stride-1
+convolution and max pooling is removed.  The trunk output is flattened and
+mapped to 256 dimensions with SiLU.  Separate heads produce an unnormalized
+semantic direction, a scalar semantic concentration, a style mean, and a
+style log variance.  We use
+\begin{align}
+\muc&=\widetilde\muc/\|\widetilde\muc\|_2, &
+\rho_c&=\sigma(r_c)(1-\varepsilon),\\
+\zs&=\mus+\exp(\tfrac12\log\sigma_s^2)\odot\epsilon,
+&\epsilon&\sim\mathcal N(0,I).
+\end{align}
+The semantic code is sampled by a Spherical Cauchy M\"obius
+reparameterization.  The decoder concatenates $[\zc;\zs]$, projects it to a
+$512\times4\times4$ tensor, and applies three residual bilinear-upsample
+blocks with channel widths $256,128,64$.  Its sigmoid output is interpolated
+to the native dataset resolution when necessary.  MNIST and Fashion-MNIST
+therefore remain $28\times28$ and single-channel; CIFAR-10 remains
+$32\times32\times3$.
+
+For class $k$, the semantic prior is a Spherical Cauchy distribution centered
+at an EMA direction $m_k$, with concentration $\rho_p=0.7$.  The center is
+updated once per epoch from encoded class-mean directions with momentum
+$0.95$.  The style prior is $\mathcal N(0,I)$.
+
+\subsection{Objective}
+
+The training objective is
+\begin{align}
+\mathcal L={}&\mathcal L_{\mathrm{rec}}
++\alpha(t)\mathcal L_{\mathrm{class}}
++\beta(t)\mathcal L_{\mathrm{agg}}
++\gamma(t)\mathcal L_{\mathrm{style}}\nonumber\\
+&+\delta(t)\mathcal L_{\mathrm{style-cls}}
++\eta(t)\mathcal L_{\mathrm{cls}}.
+\end{align}
+$\mathcal L_{\mathrm{rec}}$ is L1 plus $0.1$ LPIPS
+\citep{zhang2018unreasonable}.  $\mathcal L_{\mathrm{class}}$ matches each
+semantic class conditional to its spherical prior, $\mathcal L_{\mathrm{agg}}$
+matches aggregate semantic codes to the class-prior mixture,
+$\mathcal L_{\mathrm{style}}$ matches sampled style codes to a standard
+Gaussian, and $\mathcal L_{\mathrm{cls}}$ is cross entropy from $\muc$.
+The baseline checkpoints audited in the main paper explicitly set
+$\delta=0$; the repository default for new remedied runs is $\delta=1$, so
+the run manifest or command-line override is required to distinguish them.
+
+\begin{table}[ht]
+\caption{Case-study training hyperparameters.}
+\label{tab:hyperparameters}
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Optimizer & Adam, learning rate $10^{-3}$ \\
+Schedule & StepLR, step 100, factor $0.5$ \\
+Batch size / epochs & 128 / 300 \\
+Gradient clipping & global norm 1.0 \\
+Semantic / style dimension & 64 / 128 \\
+Semantic-prior concentration & 0.7 \\
+EMA momentum & 0.95 \\
+Final class / aggregate MMD weights & 2.0 / 5.0 \\
+Final global style MMD weight & 1.0 \\
+Final auxiliary-classifier weight & 0.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training has four phases: reconstruction only for epochs 0--49; global style
+MMD and the auxiliary classifier ramp during epochs 50--99; semantic class
+and aggregate MMD ramp to half strength during epochs 100--199; all terms
+reach full strength during epochs 200--299.  For remedied runs, per-class
+style MMD follows the global-style ramp.  No image augmentation is used.
+
+\section{Canonical Audit Protocol}
+\label{app:protocol}
+
+\subsection{Data split and latent views}
+
+For each checkpoint we select 2,048 examples from the standard test split
+with evaluation seed 0.  Probe indices are generated by a deterministic
+stratified 60/20/20 split, yielding 1,228 training, 410 validation, and 410
+test examples.  Standardization parameters are estimated only on the 1,228
+probe-training examples.  The split indices are stored by SHA-256 hash in
+each result manifest.
+
+The encoder is evaluated once to obtain $(\muc,\mus,\log\sigma_s^2)$ and a
+seeded stochastic draw $\zs$.  We use:
+\begin{itemize}
+    \item $\mus$ for representation probes and deterministic mean swaps;
+    \item $\zs$ for global MMD, conditional style statistics, and the
+    sampling-contract probe; and
+    \item $(\muc,\mus)$ for the currently available mean-view conditional
+    dependence diagnostic.
+\end{itemize}
+Agreement between these views is reported as an empirical result rather than
+assumed.
+
+\subsection{Probe suite}
+
+The suite contains multinomial logistic regression, a fixed two-layer MLP,
+RBF-SVM, and $k$-NN.  Validation data are used for fixed early-stopping or
+model-selection rules; every headline accuracy is evaluated once on the
+untouched test partition.  We report accuracy and macro-F1.  The main paper
+uses logistic regression as the simplest standardized headline and includes
+RBF-SVM to detect nonlinear separation.
+
+\subsection{MMD and HSIC}
+
+Global MMD is the unbiased U-statistic with the averaged Euclidean RBF kernel
+\begin{equation}
+k(u,v)=\frac17\sum_{\sigma\in\{0.5,1,2,5,10,20,50\}}
+\exp\!\left(-\frac{\|u-v\|_2^2}{2\sigma^2}\right).
+\end{equation}
+The Gaussian reference has the same sample count as the encoded set.
+$\Dinter$ is not an MMD; it is the average Euclidean distance between all
+pairs of class-conditional style means.
+
+HSIC centers a multiscale style Gram matrix and a label Gram matrix and uses
+1,024 examples for bounded memory.  We calibrate it by 200 label
+permutations.  With the plus-one correction,
+\begin{equation}
+p=\frac{1+\#\{T_b\ge T_{\mathrm{obs}}\}}{201},
+\end{equation}
+so $p=0.004975$ is reported rather than $p=0$.  Conditional HSIC for term 4
+permutes styles independently inside every represented class.
+
+We do not report the current JointMMD U-statistic as a headline result.  Its
+joint and recombined samples share observations, so the nominal independent
+two-sample U-statistic assumptions require a sample-splitting calibration
+that is not yet part of the canonical protocol.
+
+\section{Full Stage-0 Results}
+\label{app:full-results}
+
+\begin{table}[ht]
+\caption{Full held-out probe suite.  Values are test accuracy in percent.
+CIFAR-10 is mean $\pm$ sample standard deviation over model seeds 0, 1, 2.}
+\label{tab:full-probes}
+\centering
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & View & Logistic & MLP & RBF-SVM & $k$-NN \\
+\midrule
+MNIST & $\mus$ & 99.76 & 99.51 & 99.76 & 97.80 \\
+      & $\zs$  & 99.76 & 99.51 & 99.76 & 97.80 \\
+Fashion & $\mus$ & 88.29 & 90.73 & 93.17 & 85.12 \\
+        & $\zs$  & 88.29 & 90.73 & 93.17 & 85.61 \\
+CIFAR-10 & $\mus$ & $68.46\pm6.29$ & $70.49\pm3.83$ &
+$70.24\pm3.23$ & $42.52\pm6.93$ \\
+         & $\zs$ & $68.62\pm6.19$ & $70.57\pm3.50$ &
+$70.16\pm3.36$ & $42.20\pm7.11$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\caption{Per-seed CIFAR-10 results for the two principal probes.}
+\label{tab:cifar-seeds}
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Seed & $\Dinter(\zs)$ & Logit $\mus$ & Logit $\zs$ & RBF $\mus$ & RBF $\zs$ \\
+\midrule
+0 & 3.801 & 61.46 & 61.71 & 66.59 & 66.34 \\
+1 & 4.264 & 73.66 & 73.66 & 72.68 & 72.68 \\
+2 & 3.797 & 70.24 & 70.49 & 71.46 & 71.46 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The classwise conditional-HSIC mean-view statistic is 0.002440 on MNIST,
+0.002459 on Fashion-MNIST, and $0.002086\pm0.000222$ on CIFAR-10.  Every
+checkpoint attains the minimum calibrated $p=1/201$.  We interpret this as
+evidence of within-class dependence in the deterministic representation,
+not as a numerical estimate of $I(\zc;\zs\mid y)$.
+
+\subsection{Structure of the conditional mismatch}
+
+The class average in Table~\ref{tab:conditional-mmd} compresses a structured
+ten-class discrepancy.  Figure~\ref{fig:pairwise-mmd-app} compares every
+pair of class-conditional style distributions.  Broad off-diagonal mass is
+visible on both datasets, rather than separation being confined to a few
+class pairs.  These matrices use the same stochastic-view diagnostic as the
+per-class prior comparison; their scale should not be compared across
+datasets as if it were a normalized dependence measure.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.47\textwidth}
+\centering
+\includegraphics[width=\linewidth,trim=0 0 0 70,clip]{conditional_mmd_pairwise_heatmap_mnist.png}\\[-0.4em]
+\small (a) MNIST
+\end{minipage}\hfill
+\begin{minipage}{0.47\textwidth}
+\centering
+\includegraphics[width=\linewidth,trim=0 0 0 70,clip]{conditional_mmd_pairwise_heatmap_cifar10.png}\\[-0.4em]
+\small (b) CIFAR-10
+\end{minipage}
+\caption{Pairwise $\MMD^2(q(\zs\mid y=i),q(\zs\mid y=j))$ for the
+unrepaired seed-0 checkpoints.  The diagonal is zero by construction;
+off-diagonal structure shows that conditional style distributions differ
+throughout the label set.}
+\label{fig:pairwise-mmd-app}
+\end{figure}
+
+Figure~\ref{fig:projection-app} gives a complementary one-dimensional view.
+The projection direction is computed from the class means rather than chosen
+after inspecting individual examples.  Several MNIST classes separate along
+this direction, but the overlap also illustrates why a single projection is
+not a substitute for the held-out multivariate probes.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\textwidth,trim=0 0 0 80,clip]{conditional_mmd_projection_histogram_mnist.png}
+\caption{MNIST stochastic styles projected onto the leading direction of
+the class-mean matrix at $\delta=0$.  The direction explains 13.1\% of the
+class-mean variance.  The plot is descriptive; the held-out probes and HSIC
+tests provide the quantitative evidence.}
+\label{fig:projection-app}
+\end{figure}
+\FloatBarrier
+
+\subsection{Posterior-variance inspection}
+
+The fractions of raw style log-variance coordinates at or below the clamp
+floor are 99.9966\% (MNIST), 99.9989\% (Fashion-MNIST), and 100\% for all
+three CIFAR-10 checkpoints.  Because this statistic was added during the
+post-hoc checkpoint audit, it is reported in the human-readable audit report;
+future manifests should also store it as a first-class numeric field.
+
+\subsection{Complete conditional-regularization sweep}
+
+Table~\ref{tab:full-delta-sweep} expands the four points shown in the main
+paper to all six archived $\delta$ settings.  We retain ACC, $\Dinter$, and
+FID because they are directly tied to the sweep artifacts, but omit the
+historical probe column until it is regenerated with the canonical held-out
+split.  Each point is a separate single-seed training run.
+
+\begin{table}[ht]
+\caption{Complete single-seed per-class-style-MMD sweep.  Lower FID and
+$\Dinter$ are better; no uncertainty or significance claim is made.}
+\label{tab:full-delta-sweep}
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+& \multicolumn{3}{c}{MNIST} & \multicolumn{3}{c}{CIFAR-10} \\
+$\delta$ & ACC & $\Dinter$ & FID & ACC & $\Dinter$ & FID \\
+\midrule
+0    & .9915 & 6.21 & 74.0 & .8129 & 3.74 & 80.5 \\
+.03  & .9944 & 3.27 & 62.8 & .8111 & 2.48 & 79.1 \\
+.1   & .9898 & 2.12 & 52.6 & .8100 & 2.03 & 77.5 \\
+.3   & .9936 & 1.55 & 59.4 & .7148 & 1.59 & 72.0 \\
+1    & .8592 & 1.22 & 43.4 & .8000 & 1.05 & 74.4 \\
+3    & .9929 & 1.18 & 41.5 & .7994 & .95  & 76.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\section{Generation and Decoder Diagnostics}
+\label{app:decoder}
+
+\subsection{External generation evaluation}
+
+The independent MNIST evaluator is a four-convolution CNN trained for 20
+epochs on real images only.  Its standard test accuracy is 99.34\%.  The
+CIFAR-10 evaluator is a WideResNet-28-10 trained for 200 epochs with standard
+random-crop and horizontal-flip augmentation on real training images only;
+its test accuracy is 96.16\%.  Neither evaluator contributes to the
+generative model's loss.
+
+\begin{table}[ht]
+\caption{Per-checkpoint external Gen-ACC.  Each entry uses 50 images per
+requested class.}
+\label{tab:generation-seeds}
+\centering
+\small
+\begin{tabular}{llrr}
+\toprule
+Dataset & Model seed & Global Gaussian & Class diagonal $\tau=.25$ \\
+\midrule
+MNIST & 0 & 0.102 & 1.000 \\
+CIFAR-10 & 0 & 0.138 & 0.390 \\
+CIFAR-10 & 1 & 0.144 & 0.516 \\
+CIFAR-10 & 2 & 0.114 & 0.448 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The class-diagonal distribution is fit from encoded training styles and
+therefore deliberately conditions style on the requested label.  Its gain
+tests whether the decoder is sensitive to the conditional mismatch.  It is
+not an unconditional generative model and does not repair the encoder.
+
+Figure~\ref{fig:cifar-sampling-app} displays the qualitative counterpart of
+Table~\ref{tab:generation-seeds}.  Conditioning style makes the requested
+category more visually consistent in some rows, but shrinking the diagonal
+Gaussian to $\tau=.25$ also reduces variation and can produce blurry or
+prototype-like outputs.  This is why Gen-ACC is interpreted jointly with FID
+and not as a stand-alone measure of generative quality.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.43\textwidth]{cifar10_sampling_grid_trimmed.png}
+\caption{Archived CIFAR-10 samples from the seed-0 checkpoint.  For four
+requested classes, odd rows use the global Gaussian style prior and even rows
+use the post-hoc class-diagonal prior at $\tau=.25$.  The grid is qualitative;
+external Gen-ACC is reported in Table~\ref{tab:generation-seeds}.}
+\label{fig:cifar-sampling-app}
+\end{figure}
+\FloatBarrier
+
+\subsection{Archived deterministic mean-swap analysis}
+
+For each ordered pair of distinct classes $(a,b)$, the archived diagnostic
+decodes $\mathrm{Dec}(\muc^{(a)},\mus^{(b)})$ for 100 independent donor pairs.
+On the unrepaired checkpoint, the model-internal re-encoding classifier
+follows the style donor on 99.22\% of MNIST and 68.82\% of CIFAR-10
+off-diagonal swaps, while following the semantic donor on 0.11\% and 4.22\%.
+These values support the same qualitative mechanism but are not primary
+evidence because the evaluator shares the model's semantic representation.
+They will be replaced by the independent pixel-classifier rerun before being
+promoted to the main paper.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.86\linewidth]{mnist_swap_grid_delta0.png}\\[-0.4em]
+\small (a) MNIST
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.86\linewidth]{cifar10_swap_grid_delta0.png}\\[-0.4em]
+\small (b) CIFAR-10
+\end{minipage}
+\caption{Archived deterministic mean-swap grids at $\delta=0$.  Rows donate
+semantic means and columns donate style means.  Column-controlled identity
+is visually strong on MNIST and weaker but still present for several
+CIFAR-10 classes.  Quantitative swap rates use the robustness-only internal
+evaluator described above.}
+\label{fig:swap-grid-app}
+\end{figure}
+\FloatBarrier
+
+\section{Reproducibility and Current Evidence Boundary}
+\label{app:reproducibility}
+
+All Stage-0 results are stored as JSON plus SHA-256 sidecars.  Each manifest
+records the repository state, checkpoint hash, evaluation seed, fixed subset,
+latent view, probe split, feature preprocessing, and evaluator metadata.  The
+canonical protocol version for the present draft is
+\texttt{stage0-1.0.0}.  The five audited checkpoints are MNIST seed 0,
+Fashion-MNIST seed 0, and CIFAR-10 seeds 0, 1, 2; all use evaluation seed 0.
+
+The current draft intentionally excludes the earlier cross-model probe table,
+multi-remedy comparison, five-seed remedy/sampling tables, and explicit
+split-latent baseline ranges.  Those measurements were not yet regenerated
+under the held-out Stage-0 protocol with complete artifacts.  They should be
+reintroduced only after model-specific loaders, manifests, and canonical
+outputs are available.  This boundary keeps every quantitative claim in the
+present paper tied to an inspectable artifact.
+
+The submission source, rendered author block, supplementary archive, and all
+externally hosted materials must remain anonymous throughout review.
