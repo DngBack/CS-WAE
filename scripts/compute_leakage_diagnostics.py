@@ -352,6 +352,28 @@ def compute_external_generation_metrics(
     }
 
 
+def compute_class_style_stats(
+    mu_s: torch.Tensor, labels: torch.Tensor, n_classes: int, device: torch.device
+) -> dict:
+    """Fit per-class diagonal style summaries from an explicitly named split."""
+
+    class_means, class_stds, class_counts = [], [], []
+    for class_index in range(n_classes):
+        class_values = mu_s[labels == class_index]
+        class_counts.append(int(class_values.shape[0]))
+        if class_values.shape[0]:
+            class_means.append(class_values.mean(0))
+            class_stds.append(class_values.std(0).clamp_min(1e-6))
+        else:
+            class_means.append(torch.zeros(mu_s.shape[1], device=mu_s.device))
+            class_stds.append(torch.ones(mu_s.shape[1], device=mu_s.device))
+    return {
+        "means": torch.stack(class_means).to(device),
+        "stds": torch.stack(class_stds).to(device),
+        "counts": class_counts,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Full diagnostic suite
 # ---------------------------------------------------------------------------
@@ -365,6 +387,8 @@ def run_diagnostics(
     gen_per_class: int = 50,
     aux_classifier: nn.Module | None = None,
     external_classifier: nn.Module | None = None,
+    generation_style_stats: dict | None = None,
+    generation_style_stats_source: str | None = None,
     seed: int = 0,
     probe_epochs: int = 300,
     hsic_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
@@ -385,7 +409,11 @@ def run_diagnostics(
     labels = views["labels"].to(device)
 
     print("Computing U-statistic global MMD on posterior samples...")
-    global_mmd = compute_global_mmd(z_s_sample, seed=seed)
+    # Keep the Gaussian reference independent from the seeded posterior draw.
+    # Reusing ``seed`` here reproduces the same CPU-normal stream used by
+    # ``extract_latent_views`` and silently couples the two MMD samples.
+    global_mmd_reference_seed = seed + 10_000
+    global_mmd = compute_global_mmd(z_s_sample, seed=global_mmd_reference_seed)
     delta_sample = compute_delta_inter(z_s_sample, labels, n_classes)
     delta_mean = compute_delta_inter(mu_s, labels, n_classes)
 
@@ -417,18 +445,11 @@ def run_diagnostics(
             n_permutations=hsic_permutations,
         )
 
-    style_stats = None
+    style_stats = generation_style_stats
     if hasattr(model, "sample_from_class_prior"):
-        class_means, class_stds = [], []
-        for class_index in range(n_classes):
-            class_values = mu_s[labels == class_index]
-            if class_values.shape[0]:
-                class_means.append(class_values.mean(0))
-                class_stds.append(class_values.std(0).clamp_min(1e-6))
-            else:
-                class_means.append(torch.zeros(mu_s.shape[1], device=device))
-                class_stds.append(torch.ones(mu_s.shape[1], device=device))
-        style_stats = {"means": torch.stack(class_means), "stds": torch.stack(class_stds)}
+        if style_stats is None:
+            style_stats = compute_class_style_stats(mu_s, labels, n_classes, device)
+            generation_style_stats_source = "evaluation subset (legacy fallback)"
 
     external_generation = None
     if external_classifier is not None and style_stats is not None:
@@ -468,6 +489,7 @@ def run_diagnostics(
                 "mu_c_mu_s": "posterior-mean pair used by JointMMD",
             },
             "mmd_estimator": "unbiased U-statistic; fixed multi-scale RBF",
+            "global_mmd_reference_seed": global_mmd_reference_seed,
             "probe_split": "stratified 60/20/20 train/validation/test",
         },
         "sampling_contract": {
@@ -488,6 +510,8 @@ def run_diagnostics(
         "generation": {
             "external": external_generation,
             "internal_robustness_only": internal_generation,
+            "style_stats_source": generation_style_stats_source,
+            "style_stats_per_class_counts": None if style_stats is None else style_stats.get("counts"),
         },
         # Compatibility fields for legacy aggregators.  New tables should use
         # the explicitly named nested fields above.
@@ -621,6 +645,8 @@ def parse_args():
                    help=f"Number of test samples to use (Stage-0 default: {DEFAULT_EVAL_SAMPLES})")
     p.add_argument("--gen-per-class", type=int, default=50,
                    help="Generated images per class for self-ACC")
+    p.add_argument("--generation-style-bank-samples", type=int, default=12000,
+                   help="Training examples used to fit post-hoc class-conditional style summaries")
     p.add_argument("--probe-epochs", type=int, default=300,
                    help="Maximum epochs for fixed Torch probes")
     p.add_argument("--hsic-permutations", type=int, default=DEFAULT_HSIC_PERMUTATIONS,
@@ -673,6 +699,27 @@ def main():
         args.dataset, args.n_samples, batch_size=256, seed=args.seed, split="test",
     )
 
+    generation_style_stats = None
+    generation_style_stats_source = None
+    if external_clf is not None:
+        print(
+            "Fitting post-hoc style summaries on the training split "
+            f"(n={args.generation_style_bank_samples}, seed={args.seed})..."
+        )
+        style_loader = get_eval_subset_loader(
+            args.dataset, args.generation_style_bank_samples,
+            batch_size=256, seed=args.seed, split="train",
+        )
+        _style_mu_c, style_mu_s, style_labels = extract_full_encodings(
+            model, style_loader, device
+        )
+        generation_style_stats = compute_class_style_stats(
+            style_mu_s.to(device), style_labels.to(device), model.n_classes, device
+        )
+        generation_style_stats_source = (
+            f"training split subset, n={len(style_loader.dataset)}, seed={args.seed}"
+        )
+
     results = run_diagnostics(
         model, loader, device,
         n_classes=10,
@@ -680,6 +727,8 @@ def main():
         gen_per_class=args.gen_per_class,
         aux_classifier=aux_clf,
         external_classifier=external_clf,
+        generation_style_stats=generation_style_stats,
+        generation_style_stats_source=generation_style_stats_source,
         seed=args.seed,
         probe_epochs=args.probe_epochs,
         hsic_permutations=args.hsic_permutations,
@@ -718,8 +767,11 @@ def main():
         "hsic_max_samples": DEFAULT_HSIC_SAMPLES,
         "hsic_permutations": args.hsic_permutations,
         "gen_per_class": args.gen_per_class,
+        "generation_style_bank_samples": args.generation_style_bank_samples,
+        "generation_style_bank_split": "train" if external_clf is not None else None,
         "latent_primary_sampling_contract": "z_s_sample",
         "latent_primary_probe_swap": "mu_s",
+        "global_mmd_reference_seed": args.seed + 10_000,
     }
     manifest = build_manifest(
         repository_root=ROOT,

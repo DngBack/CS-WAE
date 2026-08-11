@@ -165,8 +165,8 @@ seeded stochastic draw $\zs$.  We use:
     \item $\mus$ for representation probes and deterministic mean swaps;
     \item $\zs$ for global MMD, conditional style statistics, and the
     sampling-contract probe; and
-    \item $(\muc,\mus)$ for the currently available mean-view conditional
-    dependence diagnostic.
+    \item both $(\muc,\mus)$ and repeated posterior draws $(\zc,\zs)$ for
+    the conditional-dependence diagnostic.
 \end{itemize}
 Agreement between these views is reported as an empirical result rather than
 assumed.
@@ -187,7 +187,13 @@ Global MMD is the unbiased U-statistic with the averaged Euclidean RBF kernel
 k(u,v)=\frac17\sum_{\sigma\in\{0.5,1,2,5,10,20,50\}}
 \exp\!\left(-\frac{\|u-v\|_2^2}{2\sigma^2}\right).
 \end{equation}
-The Gaussian reference has the same sample count as the encoded set.
+The Gaussian reference has the same sample count as the encoded set and uses
+an RNG stream independent of posterior sampling.  A balanced pooled-label
+permutation test calibrates the finite-sample null with 500 permutations.
+The resulting null 95th percentiles are $1.88$--$2.45\times10^{-5}$, whereas
+observed global MMD is $2.48$--$5.79\times10^{-4}$; exact equality is rejected
+for every checkpoint ($p=1/501$).  We therefore use ``small'' only as a
+relative numerical description, not as acceptance of the equality null.
 $\Dinter$ is not an MMD; it is the average Euclidean distance between all
 pairs of class-conditional style means.
 
@@ -246,11 +252,14 @@ Seed & $\Dinter(\zs)$ & Logit $\mus$ & Logit $\zs$ & RBF $\mus$ & RBF $\zs$ \\
 \end{tabular}
 \end{table}
 
-The classwise conditional-HSIC mean-view statistic is 0.002440 on MNIST,
-0.002459 on Fashion-MNIST, and $0.002086\pm0.000222$ on CIFAR-10.  Every
-checkpoint attains the minimum calibrated $p=1/201$.  We interpret this as
-evidence of within-class dependence in the deterministic representation,
-not as a numerical estimate of $I(\zc;\zs\mid y)$.
+For term 4, ten stochastic posterior draws per checkpoint all attain the
+minimum calibrated $p=1/201$.  The sample-view statistic is
+$0.002682\pm0.000005$ across draws on MNIST, $0.002459$ on Fashion-MNIST,
+and has per-model means $0.002250$, $0.002292$, and $0.002338$ on CIFAR-10.
+The seed-0 $\delta=1$ checkpoints also reject on all ten draws, with means
+$0.002507$ (MNIST) and $0.002283$ (CIFAR-10).  These calibrated kernel tests
+are evidence of stochastic within-class dependence, not numerical estimates
+of $I(\zc;\zs\mid y)$.
 
 \subsection{Structure of the conditional mismatch}
 
@@ -351,8 +360,9 @@ its test accuracy is 96.16\%.  Neither evaluator contributes to the
 generative model's loss.
 
 \begin{table}[ht]
-\caption{Per-checkpoint external Gen-ACC.  Each entry uses 50 images per
-requested class.}
+\caption{Per-checkpoint external Gen-ACC.  Each entry uses 1,000 images per
+requested class and a class-conditional style bank fitted on 12,000 training
+examples.}
 \label{tab:generation-seeds}
 \centering
 \small
@@ -360,10 +370,10 @@ requested class.}
 \toprule
 Dataset & Model seed & Global Gaussian & Class diagonal $\tau=.25$ \\
 \midrule
-MNIST & 0 & 0.102 & 1.000 \\
-CIFAR-10 & 0 & 0.138 & 0.390 \\
-CIFAR-10 & 1 & 0.144 & 0.516 \\
-CIFAR-10 & 2 & 0.114 & 0.448 \\
+MNIST & 0 & 0.1047 & 1.0000 \\
+CIFAR-10 & 0 & 0.1262 & 0.4016 \\
+CIFAR-10 & 1 & 0.1320 & 0.5386 \\
+CIFAR-10 & 2 & 0.1268 & 0.4747 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -377,8 +387,9 @@ Figure~\ref{fig:cifar-sampling-app} displays the qualitative counterpart of
 Table~\ref{tab:generation-seeds}.  Conditioning style makes the requested
 category more visually consistent in some rows, but shrinking the diagonal
 Gaussian to $\tau=.25$ also reduces variation and can produce blurry or
-prototype-like outputs.  This is why Gen-ACC is interpreted jointly with FID
-and not as a stand-alone measure of generative quality.
+prototype-like outputs.  This is why Gen-ACC is not interpreted as a
+stand-alone measure of generative quality; diversity-sensitive evaluation on
+the same generated pools remains necessary.
 
 \begin{figure}[t]
 \centering
@@ -391,17 +402,17 @@ external Gen-ACC is reported in Table~\ref{tab:generation-seeds}.}
 \end{figure}
 \FloatBarrier
 
-\subsection{Archived deterministic mean-swap analysis}
+\subsection{Independent-evaluator deterministic mean swaps}
 
-For each ordered pair of distinct classes $(a,b)$, the archived diagnostic
-decodes $\mathrm{Dec}(\muc^{(a)},\mus^{(b)})$ for 100 independent donor pairs.
-On the unrepaired checkpoint, the model-internal re-encoding classifier
-follows the style donor on 99.22\% of MNIST and 68.82\% of CIFAR-10
-off-diagonal swaps, while following the semantic donor on 0.11\% and 4.22\%.
-These values support the same qualitative mechanism but are not primary
-evidence because the evaluator shares the model's semantic representation.
-They will be replaced by the independent pixel-classifier rerun before being
-promoted to the main paper.
+For each ordered pair of distinct classes $(a,b)$, the diagnostic decodes
+$\mathrm{Dec}(\muc^{(a)},\mus^{(b)})$ for 500 donor pairs and evaluates pixels
+with the independent real-image classifier.  On unrepaired checkpoints,
+identity follows the style donor on 99.28\% of MNIST and 63.92\% of CIFAR-10
+off-diagonal swaps, while following the semantic donor on 0.06\% and 4.72\%.
+At $\delta=1$, style-following falls to 23.37\% and 35.92\%, and semantic-
+following rises to 51.00\% and 18.74\%, respectively.  Full rate matrices,
+the other-class outcome, and pair-bootstrap intervals are stored in the
+external-swap artifacts.
 
 \begin{figure}[t]
 \centering
@@ -415,11 +426,11 @@ promoted to the main paper.
 \includegraphics[width=0.86\linewidth]{cifar10_swap_grid_delta0.png}\\[-0.4em]
 \small (b) CIFAR-10
 \end{minipage}
-\caption{Archived deterministic mean-swap grids at $\delta=0$.  Rows donate
+\caption{Deterministic mean-swap grids at $\delta=0$.  Rows donate
 semantic means and columns donate style means.  Column-controlled identity
 is visually strong on MNIST and weaker but still present for several
-CIFAR-10 classes.  Quantitative swap rates use the robustness-only internal
-evaluator described above.}
+CIFAR-10 classes.  Quantitative rates in the text use independent pixel
+classifiers; the grids are qualitative.}
 \label{fig:swap-grid-app}
 \end{figure}
 \FloatBarrier
@@ -431,7 +442,7 @@ All Stage-0 results are stored as JSON plus SHA-256 sidecars.  Each manifest
 records the repository state, checkpoint hash, evaluation seed, fixed subset,
 latent view, probe split, feature preprocessing, and evaluator metadata.  The
 canonical protocol version for the present draft is
-\texttt{stage0-1.0.0}.  The five audited checkpoints are MNIST seed 0,
+\texttt{stage0-1.1.0}.  The five audited checkpoints are MNIST seed 0,
 Fashion-MNIST seed 0, and CIFAR-10 seeds 0, 1, 2; all use evaluation seed 0.
 
 The current draft intentionally excludes the earlier cross-model probe table,

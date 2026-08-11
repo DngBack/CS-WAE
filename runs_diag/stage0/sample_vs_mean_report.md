@@ -3,7 +3,8 @@
 ## Thông tin evaluation
 
 - **Ngày chạy:** 2026-08-07 (Asia/Ho_Chi_Minh)
-- **Protocol:** `stage0-1.0.0`
+- **Protocol:** probes/HSIC from `stage0-1.0.0`; global MMD corrected under
+  `stage0-1.1.0` with independent posterior/reference RNG streams
 - **Evaluation subset:** 2,048 test examples, evaluation seed 0
 - **Probe split:** stratified 60/20/20 train/validation/test
 - **Standardization:** chỉ fit trên probe-train
@@ -66,9 +67,15 @@ $z_s\perp y$.
 
 Trong khi đó, global MMD của stochastic $z_s$ vẫn rất nhỏ:
 
-- **MNIST:** $0.000572$
-- **Fashion-MNIST:** $0.000287$
-- **CIFAR-10:** $0.000306\pm0.000054$
+- **MNIST:** $0.000579$
+- **Fashion-MNIST:** $0.000336$
+- **CIFAR-10:** $0.000298\pm0.000052$
+
+Với 500 balanced label permutations, exact equality với Gaussian reference
+vẫn bị bác bỏ ở cả năm checkpoint ($p=1/501$); null 95th percentile chỉ nằm
+trong khoảng $1.88$--$2.45\times10^{-5}$. Vì vậy “MMD nhỏ” ở đây là nhận xét
+về độ lớn tương đối so với conditional MMD, không phải bằng chứng hai phân
+phối statistically indistinguishable.
 
 Đây là kết quả trực tiếp hỗ trợ luận điểm trung tâm của paper: aggregate
 posterior có thể gần prior theo MMD, trong khi stochastic style latent vẫn
@@ -206,6 +213,11 @@ deterministic do posterior variance collapse.
 - `runs_diag/stage0/cifar10/baseline_modelseed0_evalseed0_samplemean.json`
 - `runs_diag/stage0/cifar10/baseline_modelseed1_evalseed0_samplemean.json`
 - `runs_diag/stage0/cifar10/baseline_modelseed2_evalseed0_samplemean.json`
+- `runs_diag/mmd_null/mnist_delta0_seed0/results.json`
+- `runs_diag/mmd_null/fashion_mnist_delta0_seed0/results.json`
+- `runs_diag/mmd_null/cifar10_delta0_seed{0,1,2}/results.json`
 
-Mỗi JSON có file `.sha256` đi kèm và chứa dataset, evaluation seed, checkpoint
-SHA-256, evaluation configuration và protocol version.
+Mỗi JSON mới có file `.sha256` đi kèm và chứa dataset, evaluation seed,
+checkpoint SHA-256, evaluation configuration và protocol version. Các JSON
+Stage-0 cũ phải được refresh sang protocol `stage0-1.1.0` trước khi đóng gói
+supplementary; hiện các số MMD đã sửa lấy từ nhóm `runs_diag/mmd_null/`.

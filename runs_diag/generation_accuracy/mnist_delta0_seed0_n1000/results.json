@@ -1,0 +1,468 @@
+{
+  "manifest": {
+    "audit_protocol_version": "stage0-1.1.0",
+    "checkpoint": {
+      "path": "/media/drive-2t/CS-WAE-bachdx2/runs_f/mnist/seed_0/f_cs_wae_model.pth",
+      "sha256": "c947f8020d9b70e5381589b26e30dcd2b231e42cf9da1e72d29cd1064a9f0216"
+    },
+    "created_at_utc": "2026-08-11T02:07:14.101677+00:00",
+    "dataset": "mnist",
+    "evaluation_config": {
+      "n_generated_per_class": 1000,
+      "sampling_seed_class_diag_t025": 40000,
+      "sampling_seed_global_gaussian": 30000,
+      "style_bank_size": 12000,
+      "style_bank_split": "train"
+    },
+    "external_classifier": {
+      "path": "/home/bachdx2/CS-WAE/external_classifiers/mnist/grayscale_cnn_4conv_seed0.pth",
+      "sha256": "888e2ea1694f8f9c94d67418d76bfdd9535069141ed8efcd235e6ccae3d504d9"
+    },
+    "model_config": {
+      "n_classes": 10,
+      "semantic_dim": 64,
+      "style_dim": 128
+    },
+    "repository": {
+      "commit": "75bbe5061ee2edeaceb6926dd331c685f8edd839",
+      "dirty": true
+    },
+    "runtime": {
+      "cuda_available": true,
+      "cuda_version": "12.4",
+      "python": "3.10.12",
+      "torch": "2.6.0+cu124"
+    },
+    "schema_version": "audit-result-1.0.0",
+    "seed": 0
+  },
+  "results": {
+    "checkpoint": "runs_f/mnist/seed_0/f_cs_wae_model.pth",
+    "dataset": "mnist",
+    "external_classifier_metadata": {
+      "architecture": "grayscale_cnn_4conv",
+      "audit_protocol_version": "stage0-1.0.0",
+      "batch_size": 128,
+      "best_validation_accuracy": 0.995,
+      "created_at_utc": "2026-08-06T02:10:47.383012+00:00",
+      "dataset": "mnist",
+      "epochs": 20,
+      "n_classes": 10,
+      "preprocessing": {
+        "input_range": [
+          0.0,
+          1.0
+        ],
+        "normalization": "none",
+        "test_augmentation": "none",
+        "train_augmentation": "none",
+        "validation_augmentation": "none"
+      },
+      "real_test_accuracy": 0.9934,
+      "real_test_loss": 0.018588236814657284,
+      "seed": 0,
+      "test_size": 10000,
+      "train_size": 54000,
+      "validation_size": 6000
+    },
+    "generation": {
+      "class_diag_t025": {
+        "confusion_counts": [
+          [
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            1000,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            1000,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1000,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1000,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1000,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1000
+          ]
+        ],
+        "correct": 10000,
+        "evaluator": "independent pixel-space classifier",
+        "macro_gen_accuracy": 1.0,
+        "micro_accuracy_wilson_ci95": [
+          0.9996160016293234,
+          1.0
+        ],
+        "micro_gen_accuracy": 1.0,
+        "n_per_class": 1000,
+        "per_class_gen_accuracy": [
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "per_class_wilson_ci95": [
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ],
+          [
+            0.996173241514445,
+            1.0
+          ]
+        ],
+        "style_mode": "class_diag_t025",
+        "total": 10000
+      },
+      "global_gaussian": {
+        "confusion_counts": [
+          [
+            78,
+            47,
+            112,
+            201,
+            56,
+            95,
+            52,
+            79,
+            148,
+            132
+          ],
+          [
+            70,
+            36,
+            115,
+            190,
+            62,
+            116,
+            54,
+            68,
+            168,
+            121
+          ],
+          [
+            87,
+            31,
+            104,
+            211,
+            69,
+            112,
+            41,
+            80,
+            157,
+            108
+          ],
+          [
+            61,
+            37,
+            104,
+            191,
+            73,
+            109,
+            51,
+            63,
+            175,
+            136
+          ],
+          [
+            67,
+            41,
+            96,
+            174,
+            52,
+            114,
+            54,
+            66,
+            193,
+            143
+          ],
+          [
+            77,
+            49,
+            99,
+            194,
+            60,
+            111,
+            56,
+            85,
+            174,
+            95
+          ],
+          [
+            54,
+            31,
+            109,
+            185,
+            58,
+            130,
+            60,
+            99,
+            143,
+            131
+          ],
+          [
+            74,
+            34,
+            106,
+            177,
+            61,
+            109,
+            47,
+            87,
+            171,
+            134
+          ],
+          [
+            77,
+            40,
+            91,
+            196,
+            46,
+            122,
+            38,
+            72,
+            179,
+            139
+          ],
+          [
+            67,
+            38,
+            102,
+            180,
+            67,
+            101,
+            52,
+            76,
+            168,
+            149
+          ]
+        ],
+        "correct": 1047,
+        "evaluator": "independent pixel-space classifier",
+        "macro_gen_accuracy": 0.1046999916434288,
+        "micro_accuracy_wilson_ci95": [
+          0.09885027422372605,
+          0.11085331488813085
+        ],
+        "micro_gen_accuracy": 0.1047,
+        "n_per_class": 1000,
+        "per_class_gen_accuracy": [
+          0.07800000160932541,
+          0.035999998450279236,
+          0.10400000214576721,
+          0.19099999964237213,
+          0.052000001072883606,
+          0.11100000143051147,
+          0.05999999865889549,
+          0.08699999749660492,
+          0.17900000512599945,
+          0.14900000393390656
+        ],
+        "per_class_wilson_ci95": [
+          [
+            0.06294716759073615,
+            0.09628261657107237
+          ],
+          [
+            0.02611557140738732,
+            0.049435660467207834
+          ],
+          [
+            0.08657102809826807,
+            0.12445976462229157
+          ],
+          [
+            0.16783693231549512,
+            0.216528004428578
+          ],
+          [
+            0.03987303628377742,
+            0.06755573931927998
+          ],
+          [
+            0.09299921045824965,
+            0.13197800764351225
+          ],
+          [
+            0.04689647267593196,
+            0.07647107479135655
+          ],
+          [
+            0.071074421452375,
+            0.10608648105669352
+          ],
+          [
+            0.1564821152191892,
+            0.20397466372853723
+          ],
+          [
+            0.12827436093693598,
+            0.1724120235199237
+          ]
+        ],
+        "style_mode": "global_gaussian",
+        "total": 10000
+      }
+    },
+    "style_bank": {
+      "actual_size": 12000,
+      "fit": "per-class diagonal Gaussian on posterior means mu_s",
+      "per_class_counts": [
+        1146,
+        1401,
+        1216,
+        1275,
+        1132,
+        1081,
+        1125,
+        1261,
+        1147,
+        1216
+      ],
+      "requested_size": 12000,
+      "split": "train"
+    },
+    "tag": "mnist_delta0_seed0_n1000"
+  }
+}

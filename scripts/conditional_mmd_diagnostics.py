@@ -66,7 +66,7 @@ sys.path.insert(0, str(ROOT))
 from scripts.compute_leakage_diagnostics import (
     load_fcswae_checkpoint,
     get_eval_subset_loader,
-    extract_style_latents,
+    extract_latent_views,
     mmd2_rbf,
     compute_global_mmd,
     compute_delta_inter,
@@ -80,7 +80,9 @@ from src.utils.seed import set_seed
 # Core computation
 # ---------------------------------------------------------------------------
 
-def compute_conditional_mmd(z_s: torch.Tensor, labels: torch.Tensor, n_classes: int):
+def compute_conditional_mmd(
+    z_s: torch.Tensor, labels: torch.Tensor, n_classes: int, seed: int = 0
+):
     """Per-class MMD to prior/marginal, and pairwise conditional MMD."""
     mmd_to_prior = np.zeros(n_classes)
     mmd_to_marginal = np.zeros(n_classes)
@@ -92,7 +94,8 @@ def compute_conditional_mmd(z_s: torch.Tensor, labels: torch.Tensor, n_classes: 
         class_z[k] = z_k
         if z_k.shape[0] < 2:
             continue
-        z_p = torch.randn_like(z_k)
+        generator = torch.Generator(device="cpu").manual_seed(seed + 11_000 + k)
+        z_p = torch.randn(z_k.shape, generator=generator, dtype=z_k.dtype).to(z_k.device)
         mmd_to_prior[k] = mmd2_rbf(z_k, z_p)
         mmd_to_marginal[k] = mmd2_rbf(z_k, z_s)
 
@@ -128,8 +131,8 @@ def compute_class_mean_projection(z_s: torch.Tensor, labels: torch.Tensor, n_cla
     w = Vt[0]
     explained_ratio = (S[0] ** 2 / (S ** 2).sum()).item() if (S ** 2).sum() > 0 else 0.0
 
-    proj = (z_s @ w).numpy()
-    return w.numpy(), explained_ratio, proj
+    proj = (z_s @ w).detach().cpu().numpy()
+    return w.detach().cpu().numpy(), explained_ratio, proj
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +171,7 @@ def plot_per_class_bar(mmd_to_prior, global_mmd, title, out_path):
 def plot_projection_histogram(proj, labels, explained_ratio, title, out_path):
     n_classes = int(labels.max().item()) + 1
     fig, ax = plt.subplots(figsize=(7, 4))
-    labels_np = labels.numpy()
+    labels_np = labels.detach().cpu().numpy()
     cmap = plt.get_cmap("tab10")
     for k in range(n_classes):
         vals = proj[labels_np == k]
@@ -218,14 +221,19 @@ def main():
     loader = get_eval_subset_loader(
         args.dataset, args.n_samples, batch_size=256, seed=args.seed, split=args.split
     )
-    z_s, labels = extract_style_latents(model, loader, device, model_type="fcswae")
+    views = extract_latent_views(model, loader, device, model_type="fcswae", seed=args.seed)
+    z_s = views["z_s_sample"].to(device)
+    labels = views["labels"].to(device)
 
     print("Computing global MMD / Delta_inter (cross-check vs committed baseline) ...")
-    global_mmd = compute_global_mmd(z_s, seed=args.seed)
+    global_mmd_reference_seed = args.seed + 10_000
+    global_mmd = compute_global_mmd(z_s, seed=global_mmd_reference_seed)
     delta_inter = compute_delta_inter(z_s, labels, n_classes)
 
     print("Computing per-class and pairwise conditional MMD ...")
-    mmd_to_prior, mmd_to_marginal, pairwise_mmd = compute_conditional_mmd(z_s, labels, n_classes)
+    mmd_to_prior, mmd_to_marginal, pairwise_mmd = compute_conditional_mmd(
+        z_s, labels, n_classes, seed=args.seed
+    )
 
     print("Computing class-mean PCA projection ...")
     w, explained_ratio, proj = compute_class_mean_projection(z_s, labels, n_classes)
@@ -237,6 +245,7 @@ def main():
         "n_classes": n_classes,
         "latent_view": "z_s_sample",
         "mmd_estimator": "unbiased U-statistic; negative finite-sample estimates retained",
+        "global_mmd_reference_seed": global_mmd_reference_seed,
         "global_mmd": global_mmd,
         "delta_inter": delta_inter,
         "mmd_to_prior": mmd_to_prior.tolist(),
@@ -268,7 +277,7 @@ def main():
     save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "pairwise_mmd.csv").open("w", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["class_i", "class_j", "mmd"])
         for i in range(n_classes):
             for j in range(n_classes):

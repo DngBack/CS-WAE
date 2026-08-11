@@ -260,7 +260,7 @@ def main():
     save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "results.csv").open("w", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["a", "b", "content_rate", "style_rate", "neither_rate", "n"])
         for a in range(n_classes):
             for b in range(n_classes):

@@ -1,16 +1,8 @@
 \documentclass{article}
 
-% Use the unmodified official ICLR 2027 style as soon as it is available in
-% ../iclr2027/.  The official Author Guidelines currently link to a ZIP that
-% returns HTTP 404 and the ICLR/Master-Template repository has no 2027 files
-% as of 2026-08-11.  The fallback keeps this working draft compilable and
-% emits a visible build warning; it must not be used for final submission.
-\IfFileExists{../iclr2027/iclr2027_conference.sty}{%
-  \usepackage{../iclr2027/iclr2027_conference,times}%
-}{%
-  \usepackage{../iclr2026/iclr2026_conference,times}%
-  \PackageWarningNoLine{fcswae}{Official ICLR 2027 style unavailable; using ICLR 2026 preview shell}%
-}
+% Unmodified official ICLR 2027 style.  The strict build gate checks that the
+% matching style and bibliography files are present before invoking LaTeX.
+\usepackage{../iclr2027/iclr2027_conference,times}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{placeins}
@@ -59,8 +51,8 @@ sampling into global style-prior mismatch, conditional style leakage,
 semantic-prior mismatch, and within-class dependence between semantic and
 style codes.  We then audit a class-structured WAE on MNIST, Fashion-MNIST,
 and CIFAR-10 using a fixed held-out protocol.  Although stochastic style
-samples have global $\MMD^2$ between $2.9\!\times\!10^{-4}$ and
-$5.7\!\times\!10^{-4}$, a held-out logistic probe recovers the label with
+samples have global $\MMD^2$ between $3.0\!\times\!10^{-4}$ and
+$5.8\!\times\!10^{-4}$, a held-out logistic probe recovers the label with
 $99.76\%$, $88.29\%$, and $68.62\!\pm\!6.19\%$ accuracy, respectively
 (chance: $10\%$); permutation-calibrated HSIC rejects independence for every
 checkpoint and latent view ($p=1/201$).  Posterior means and samples give
@@ -68,8 +60,8 @@ nearly identical results because the learned style posterior is almost
 deterministic, a failure mode we report rather than conceal.  Finally,
 independent pixel-space classifiers show that replacing the global style
 prior with a post-hoc class-conditional prior raises generated-class accuracy
-from $0.102$ to $1.000$ on MNIST and from
-$0.132\!\pm\!0.016$ to $0.451\!\pm\!0.063$ on CIFAR-10.  Marginal fit alone
+from $0.1047$ to $1.0000$ on MNIST and from
+$0.1283\!\pm\!0.0032$ to $0.4716\!\pm\!0.0686$ on CIFAR-10.  Marginal fit alone
 therefore neither verifies the claimed factorization nor validates the
 sampler built from it.
 \end{abstract}
@@ -275,9 +267,10 @@ and means for deterministic representations:
     \item \textbf{Term 3:} class-conditional semantic MMD is part of training;
     we do not treat a minibatch training loss as a calibrated held-out
     estimate of the KL term.
-    \item \textbf{Term 4:} classwise conditional HSIC on $(\muc,\mus)$ with
-    within-class permutations.  This is explicitly a mean-view diagnostic,
-    not an estimate of conditional mutual information.
+    \item \textbf{Term 4:} classwise conditional HSIC with within-class
+    permutations, computed on $(\muc,\mus)$ and on ten seeded posterior draws
+    $(\zc,\zs)$ per checkpoint.  It is a calibrated dependence test, not an
+    estimate of conditional mutual information.
 \end{itemize}
 No finite-sample proxy is presented as an estimate of
 $M_{\mathrm{fact}}$ itself.
@@ -286,8 +279,10 @@ The fixed audit uses 2,048 test examples and a stratified 60/20/20
 probe-train/validation/test split.  Feature standardization is fit on probe
 training data only.  We report logistic regression, a fixed two-layer MLP,
 RBF-SVM, and $k$-NN; hyperparameters and per-seed values are in
-Appendix~\ref{app:protocol}.  HSIC uses 1,024 examples and 200 plus-one
-calibrated permutations, so its smallest attainable $p$-value is $1/201$.
+Appendix~\ref{app:protocol}.  Label HSIC uses 1,024 examples; conditional
+HSIC uses all 2,048.  Both use 200 plus-one calibrated permutations, so the
+smallest attainable $p$-value is $1/201$.  Global MMD uses an independent
+Gaussian RNG stream and a separate 500-permutation equality calibration.
 
 \subsection{Case-study model}
 
@@ -402,9 +397,9 @@ are single checkpoints.  Chance LP is $10\%$.}
 \toprule
 Dataset & MMD$^2$ & $\Dinter$ & Logit $\mus$ & Logit $\zs$ & RBF $\zs$ \\
 \midrule
-MNIST & .000572 & 6.264 & 99.76 & 99.76 & 99.76 \\
-Fashion-MNIST & .000287 & 4.791 & 88.29 & 88.29 & 93.17 \\
-CIFAR-10 & $.000306\!\pm\!.000054$ & $3.954\!\pm\!.269$ &
+MNIST & .000579 & 6.264 & 99.76 & 99.76 & 99.76 \\
+Fashion-MNIST & .000336 & 4.791 & 88.29 & 88.29 & 93.17 \\
+CIFAR-10 & $.000298\!\pm\!.000052$ & $3.954\!\pm\!.269$ &
 $68.46\!\pm\!6.29$ & $68.62\!\pm\!6.19$ & $70.16\!\pm\!3.36$ \\
 \bottomrule
 \end{tabular}
@@ -417,6 +412,13 @@ checkpoint ($p=0.00498$).  The result is not specific to linear separation:
 the MLP and RBF-SVM reach $90.73\%$ and $93.17\%$ on Fashion-MNIST, and
 $70.57\!\pm\!3.50\%$ and $70.16\!\pm\!3.36\%$ on stochastic CIFAR-10 codes.
 Full probe results appear in Appendix~\ref{app:full-results}.
+
+A 500-permutation calibration places the 95th percentile of the equal-
+distribution MMD null between $1.88\!\times\!10^{-5}$ and
+$2.45\!\times\!10^{-5}$; exact equality is rejected at every checkpoint
+($p=1/501$).  Thus ``small'' denotes numerical magnitude relative to the
+conditional discrepancy, not statistical indistinguishability from the
+prior.  Posterior draws and Gaussian references use independent RNG streams.
 
 The distinction between mean and sample matters conceptually but barely
 changes these checkpoints empirically.  Across the reported probe suite the
@@ -451,8 +453,8 @@ class we compute unbiased multiscale
 $\MMD^2(q(\zs\mid y=k),\mathcal N(0,I))$ on the same 2,048-example subset and
 average over classes.  Table~\ref{tab:conditional-mmd} compares that value
 with the global MMD on seed-0 checkpoints.  With only global style matching,
-mean conditional MMD is $21.0\times$ the global value on MNIST and
-$15.3\times$ on CIFAR-10.  This is the distributional form of the same
+mean conditional MMD is $27.7\times$ the global value on MNIST and
+$23.3\times$ on CIFAR-10.  This is the distributional form of the same
 failure: mixture components remain class-specific even when their aggregate
 is close to the prior.
 
@@ -467,10 +469,10 @@ Eq.~\ref{eq:perclass}.}
 \toprule
 Dataset & $\delta$ & Global MMD & Cond. MMD & Ratio & $\Dinter$ \\
 \midrule
-MNIST & 0 & .000885 & .018600 & 21.01 & 6.212 \\
-MNIST & 1 & .001088 & .004763 & 4.38 & 1.222 \\
-CIFAR-10 & 0 & .000558 & .008537 & 15.29 & 3.744 \\
-CIFAR-10 & 1 & .000675 & .003606 & 5.34 & 1.049 \\
+MNIST & 0 & .000579 & .016024 & 27.68 & 6.264 \\
+MNIST & 1 & .000812 & .001992 & 2.45 & 1.461 \\
+CIFAR-10 & 0 & .000248 & .005789 & 23.30 & 3.801 \\
+CIFAR-10 & 1 & .000422 & .000784 & 1.86 & 1.336 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -501,19 +503,20 @@ All ten conditional values exceed it on each dataset.}
 \end{figure}
 
 The per-class objective acts in the predicted direction: it reduces mean
-conditional MMD by $74\%$ on MNIST and $58\%$ on CIFAR-10, and reduces
-$\Dinter$ by $80\%$ and $72\%$, respectively.  It does not make either
-conditional statistic vanish, and the global MMD changes little.  We do not
+conditional MMD by $87.6\%$ on MNIST and $86.5\%$ on CIFAR-10, and reduces
+$\Dinter$ by $76.7\%$ and $64.9\%$, respectively.  It does not make either
+conditional statistic vanish; global MMD remains below $10^{-3}$.  We do not
 reuse the historical remedy probe accuracy here because those checkpoints
 have not yet been regenerated with the held-out Stage-0 probe protocol.
 
-The decomposition also predicts a distinct within-class failure.  On the
-unrepaired Stage-0 checkpoints, classwise conditional HSIC between
-$(\muc,\mus)$ rejects conditional independence for MNIST, Fashion-MNIST, and
-all three CIFAR-10 seeds ($p=1/201$).  The statistics are 0.002440, 0.002459,
-and $0.002086\pm0.000222$, respectively.  These are mean-view kernel
-statistics rather than estimates of $I(\zc;\zs\mid y)$, but they demonstrate
-why successful control of term 2 would not complete the sampling audit.
+The decomposition also predicts a distinct within-class failure.  We sample
+$(\zc,\zs)$ ten times per checkpoint and apply classwise conditional HSIC
+with within-class permutations.  Every draw rejects
+$\zc\perp\zs\mid y$ on MNIST, Fashion-MNIST, and all three CIFAR-10 baseline
+seeds ($p=1/201$).  Rejection also persists for the seed-0 $\delta=1$
+checkpoints on MNIST and CIFAR-10.  This is a stochastic-view kernel test,
+not an estimate of $I(\zc;\zs\mid y)$, but it directly demonstrates that
+targeting term 2 does not complete the term-4 audit.
 \FloatBarrier
 
 \subsection{Conditional regularization has a non-monotone trade-off}
@@ -532,7 +535,7 @@ uncertainty or significance claim is made across settings.}
 \label{tab:delta-sweep}
 \centering
 \small
-\begin{tabular}{crrr|rrr}
+\begin{tabular}{crrrrrr}
 \toprule
 & \multicolumn{3}{c}{MNIST} & \multicolumn{3}{c}{CIFAR-10} \\
 $\delta$ & ACC & $\Dinter$ & FID & ACC & $\Dinter$ & FID \\
@@ -576,9 +579,10 @@ that the representation is disentangled.
 
 \begin{table}[ht]
 \caption{External generated-class accuracy under global and post-hoc
-class-conditional style sampling.  Each checkpoint uses 50 generated images
-per requested class.  CIFAR-10 is mean $\pm$ sample standard deviation over
-three model seeds.}
+class-conditional style sampling.  The post-hoc distribution is fitted on a
+training-only style bank; each checkpoint uses 1,000 generated images per
+requested class.  CIFAR-10 is mean $\pm$ sample standard deviation over three
+model seeds.}
 \label{tab:generation}
 \centering
 \small
@@ -586,8 +590,8 @@ three model seeds.}
 \toprule
 Dataset & Global $\mathcal N(0,I)$ & Class diagonal, $\tau=0.25$ \\
 \midrule
-MNIST & 0.102 & 1.000 \\
-CIFAR-10 & $0.132\pm0.016$ & $0.451\pm0.063$ \\
+MNIST & 0.1047 & 1.0000 \\
+CIFAR-10 & $0.1283\pm0.0032$ & $0.4716\pm0.0686$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -597,21 +601,22 @@ class-conditional style distribution substantially improves class identity,
 especially on MNIST.  The smaller CIFAR-10 gain is consistent with a diagonal
 conditional missing multimodal intra-class structure and with generally weak
 sample quality; it should not be read as a complete repair.  A deterministic
-mean-swap intervention also indicates that the decoder can use the style
-donor's identity, but its currently archived rates use a model-internal
-re-encoding evaluator.  We retain that result only as a robustness analysis
-in Appendix~\ref{app:decoder}, pending the fixed external-evaluator rerun.
+mean-swap intervention isolates decoder dependence.  For off-diagonal donor
+pairs at $\delta=0$, the external classifier follows the style donor in
+$99.28\%$ of MNIST and $63.92\%$ of CIFAR-10 decodes, versus the semantic
+donor in $0.06\%$ and $4.72\%$, respectively.  Per-class MMD reduces style-
+following to $23.37\%$ and $35.92\%$, while increasing semantic-following;
+these remedy comparisons remain single-seed mechanism checks.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.43\textwidth]{mnist_recon_vs_generation_grid.png}
-\caption{MNIST examples from the audited checkpoint.  Posterior
-reconstructions preserve the inputs, whereas independently combining the
-requested semantic prior with a global Gaussian style frequently changes
-digit identity.  Fitting the style sampler conditionally restores the
-requested class in these examples.  The figure is qualitative; the fixed
-external evaluation is reported in Table~\ref{tab:generation}.}
-\label{fig:mnist-generation}
+\includegraphics[width=0.78\textwidth]{external_swap_summary.png}
+\caption{Independent-classifier outcomes for deterministic posterior-mean
+swaps.  Bars average 90 ordered off-diagonal class pairs; intervals are 95\%
+pair-bootstrap intervals.  At $\delta=0$, decoded identity predominantly
+follows the style donor; per-class style MMD reduces, but does not eliminate,
+this effect.}
+\label{fig:external-swap}
 \end{figure}
 
 \section{Discussion and Limitations}
@@ -623,7 +628,8 @@ The decomposition separates a logically necessary condition from an
 empirical failure.  Proposition~\ref{prop:nocert} shows that marginal matching
 cannot certify independence in any model.  Table~\ref{tab:stage0} shows the
 gap in actual stochastic posterior samples.  Table~\ref{tab:generation}
-then shows that changing how style is sampled changes decoded class identity.
+and Figure~\ref{fig:external-swap} then connect the discrepancy to decoded
+class identity through sampling and intervention.
 
 Each step rules out a different, weaker explanation.  The global-versus-
 conditional MMD comparison rules out interpreting a small mixture-level
@@ -737,11 +743,7 @@ and reviewed all AI-assisted text.  The authors take responsibility for the
 final content of this work.
 
 \clearpage
-\IfFileExists{../iclr2027/iclr2027_conference.bst}{%
-  \bibliographystyle{../iclr2027/iclr2027_conference}%
-}{%
-  \bibliographystyle{../iclr2026/iclr2026_conference}%
-}
+\bibliographystyle{../iclr2027/iclr2027_conference}
 \bibliography{references}
 
 \appendix

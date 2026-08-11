@@ -6,16 +6,18 @@ Policy source: https://iclr.cc/Conferences/2027/AuthorGuidelines
 
 - [x] Genuine, informative abstract is present in the manuscript.
 - [x] Anonymous author block; `\iclrfinalcopy` remains disabled.
-- [x] Main text ends with the conclusion on page 9 in the current preview.
+- [x] Main text ends on page 9 after the 2026-08-11 evidence update; required
+  statements begin on page 10 and references begin on page 11.
 - [x] References precede the appendix.
 - [x] Required AI Use Statement is present before references.
 - [x] Reproducibility Statement is present before references.
 - [x] Ethics Statement covers the public, non-sensitive benchmark setting.
 - [x] Main claims and central figures appear within the nine-page main text.
 - [x] Historical non-canonical probe tables remain excluded.
-- [ ] Compile with the unmodified official ICLR 2027 style and recheck pages.
-- [ ] Run `./build_iclr2027_submission.sh` successfully.
-- [ ] Build from a clean tree and inspect the final PDF visually.
+- [x] Compile with the unmodified official ICLR 2027 style and recheck pages.
+- [x] Run `./build_iclr2027_submission.sh` successfully.
+- [x] Inspect all rendered main-paper pages and appendix pages visually.
+- [ ] Repeat the strict build from the final clean submission tree.
 - [ ] Create and identity-audit the anonymous supplementary code archive.
 - [ ] Remove author names, usernames, machine paths, repository remotes,
   checkpoint metadata, document metadata, acknowledgements, and identifying
@@ -47,11 +49,8 @@ Policy source: https://iclr.cc/Conferences/2027/AuthorGuidelines
 - [ ] If revising during 2026-10-29--2026-11-11, keep changes scoped and explain
   them clearly because reviewers may ignore substantial additions.
 
-## Current upstream template blocker
+## Current template status
 
-The official Author Guidelines link to
-`https://github.com/ICLR/Master-Template/raw/master/iclr2027.zip`.  On
-2026-08-11 this URL returned HTTP 404, and the official repository contained
-templates only through ICLR 2026.  The manuscript therefore has a temporary
-fallback solely for preview builds.  A fallback-generated PDF is not ready for
-submission.
+The official `iclr2027_conference.sty` and `iclr2027_conference.bst` are now
+installed under `../iclr2027/`.  The manuscript loads them directly and no
+longer contains an ICLR 2026 fallback.

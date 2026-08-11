@@ -15,6 +15,11 @@ if [[ ! -f "$style_file" || ! -f "$bst_file" ]]; then
   exit 1
 fi
 
+if rg -q 'iclr2026' "$main_tex"; then
+  echo "ERROR: manuscript source still references the ICLR 2026 template." >&2
+  exit 1
+fi
+
 if ! rg -q '^\\section\*\{AI Use Statement\}' "$main_tex"; then
   echo "ERROR: required AI Use Statement is missing." >&2
   exit 1
@@ -34,6 +39,11 @@ fi
   cd "$script_dir"
   latexmk -pdf -interaction=nonstopmode -halt-on-error main_v8_iclr2027.tex
 )
+
+if ! rg -q '\.\./iclr2027/iclr2027_conference\.sty' "$build_log"; then
+  echo "ERROR: build log does not confirm that the official ICLR 2027 style was loaded." >&2
+  exit 1
+fi
 
 if rg -q 'undefined|multiply defined|Overfull|Official ICLR 2027 style unavailable' "$build_log"; then
   echo "ERROR: submission build log contains a blocking warning or error." >&2

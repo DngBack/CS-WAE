@@ -18,6 +18,7 @@ from src.metrics.audit_protocol import (
     fit_logistic_probe,
     hsic_permutation_test,
     mmd2_unbiased,
+    mmd2_permutation_test,
     run_probe_suite,
     stratified_probe_split,
 )
@@ -86,6 +87,16 @@ class AuditProtocolTests(unittest.TestCase):
         self.assertGreater(shifted_value, null_value + 0.1)
         self.assertIsInstance(null_value, float)
 
+    def test_mmd_permutation_calibration_detects_large_shift(self):
+        generator = torch.Generator().manual_seed(19)
+        x = torch.randn((96, 4), generator=generator)
+        y = torch.randn((96, 4), generator=generator) + 2.5
+        calibrated = mmd2_permutation_test(x, y, seed=19, n_permutations=49)
+        self.assertLessEqual(calibrated["p_value"], 0.05)
+        self.assertEqual(calibrated["n_per_group"], 96)
+        self.assertEqual(len(calibrated["null_values"]), 49)
+        self.assertAlmostEqual(calibrated["statistic"], mmd2_unbiased(x, y), places=5)
+
     def test_multiscale_hsic_permutation_detects_dependence(self):
         generator = torch.Generator().manual_seed(5)
         labels = torch.arange(4).repeat_interleave(48)
@@ -113,6 +124,7 @@ class AuditProtocolTests(unittest.TestCase):
         self.assertIn("probe_suite_mu_s", results["representation"])
         self.assertIn("joint_mmd2_u_mu_c_mu_s", results["within_class_dependence"])
         self.assertEqual(results["protocol"]["n_evaluation_samples"], 120)
+        self.assertEqual(results["protocol"]["global_mmd_reference_seed"], 10004)
 
     def test_result_manifest_hashes_checkpoint_and_output(self):
         with tempfile.TemporaryDirectory() as directory:

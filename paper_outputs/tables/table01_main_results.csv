@@ -1,3 +1,0 @@
-Dataset,ACC,NMI,ARI,FID
-MNIST,92.9 $\pm$ 3.9,89.0 $\pm$ 0.8,88.5 $\pm$ 3.2,19.4 $\pm$ 5.3
-Fashion-MNIST,79.0 $\pm$ 8.0,76.2 $\pm$ 1.4,69.0 $\pm$ 6.1,50.7 $\pm$ 1.6

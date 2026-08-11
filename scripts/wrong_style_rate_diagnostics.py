@@ -241,7 +241,7 @@ def main():
     save_result_with_manifest(out_dir / "results.json", results, manifest)
 
     with (out_dir / "results.csv").open("w", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow(["strategy", "class", "style_compatible_rate", "wrong_style_rate"])
         for strategy, row in per_strategy.items():
             for k in range(n_classes):

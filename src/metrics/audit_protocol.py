@@ -32,7 +32,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 
-AUDIT_PROTOCOL_VERSION = "stage0-1.0.0"
+AUDIT_PROTOCOL_VERSION = "stage0-1.1.0"
 DEFAULT_EVAL_SAMPLES = 2048
 DEFAULT_HSIC_SAMPLES = 1024
 DEFAULT_HSIC_PERMUTATIONS = 200
@@ -105,6 +105,85 @@ def mmd2_unbiased(
     yy = (k_yy.sum() - k_yy.diagonal().sum()) / (n * (n - 1))
     xy = k_xy.mean()
     return float((xx + yy - 2.0 * xy).item())
+
+
+def mmd2_permutation_test(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    seed: int = 0,
+    n_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
+    sigmas: Sequence[float] = EUCLIDEAN_SIGMAS,
+) -> dict:
+    """Calibrate equal-size two-sample MMD²_U by label permutation.
+
+    Under the equality null, pooled observations are exchangeable.  We build
+    the multiscale kernel once and evaluate balanced random relabellings with
+    batched quadratic forms.  This is a test of exact equality, not an
+    equivalence test: a small p-value can coexist with a numerically small
+    MMD when the evaluation set has enough power.
+    """
+
+    if x.ndim != 2 or y.ndim != 2:
+        raise ValueError("MMD inputs must be rank-2 tensors")
+    if x.shape != y.shape:
+        raise ValueError("Permutation calibration currently requires equal-size, equal-dimension inputs")
+    if x.shape[0] < 2:
+        raise ValueError("MMD permutation calibration requires at least two samples per group")
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be positive")
+
+    n = x.shape[0]
+    pooled = torch.cat([x, y], dim=0)
+    kernel = multiscale_rbf_kernel(pooled, pooled, sigmas)
+    kernel.fill_diagonal_(0.0)
+    total_off_diagonal = kernel.sum()
+
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    assignments = []
+    observed_sign = torch.cat([
+        torch.ones(n, dtype=pooled.dtype),
+        -torch.ones(n, dtype=pooled.dtype),
+    ])
+    assignments.append(observed_sign)
+    for _ in range(n_permutations):
+        permutation = torch.randperm(2 * n, generator=generator)
+        sign = -torch.ones(2 * n, dtype=pooled.dtype)
+        sign[permutation[:n]] = 1.0
+        assignments.append(sign)
+    signs = torch.stack(assignments, dim=1).to(pooled.device)
+
+    quadratic = (signs * (kernel @ signs)).sum(dim=0)
+    within_ordered = (total_off_diagonal + quadratic) / 2.0
+    cross_ordered = (total_off_diagonal - quadratic) / 2.0
+    values = within_ordered / float(n * (n - 1)) - cross_ordered / float(n * n)
+    observed = float(values[0].item())
+    null = values[1:].detach().cpu().numpy().astype(np.float64)
+    exceedances = int(np.count_nonzero(null >= observed))
+    null_std = float(null.std(ddof=1)) if null.size > 1 else None
+    standardized_excess = None
+    if null_std is not None and null_std > 0.0:
+        standardized_excess = float((observed - null.mean()) / null_std)
+    return {
+        "statistic": observed,
+        "p_value": float((exceedances + 1) / (n_permutations + 1)),
+        "null_mean": float(null.mean()),
+        "null_std": null_std,
+        "standardized_excess": standardized_excess,
+        "null_quantiles": {
+            "q05": float(np.quantile(null, 0.05)),
+            "q50": float(np.quantile(null, 0.50)),
+            "q95": float(np.quantile(null, 0.95)),
+            "q99": float(np.quantile(null, 0.99)),
+        },
+        "null_values": null.tolist(),
+        "n_per_group": int(n),
+        "n_permutations": int(n_permutations),
+        "sigmas": [float(value) for value in sigmas],
+        "estimator": "unbiased MMD^2 U-statistic with balanced pooled-label permutation null",
+        "interpretation_warning": (
+            "This tests exact distributional equality; failure to reject is not proof of equivalence."
+        ),
+    }
 
 
 def global_mmd_to_standard_normal(

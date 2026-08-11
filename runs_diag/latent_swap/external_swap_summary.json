@@ -1,0 +1,111 @@
+{
+  "inputs": {
+    "CIFAR-10": {
+      "global MMD": "runs_diag/latent_swap/cifar10_delta0_external_n500/results.json",
+      "per-class MMD": "runs_diag/latent_swap/cifar10_delta1_external_n500/results.json"
+    },
+    "MNIST": {
+      "global MMD": "runs_diag/latent_swap/mnist_delta0_external_n500/results.json",
+      "per-class MMD": "runs_diag/latent_swap/mnist_delta1_external_n500/results.json"
+    }
+  },
+  "protocol": "Deterministic posterior-mean swaps; independent pixel classifier; 95% percentile bootstrap over 90 ordered off-diagonal class pairs.",
+  "summary": {
+    "CIFAR-10": {
+      "global MMD": {
+        "content_following": {
+          "mean": 0.04715555595596217,
+          "pair_bootstrap_ci95": [
+            0.033644444697614136,
+            0.06324444497515085
+          ]
+        },
+        "neither": {
+          "mean": 0.3136444424201424,
+          "pair_bootstrap_ci95": [
+            0.2859544435761119,
+            0.34133333097503055
+          ]
+        },
+        "style_following": {
+          "mean": 0.6392000016238955,
+          "pair_bootstrap_ci95": [
+            0.6132438899245527,
+            0.665378334439463
+          ]
+        }
+      },
+      "per-class MMD": {
+        "content_following": {
+          "mean": 0.18740000058379438,
+          "pair_bootstrap_ci95": [
+            0.16422166752525502,
+            0.2113338898256835
+          ]
+        },
+        "neither": {
+          "mean": 0.45339999972946116,
+          "pair_bootstrap_ci95": [
+            0.41384444484176736,
+            0.4907350016292184
+          ]
+        },
+        "style_following": {
+          "mean": 0.3591999996867445,
+          "pair_bootstrap_ci95": [
+            0.32424444522915613,
+            0.39626888762538626
+          ]
+        }
+      }
+    },
+    "MNIST": {
+      "global MMD": {
+        "content_following": {
+          "mean": 0.000622222236254149,
+          "pair_bootstrap_ci95": [
+            0.0002000000069124831,
+            0.001133333364010064
+          ]
+        },
+        "neither": {
+          "mean": 0.006577774778836303,
+          "pair_bootstrap_ci95": [
+            0.0054666627841329,
+            0.007711107083402263
+          ]
+        },
+        "style_following": {
+          "mean": 0.9928000039524503,
+          "pair_bootstrap_ci95": [
+            0.9916222247812483,
+            0.9939777837859259
+          ]
+        }
+      },
+      "per-class MMD": {
+        "content_following": {
+          "mean": 0.509955553462108,
+          "pair_bootstrap_ci95": [
+            0.47986499791964893,
+            0.5393799961172043
+          ]
+        },
+        "neither": {
+          "mean": 0.2563333364824454,
+          "pair_bootstrap_ci95": [
+            0.22795222712059818,
+            0.28564500312010443
+          ]
+        },
+        "style_following": {
+          "mean": 0.23371111005544662,
+          "pair_bootstrap_ci95": [
+            0.20366499882191422,
+            0.2640227773428584
+          ]
+        }
+      }
+    }
+  }
+}
