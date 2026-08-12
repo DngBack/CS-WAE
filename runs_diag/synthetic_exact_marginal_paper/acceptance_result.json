@@ -1,0 +1,64 @@
+{
+  "checks": {
+    "conditional_mmd_positive_trend": true,
+    "global_mmd_identical_across_kappa_within_replication": true,
+    "global_mmd_rejection_count_binomial_compatible": true,
+    "high_kappa_conditional_mmd_above_null": true,
+    "high_kappa_hsic_above_null": true,
+    "hsic_positive_trend": true,
+    "paper_replication_count": true,
+    "probe_above_90pct_at_all_large_kappas": false
+  },
+  "created_at_utc": "2026-08-12T04:15:50.034805+00:00",
+  "criteria": {
+    "global_mmd_rejection_count_interval": [
+      0,
+      6
+    ],
+    "global_mmd_rejection_interval_basis": "central 95% prediction interval for Binomial(n=50, p=0.05)",
+    "global_mmd_within_replication_kappa_range_tolerance": 1e-12,
+    "interpretation": "Acceptance checks estimator calibration and pedagogical visibility; it is not a test of the analytic identity q(z)=N(0,I), which holds by construction.",
+    "large_kappas": [
+      4.0,
+      8.0,
+      16.0
+    ],
+    "locked_before_paper_run": true,
+    "minimum_mean_probe_accuracy_at_each_large_kappa": 0.9,
+    "minimum_spearman_trend": 0.7,
+    "nominal_global_mmd_alpha": 0.05,
+    "require_high_kappa_conditional_mmd_above_null": true,
+    "require_high_kappa_hsic_above_null": true,
+    "required_replications": 50,
+    "schema_version": "synthetic-exact-marginal-acceptance-1.0.0",
+    "trend_kappas": [
+      0.0,
+      0.5,
+      1.0,
+      2.0,
+      4.0,
+      8.0,
+      16.0
+    ]
+  },
+  "interpretation": "A failed empirical gate must be reported as a result; it does not invalidate the analytic marginal identity.",
+  "observed": {
+    "conditional_mmd_spearman_vs_kappa": 0.9642857142857145,
+    "global_mmd_rejection_count": 3,
+    "global_mmd_rejection_rate": 0.06,
+    "hsic_spearman_vs_kappa": 1.0,
+    "large_kappa_conditional_mmd_mean": 0.0004707992076873779,
+    "large_kappa_hsic_mean": 0.0004108284173222879,
+    "large_kappa_probe_accuracy_means": {
+      "16.0": 0.9229756097560976,
+      "4.0": 0.8951219512195123,
+      "8.0": 0.9181951219512196
+    },
+    "maximum_within_replication_global_mmd_range": 0.0,
+    "n_replications": 50,
+    "null_kappa_conditional_mmd_mean": 6.163716316223144e-06,
+    "null_kappa_hsic_mean": 0.00017555355123477056
+  },
+  "passes_all": false,
+  "schema_version": "synthetic-exact-marginal-acceptance-result-1.0.0"
+}

@@ -1,0 +1,31 @@
+{
+  "global_mmd_rejection_count_interval": [
+    0,
+    6
+  ],
+  "global_mmd_rejection_interval_basis": "central 95% prediction interval for Binomial(n=50, p=0.05)",
+  "global_mmd_within_replication_kappa_range_tolerance": 1e-12,
+  "interpretation": "Acceptance checks estimator calibration and pedagogical visibility; it is not a test of the analytic identity q(z)=N(0,I), which holds by construction.",
+  "large_kappas": [
+    4.0,
+    8.0,
+    16.0
+  ],
+  "locked_before_paper_run": true,
+  "minimum_mean_probe_accuracy_at_each_large_kappa": 0.9,
+  "minimum_spearman_trend": 0.7,
+  "nominal_global_mmd_alpha": 0.05,
+  "require_high_kappa_conditional_mmd_above_null": true,
+  "require_high_kappa_hsic_above_null": true,
+  "required_replications": 50,
+  "schema_version": "synthetic-exact-marginal-acceptance-1.0.0",
+  "trend_kappas": [
+    0.0,
+    0.5,
+    1.0,
+    2.0,
+    4.0,
+    8.0,
+    16.0
+  ]
+}

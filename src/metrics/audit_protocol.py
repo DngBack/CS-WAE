@@ -501,17 +501,50 @@ def hsic_permutation_test(
     seed: int = 0,
     n_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
     sigmas: Sequence[float] = EUCLIDEAN_SIGMAS,
+    permutation_batch_size: int = 32,
 ) -> dict:
-    """Multi-scale HSIC with a plus-one calibrated permutation p-value."""
+    """Multi-scale HSIC with a plus-one calibrated permutation p-value.
 
-    observed, k_centered, l_centered = multiscale_hsic_statistic(features, labels, sigmas)
+    The null is evaluated in batches without materializing one ``n x n``
+    label-kernel matrix per permutation.  For centered ``K``, the Frobenius
+    product with a centered delta-label kernel equals the product with the
+    uncentered kernel.  Writing that kernel as ``S S^T`` for a one-hot class
+    assignment ``S`` gives ``trace(S^T K S)``.  One matrix multiplication can
+    therefore evaluate several permutations and classes at once.  This is
+    algebraically equivalent to explicitly permuting the centered label
+    kernel, but makes paper-scale CPU calibration practical.
+    """
+
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be positive")
+    if permutation_batch_size < 1:
+        raise ValueError("permutation_batch_size must be positive")
+
+    observed, k_centered, _ = multiscale_hsic_statistic(features, labels, sigmas)
     generator = torch.Generator(device="cpu").manual_seed(seed)
     null = []
     n = features.shape[0]
-    for _ in range(n_permutations):
-        permutation = torch.randperm(n, generator=generator).to(features.device)
-        l_permuted = l_centered[permutation][:, permutation]
-        null.append(float(((k_centered * l_permuted).sum() / ((n - 1) ** 2)).item()))
+    n_classes = int(labels.max().item()) + 1
+    permutations = [torch.randperm(n, generator=generator) for _ in range(n_permutations)]
+    denominator = float((n - 1) ** 2)
+    for start in range(0, n_permutations, permutation_batch_size):
+        batch_indices = permutations[start : start + permutation_batch_size]
+        permuted_labels = torch.stack(
+            [labels[index.to(labels.device)] for index in batch_indices], dim=0
+        )
+        assignments = F.one_hot(permuted_labels.long(), num_classes=n_classes).to(
+            device=k_centered.device,
+            dtype=k_centered.dtype,
+        )
+        batch_size = assignments.shape[0]
+        flat_assignments = assignments.permute(1, 0, 2).reshape(
+            n, batch_size * n_classes
+        )
+        products = k_centered @ flat_assignments
+        batch_statistics = (flat_assignments * products).sum(0).reshape(
+            batch_size, n_classes
+        ).sum(1) / denominator
+        null.extend(batch_statistics.detach().cpu().double().tolist())
     null_array = np.asarray(null, dtype=np.float64)
     exceedances = int(np.count_nonzero(null_array >= observed))
     return {
@@ -526,6 +559,7 @@ def hsic_permutation_test(
         },
         "n_samples": int(n),
         "n_permutations": int(n_permutations),
+        "permutation_batch_size": int(permutation_batch_size),
         "sigmas": [float(value) for value in sigmas],
         "estimator": "biased centered HSIC with permutation calibration",
     }

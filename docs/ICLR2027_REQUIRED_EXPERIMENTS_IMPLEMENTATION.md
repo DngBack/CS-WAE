@@ -448,13 +448,91 @@ Chạy protocol test CPU nhanh trước model sweep:
 Run dùng cho paper (nhiều repetitions/permutations hơn) là:
 
 ```bash
-.venv/bin/python scripts/run_synthetic_exact_marginal.py --paper
+.venv/bin/python scripts/run_synthetic_exact_marginal.py \
+  --paper \
+  --output-dir runs_diag/synthetic_exact_marginal_paper
 ```
 
-JSON, checksum và figure được ghi ở
-`runs_diag/synthetic_exact_marginal/`. Global MMD được tính một lần trên cùng
-Gaussian sample trong mỗi replication rồi gắn với mọi `kappa`; cách này làm rõ
-rằng thay đổi trên đồ thị đến từ label mechanism, không phải thay marginal.
+Quick artifacts được giữ ở `runs_diag/synthetic_exact_marginal/`; paper-scale
+artifacts được tách riêng ở `runs_diag/synthetic_exact_marginal_paper/` để
+không ghi đè protocol test. Global MMD được tính một lần trên cùng Gaussian
+sample trong mỗi replication rồi gắn với mọi `kappa`; cách này làm rõ rằng thay
+đổi trên đồ thị đến từ label mechanism, không phải thay marginal.
+
+Paper runner chạy các replications độc lập bằng CPU process workers. HSIC
+permutations được tính theo batch bằng biểu diễn one-hot
+`trace(S^T K_centered S)`, tương đương với permuting full centered label kernel
+nhưng không tạo một kernel `n x n` mới cho từng permutation. Benchmark một
+paper replication trên host hiện tại mất khoảng 17.7 giây và peak RSS khoảng
+1.1 GiB với tám Torch CPU threads.
+
+Sau mỗi replication, runner ghi nguyên tử
+`partial_results.json`. Chạy lại cùng command sẽ xác minh scientific config và
+skip các replication đã hoàn tất. `results.json`, frozen
+`acceptance_criteria.json` và `acceptance_result.json` đều có SHA-256 sidecar.
+Một config khác không được resume vào cùng output directory.
+
+Durable paper run:
+
+```bash
+systemd-run --user \
+  --unit=fcswae-synthetic-paper \
+  --collect --same-dir \
+  --property=Restart=on-failure \
+  --property=RestartSec=30s \
+  .venv/bin/python scripts/run_synthetic_exact_marginal.py \
+  --paper \
+  --output-dir runs_diag/synthetic_exact_marginal_paper
+
+systemctl --user status fcswae-synthetic-paper
+journalctl --user -u fcswae-synthetic-paper -f
+```
+
+Frozen acceptance được ghi trước paper result:
+
+- mean linear-probe accuracy phải lớn hơn 90% tại từng
+  `kappa in {4, 8, 16}`;
+- Spearman trend của HSIC và conditional MMD theo bảy `kappa` phải ít nhất
+  0.70, đồng thời high-kappa mean phải lớn hơn null-kappa mean;
+- global MMD phải giống nhau qua `kappa` trong từng replication, sai số tối đa
+  `1e-12`;
+- global-MMD rejection count phải nằm trong `[0, 6]`, central 95% prediction
+  interval của `Binomial(n=50, p=0.05)`.
+
+### 7.0.1. Paper-scale result đã hoàn tất
+
+Phân tích đầy đủ, proposed paper wording và artifact inventory được ghi tại
+[`SYNTHETIC_EXACT_MARGINAL_EXPERIMENT_REPORT.md`](SYNTHETIC_EXACT_MARGINAL_EXPERIMENT_REPORT.md).
+
+Paper run hoàn tất ngày 2026-08-12 với 50/50 replications, `n=2,048`, latent
+dimension 128 và 499 permutations cho cả global MMD và HSIC. User service
+`fcswae-synthetic-paper` kết thúc với exit status 0, không restart. Artifact
+được ghi tại `runs_diag/synthetic_exact_marginal_paper/`.
+
+| `kappa` | Linear probe mean ± std | Global MMD rejection | HSIC rejection | Mean conditional MMD2 |
+|---:|---:|---:|---:|---:|
+| 0 | 49.58 ± 1.86% | 6% | 2% | 0.000006 |
+| 0.5 | 62.48 ± 2.58% | 6% | 100% | 0.000130 |
+| 1 | 74.49 ± 2.09% | 6% | 100% | 0.000280 |
+| 2 | 83.28 ± 2.07% | 6% | 100% | 0.000405 |
+| 4 | 89.51 ± 1.45% | 6% | 100% | 0.000455 |
+| 8 | 91.82 ± 1.63% | 6% | 100% | 0.000479 |
+| 16 | 92.30 ± 1.51% | 6% | 100% | 0.000478 |
+
+Global MMD mean là khoảng `-9.47e-7` và giống nhau chính xác qua mọi `kappa`
+trong từng replication, vì cùng Gaussian sample được dùng trước khi gán label.
+Rejection count là `3/50`, tương ứng 6% và nằm trong frozen Binomial interval
+`[0, 6]`. HSIC trend có Spearman `1.0`; conditional-MMD trend có Spearman
+`0.964`.
+
+Strict composite acceptance có `passes_all=false` vì criterion được khóa yêu
+cầu probe lớn hơn 90% tại **từng** `kappa in {4, 8, 16}`, trong khi `kappa=4`
+đạt 89.51%, thiếu 0.49 percentage points. Không sửa criterion hoặc chọn lại
+`kappa` sau khi xem result. Pedagogical target ban đầu “probe vượt 90% ở
+`kappa` lớn” vẫn được quan sát tại `kappa=8` và `16`; estimator-calibration,
+trend và exact-marginal invariance gates đều pass. Paper phải báo cả hai facts:
+core construction được thực nghiệm hóa thành công, nhưng predeclared strict
+all-large-kappa composite gate không pass toàn bộ.
 
 ### 7.1. Vì sao phải làm
 

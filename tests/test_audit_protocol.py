@@ -168,6 +168,34 @@ class AuditProtocolTests(unittest.TestCase):
         self.assertEqual(calibrated["n_permutations"], 49)
         self.assertGreater(len(calibrated["sigmas"]), 1)
 
+    def test_hsic_permutation_batching_is_result_invariant(self):
+        generator = torch.Generator().manual_seed(29)
+        labels = torch.arange(3).repeat_interleave(32)
+        features = torch.randn((labels.numel(), 6), generator=generator)
+        one_at_a_time = hsic_permutation_test(
+            features,
+            labels,
+            seed=41,
+            n_permutations=23,
+            permutation_batch_size=1,
+        )
+        batched = hsic_permutation_test(
+            features,
+            labels,
+            seed=41,
+            n_permutations=23,
+            permutation_batch_size=8,
+        )
+        self.assertEqual(one_at_a_time["p_value"], batched["p_value"])
+        self.assertAlmostEqual(
+            one_at_a_time["null_mean"], batched["null_mean"], places=7
+        )
+        self.assertAlmostEqual(
+            one_at_a_time["null_quantiles"]["q95"],
+            batched["null_quantiles"]["q95"],
+            places=7,
+        )
+
     def test_external_grayscale_classifier_accepts_28_and_32_pixels(self):
         classifier = GrayscaleExternalCNN()
         self.assertEqual(classifier(torch.rand(2, 1, 28, 28)).shape, (2, 10))
