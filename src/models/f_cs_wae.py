@@ -22,6 +22,66 @@ from ..utils.utils import mobius_reparam, sample_uniform_sphere
 from .backbone import ResNet18Body
 
 
+def effective_style_variance(
+    logvar_s: torch.Tensor,
+    sigma_floor: float = 0.0,
+) -> torch.Tensor:
+    """Return the effective diagonal style-posterior variance.
+
+    ``sigma_floor`` is an explicit controlled-noise intervention.  It is
+    added in variance space so the historical model is recovered exactly at
+    zero and the requested floor remains meaningful when the raw log-variance
+    head collapses below the numerical clamp.
+    """
+
+    if sigma_floor < 0.0:
+        raise ValueError("style sigma floor must be non-negative")
+    variance = torch.exp(logvar_s.clamp(-10, 10))
+    if sigma_floor:
+        variance = variance + float(sigma_floor) ** 2
+    return variance
+
+
+def style_posterior_entropy(
+    logvar_s: torch.Tensor,
+    sigma_floor: float = 0.0,
+) -> torch.Tensor:
+    """Differential entropy in nats for each diagonal Gaussian posterior."""
+
+    variance = effective_style_variance(logvar_s, sigma_floor)
+    log_two_pi_e = 1.0 + torch.log(torch.tensor(2.0 * torch.pi, device=logvar_s.device, dtype=logvar_s.dtype))
+    return 0.5 * (log_two_pi_e + torch.log(variance)).sum(dim=1)
+
+
+def sample_style_posterior(
+    mu_s: torch.Tensor,
+    logvar_s: torch.Tensor,
+    sigma_floor: float = 0.0,
+    generator: torch.Generator | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Sample style with one canonical reparameterization implementation.
+
+    A supplied generator may live on CPU while the posterior lives on an
+    accelerator.  Drawing on the generator's device and moving the noise is
+    deliberate: it gives reproducible audit samples independent of CUDA RNG
+    state while training can keep using the efficient ``generator=None`` path.
+    Returns both the sample and effective standard deviation.
+    """
+
+    std_s = effective_style_variance(logvar_s, sigma_floor).sqrt()
+    if generator is None:
+        epsilon = torch.randn_like(std_s)
+    else:
+        generator_device = torch.device(getattr(generator, "device", "cpu"))
+        epsilon = torch.randn(
+            std_s.shape,
+            generator=generator,
+            dtype=std_s.dtype,
+            device=generator_device,
+        ).to(std_s.device)
+    return mu_s + std_s * epsilon, std_s
+
+
 # ---------------------------------------------------------------------------
 # ResBlock building blocks
 # ---------------------------------------------------------------------------
@@ -193,6 +253,7 @@ class FCSWAE(nn.Module):
         n_centers: int = 1,
         rho_prior: float = 0.7,
         ema_momentum: float = 0.95,
+        style_sigma_floor: float = 0.0,
     ):
         super().__init__()
         self.semantic_dim = semantic_dim
@@ -201,6 +262,9 @@ class FCSWAE(nn.Module):
         self.n_centers = n_centers
         self.rho_p = rho_prior
         self.ema_momentum = ema_momentum
+        if style_sigma_floor < 0.0:
+            raise ValueError("style_sigma_floor must be non-negative")
+        self.style_sigma_floor = float(style_sigma_floor)
 
         self.encoder = FCSWAEEncoder(semantic_dim, style_dim, in_channels, image_size)
         self.decoder = ResBlockDecoder(semantic_dim, style_dim, in_channels, image_size)
@@ -252,14 +316,32 @@ class FCSWAE(nn.Module):
         eps_s = sample_uniform_sphere(x.shape[0], self.semantic_dim, device=x.device)
         z_c = mobius_reparam(eps_s, mu_c, rho_c)
 
-        # Sample style latent via Gaussian reparameterization
-        # Clamp logvar to prevent exp() overflow (would silently produce nan/inf)
-        std_s = torch.exp(0.5 * logvar_s.clamp(-10, 10))
-        eps_e = torch.randn_like(std_s)
-        z_s = mu_s + std_s * eps_e
+        # Sample style latent through the canonical helper.  sigma_floor=0
+        # exactly preserves the historical checkpoint behavior.
+        z_s, _std_s = self.sample_style(mu_s, logvar_s)
 
         x_hat = self.decoder(torch.cat([z_c, z_s], dim=1))
         return x_hat, z_c, z_s, mu_c, mu_s, logvar_s
+
+    def sample_style(
+        self,
+        mu_s: torch.Tensor,
+        logvar_s: torch.Tensor,
+        generator: torch.Generator | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Sample the effective style posterior used by training and audit."""
+
+        return sample_style_posterior(
+            mu_s,
+            logvar_s,
+            sigma_floor=self.style_sigma_floor,
+            generator=generator,
+        )
+
+    def style_entropy(self, logvar_s: torch.Tensor) -> torch.Tensor:
+        """Per-example effective style-posterior entropy in nats."""
+
+        return style_posterior_entropy(logvar_s, self.style_sigma_floor)
 
     # ------------------------------------------------------------------
     # Prior sampling

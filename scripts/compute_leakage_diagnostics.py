@@ -49,6 +49,7 @@ from src.metrics.audit_protocol import (
     DEFAULT_HSIC_PERMUTATIONS,
     DEFAULT_HSIC_SAMPLES,
     classwise_conditional_hsic_permutation_test,
+    conditional_mmd_to_standard_normal,
     delta_inter as protocol_delta_inter,
     fit_logistic_probe,
     global_mmd_to_standard_normal,
@@ -60,6 +61,11 @@ from src.metrics.audit_protocol import (
     run_probe_suite,
     stratified_probe_split,
 )
+from src.metrics.factorized_adapter import (
+    build_factorized_audit_adapter,
+    summarize_style_posterior,
+)
+from src.models.f_cs_wae import sample_style_posterior
 from src.models.external_classifiers import load_external_classifier_checkpoint
 from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
@@ -223,9 +229,10 @@ def extract_style_latents(model, loader, device, model_type: str = "fcswae"):
 
         if model_type == "fcswae":
             mu_c, rho_c, mu_s, logvar_s = model.encoder(x)
-            std_s = torch.exp(0.5 * logvar_s.clamp(-10, 10))
-            eps = torch.randn_like(std_s)
-            z_s = mu_s + std_s * eps
+            if hasattr(model, "sample_style"):
+                z_s, _std_s = model.sample_style(mu_s, logvar_s)
+            else:
+                z_s, _std_s = sample_style_posterior(mu_s, logvar_s)
         elif model_type in ("vae", "waemmd"):
             # Standard VAE/WAE encoder: returns (mu, logvar) for full latent
             # Treat second half of latent as "style"
@@ -286,29 +293,49 @@ def extract_latent_views(model, loader, device, model_type: str = "fcswae", seed
 
     model.eval()
     generator = torch.Generator(device="cpu").manual_seed(seed)
-    z_s_samples, mu_s_values, mu_c_values, labels_values = [], [], [], []
+    z_s_samples, mu_s_values, mu_c_values, z_c_samples = [], [], [], []
+    logvar_values, effective_std_values, labels_values = [], [], []
+    adapter = build_factorized_audit_adapter(model) if model_type == "fcswae" else None
     for images, labels in loader:
         images = images.to(device)
-        if model_type == "fcswae":
-            mu_c, _rho_c, mu_s, logvar_s = model.encode(images)
+        if adapter is not None:
+            named = adapter.encode_views(images, generator=generator)
+            mu_c = named.content_mean
+            z_c = named.content_sample
+            mu_s = named.style_mean
+            z_s = named.style_sample
+            logvar_s = named.style_logvar
+            effective_std = named.style_effective_std
         else:
             encoded = model.encode(images)
             mu, logvar_s = encoded
             split_at = mu.shape[1] // 2
             mu_c, mu_s = mu[:, :split_at], mu[:, split_at:]
             logvar_s = logvar_s[:, split_at:]
-        std_s = torch.exp(0.5 * logvar_s.clamp(-10, 10))
-        epsilon = torch.randn(std_s.shape, generator=generator, dtype=std_s.dtype).to(device)
-        z_s = mu_s + std_s * epsilon
+            z_s, effective_std = sample_style_posterior(
+                mu_s, logvar_s, generator=generator
+            )
+            z_c = mu_c
         z_s_samples.append(z_s.cpu())
         mu_s_values.append(mu_s.cpu())
         mu_c_values.append(mu_c.cpu())
+        z_c_samples.append(z_c.cpu())
+        if logvar_s is not None:
+            logvar_values.append(logvar_s.cpu())
+        if effective_std is not None:
+            effective_std_values.append(effective_std.cpu())
         labels_values.append(labels.cpu())
     return {
         "z_s_sample": torch.cat(z_s_samples),
         "mu_s": torch.cat(mu_s_values),
         "mu_c": torch.cat(mu_c_values),
+        "z_c_sample": torch.cat(z_c_samples),
+        "logvar_s": torch.cat(logvar_values) if logvar_values else None,
+        "style_effective_std": (
+            torch.cat(effective_std_values) if effective_std_values else None
+        ),
         "labels": torch.cat(labels_values),
+        "adapter_metadata": None if adapter is None else adapter.metadata(),
     }
 
 
@@ -406,6 +433,7 @@ def run_diagnostics(
     z_s_sample = views["z_s_sample"].to(device)
     mu_s = views["mu_s"].to(device)
     mu_c = views["mu_c"].to(device)
+    logvar_s = None if views["logvar_s"] is None else views["logvar_s"].to(device)
     labels = views["labels"].to(device)
 
     print("Computing U-statistic global MMD on posterior samples...")
@@ -414,6 +442,16 @@ def run_diagnostics(
     # ``extract_latent_views`` and silently couples the two MMD samples.
     global_mmd_reference_seed = seed + 10_000
     global_mmd = compute_global_mmd(z_s_sample, seed=global_mmd_reference_seed)
+    conditional_mmd_reference_seed = seed + 11_000
+    conditional_mmd = conditional_mmd_to_standard_normal(
+        z_s_sample,
+        labels,
+        n_classes,
+        seed=conditional_mmd_reference_seed,
+    )
+    conditional_mmd["conditional_to_global_ratio"] = (
+        None if global_mmd == 0.0 else conditional_mmd["mean_mmd2_u"] / global_mmd
+    )
     delta_sample = compute_delta_inter(z_s_sample, labels, n_classes)
     delta_mean = compute_delta_inter(mu_s, labels, n_classes)
 
@@ -436,6 +474,7 @@ def run_diagnostics(
 
     joint_mmd = None
     conditional_hsic = None
+    posterior_summary = None
     if model_type == "fcswae" and hasattr(model, "encode"):
         print("Computing mean-view JointMMD²_U...")
         joint_mmd = compute_joint_mmd(mu_c, mu_s, labels, n_classes, seed=seed)
@@ -444,6 +483,11 @@ def run_diagnostics(
             mu_c, mu_s, labels, n_classes, seed=seed,
             n_permutations=hsic_permutations,
         )
+        if logvar_s is not None:
+            posterior_summary = summarize_style_posterior(
+                logvar_s,
+                float(getattr(model, "style_sigma_floor", 0.0)),
+            )
 
     style_stats = generation_style_stats
     if hasattr(model, "sample_from_class_prior"):
@@ -490,13 +534,17 @@ def run_diagnostics(
             },
             "mmd_estimator": "unbiased U-statistic; fixed multi-scale RBF",
             "global_mmd_reference_seed": global_mmd_reference_seed,
+            "conditional_mmd_reference_seed": conditional_mmd_reference_seed,
             "probe_split": "stratified 60/20/20 train/validation/test",
+            "factorized_adapter": views["adapter_metadata"],
         },
         "sampling_contract": {
             "global_mmd2_u_z_s_sample": global_mmd,
+            "conditional_mmd2_u_z_s_sample": conditional_mmd,
             "delta_inter_z_s_sample": delta_sample,
             "hsic_z_s_sample": hsic_sample,
             "probe_suite_z_s_sample": probes_sample,
+            "style_posterior": posterior_summary,
         },
         "representation": {
             "delta_inter_mu_s": delta_mean,
@@ -554,7 +602,13 @@ def run_diagnostics(
 # wrong_style_rate_diagnostics.py, run_delta_sweep.py)
 # ---------------------------------------------------------------------------
 
-def load_fcswae_checkpoint(checkpoint_path, dataset: str, device, variant: str | None = None):
+def load_fcswae_checkpoint(
+    checkpoint_path,
+    dataset: str,
+    device,
+    variant: str | None = None,
+    style_sigma_floor: float | None = None,
+):
     """Load a trained FCSWAE (or FCSWAEAblation) model from a checkpoint.
 
     variant: an ABLATION_VARIANTS key (e.g. "no_classifier", "gaussian_class_prior")
@@ -568,6 +622,18 @@ def load_fcswae_checkpoint(checkpoint_path, dataset: str, device, variant: str |
     apply_dataset_config(cfg, dataset, backbone="resnet18")
     ckpt = torch.load(checkpoint_path, map_location=device)
     state = ckpt.get("model_state_dict", ckpt)
+    if style_sigma_floor is None:
+        run_config_path = Path(checkpoint_path).parent / "run_config.json"
+        if run_config_path.exists():
+            with run_config_path.open() as handle:
+                run_metadata = json.load(handle)
+            nested_config = run_metadata.get("config", {})
+            style_sigma_floor = run_metadata.get(
+                "style_sigma_floor",
+                nested_config.get("style_sigma_floor", 0.0),
+            )
+        else:
+            style_sigma_floor = 0.0
     # Infer semantic_dim/style_dim directly from the checkpoint rather than
     # trusting cfg's defaults: checkpoints trained with --dc/--ds overrides
     # (e.g. capacity-ablation runs) have non-default dims that a fresh cfg
@@ -592,6 +658,7 @@ def load_fcswae_checkpoint(checkpoint_path, dataset: str, device, variant: str |
             n_classes=cfg.n_classes,
             in_channels=cfg.in_channels,
             image_size=cfg.image_size,
+            style_sigma_floor=float(style_sigma_floor),
         ).to(device)
     model.load_state_dict(state)
     model.eval()
@@ -772,6 +839,7 @@ def main():
         "latent_primary_sampling_contract": "z_s_sample",
         "latent_primary_probe_swap": "mu_s",
         "global_mmd_reference_seed": args.seed + 10_000,
+        "conditional_mmd_reference_seed": args.seed + 11_000,
     }
     manifest = build_manifest(
         repository_root=ROOT,

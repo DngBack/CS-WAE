@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src.metrics.audit_protocol import (
     AUDIT_PROTOCOL_VERSION,
+    conditional_mmd_to_standard_normal,
     fit_logistic_probe,
     hsic_permutation_test,
     mmd2_unbiased,
@@ -22,7 +23,13 @@ from src.metrics.audit_protocol import (
     run_probe_suite,
     stratified_probe_split,
 )
+from src.metrics.factorized_adapter import build_factorized_audit_adapter
 from src.models.external_classifiers import GrayscaleExternalCNN
+from src.models.f_cs_wae import (
+    effective_style_variance,
+    sample_style_posterior,
+    style_posterior_entropy,
+)
 from src.utils.provenance import build_manifest, save_result_with_manifest, sha256_file
 from scripts.compute_leakage_diagnostics import run_diagnostics
 
@@ -31,6 +38,11 @@ class _ToyFactorizedModel(nn.Module):
     semantic_dim = 3
     style_dim = 4
     n_classes = 3
+    style_sigma_floor = 0.0
+
+    def __init__(self):
+        super().__init__()
+        self.decoder = nn.Identity()
 
     def encode(self, images):
         flat = images.flatten(1)
@@ -40,8 +52,43 @@ class _ToyFactorizedModel(nn.Module):
         logvar_s = torch.full_like(mu_s, -4.0)
         return mu_c, rho_c, mu_s, logvar_s
 
+    def sample_style(self, mu_s, logvar_s, generator=None):
+        return sample_style_posterior(mu_s, logvar_s, generator=generator)
+
 
 class AuditProtocolTests(unittest.TestCase):
+    def test_protocol_version_is_bumped_for_entropy_contract(self):
+        self.assertEqual(AUDIT_PROTOCOL_VERSION, "stage0-1.2.0")
+
+    def test_unified_style_sampler_is_seeded_and_applies_variance_floor(self):
+        mu = torch.zeros((3, 4))
+        logvar = torch.full_like(mu, -20.0)
+        first_generator = torch.Generator().manual_seed(17)
+        second_generator = torch.Generator().manual_seed(17)
+        sample, std = sample_style_posterior(
+            mu, logvar, sigma_floor=0.35, generator=first_generator
+        )
+        expected_noise = torch.randn(mu.shape, generator=second_generator)
+        expected_std = effective_style_variance(logvar, 0.35).sqrt()
+        self.assertTrue(torch.allclose(std, expected_std))
+        self.assertTrue(torch.allclose(sample, expected_noise * expected_std))
+        self.assertGreaterEqual(float(std.min()), 0.35)
+
+    def test_style_entropy_uses_effective_variance(self):
+        logvar = torch.zeros((2, 5))
+        entropy = style_posterior_entropy(logvar, sigma_floor=0.0)
+        expected_per_dimension = 0.5 * np.log(2.0 * np.pi * np.e)
+        self.assertTrue(
+            torch.allclose(
+                entropy,
+                torch.full((2,), 5 * expected_per_dimension, dtype=entropy.dtype),
+            )
+        )
+
+    def test_adapter_rejects_unknown_latent_split(self):
+        with self.assertRaisesRegex(TypeError, "Do not infer style"):
+            build_factorized_audit_adapter(nn.Linear(4, 4))
+
     def test_probe_split_is_stratified_disjoint_and_complete(self):
         labels = torch.arange(5).repeat_interleave(40)
         split = stratified_probe_split(labels, seed=7)
@@ -76,6 +123,9 @@ class AuditProtocolTests(unittest.TestCase):
         for model_result in result["models"].values():
             self.assertLessEqual(model_result["test"]["accuracy"], 1.0)
             self.assertGreaterEqual(model_result["test"]["accuracy"], 0.0)
+        logistic_test = result["models"]["logistic"]["test"]
+        self.assertIn("cross_entropy_nats", logistic_test)
+        self.assertIn("information_lower_bound_nats", logistic_test)
 
     def test_unbiased_mmd_detects_shift_without_clipping(self):
         generator = torch.Generator().manual_seed(11)
@@ -86,6 +136,18 @@ class AuditProtocolTests(unittest.TestCase):
         shifted_value = mmd2_unbiased(x, shifted)
         self.assertGreater(shifted_value, null_value + 0.1)
         self.assertIsInstance(null_value, float)
+
+    def test_conditional_mmd_detects_dependence_under_gaussian_marginal(self):
+        generator = torch.Generator().manual_seed(31)
+        z = torch.randn((600, 4), generator=generator)
+        labels = (z[:, 0] > 0).long()
+        conditional = conditional_mmd_to_standard_normal(
+            z, labels, n_classes=2, seed=31
+        )
+        marginal_reference = torch.randn((600, 4), generator=generator)
+        marginal = mmd2_unbiased(z, marginal_reference)
+        self.assertGreater(conditional["mean_mmd2_u"], marginal + 0.01)
+        self.assertEqual(set(conditional["per_class_mmd2_u"]), {"0", "1"})
 
     def test_mmd_permutation_calibration_detects_large_shift(self):
         generator = torch.Generator().manual_seed(19)
@@ -125,6 +187,11 @@ class AuditProtocolTests(unittest.TestCase):
         self.assertIn("joint_mmd2_u_mu_c_mu_s", results["within_class_dependence"])
         self.assertEqual(results["protocol"]["n_evaluation_samples"], 120)
         self.assertEqual(results["protocol"]["global_mmd_reference_seed"], 10004)
+        self.assertEqual(results["protocol"]["factorized_adapter"]["model_family"], "F-CS-WAE")
+        self.assertIn(
+            "effective_noise_rms_norm_mean",
+            results["sampling_contract"]["style_posterior"],
+        )
 
     def test_result_manifest_hashes_checkpoint_and_output(self):
         with tempfile.TemporaryDirectory() as directory:

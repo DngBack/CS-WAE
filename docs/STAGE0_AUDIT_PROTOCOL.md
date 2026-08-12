@@ -1,6 +1,6 @@
 # Stage-0 Audit Protocol
 
-Protocol version: `stage0-1.0.0`.
+Protocol version: `stage0-1.2.0`.
 
 This document is authoritative for new audit runs. Historical files under
 `runs_diag/` predate Stage 0 and must not be pooled with Stage-0 results
@@ -12,12 +12,18 @@ Every result names the latent view explicitly.
 
 | Name | Definition | Primary use |
 |---|---|---|
-| `z_s_sample` | `mu_s + exp(0.5 logvar_s) * epsilon` | Distributional sampling contract: global/conditional MMD and secondary sample probe |
+| `z_s_sample` | `mu_s + sqrt(exp(clamp(logvar_s,-10,10)) + sigma_floor^2) * epsilon` | Distributional sampling contract: global/conditional MMD and secondary sample probe |
 | `mu_s` | Deterministic style posterior mean | Representation probes, deterministic latent swaps and style statistics |
 | `mu_c_mu_s` | Pair of deterministic posterior means | JointMMD term-4 proxy |
 
 No table may label a metric only as “on `z_s`” when the implementation uses
-`mu_s`. Posterior sampling uses a seeded generator recorded in the manifest.
+`mu_s`. Training, audit and repeated-draw diagnostics call the same posterior
+sampler. Posterior sampling uses a seeded CPU generator recorded in the
+manifest, so its draws do not depend on accelerator RNG state.
+
+The configured style standard-deviation floor and measured effective
+posterior entropy are stored with every new F-CS-WAE audit. A zero floor is
+exactly backward-compatible with historical checkpoints.
 
 ## 2. Evaluation population
 
@@ -45,8 +51,9 @@ Fixed probes:
 - k-NN: `k=5`, distance weighting.
 
 Validation loss selects the Torch probe checkpoint. Main tables report test
-accuracy and macro-F1. Probe train and validation metrics remain in JSON for
-overfit diagnosis.
+accuracy, macro-F1 and the cross-entropy lower bound
+`H_test(y) - CE_test(y|z)`. Probe train and validation metrics remain in JSON
+for overfit diagnosis.
 
 ## 4. Kernel estimators
 
@@ -58,6 +65,9 @@ Training and evaluation deliberately use different estimators:
   diagonals. Negative finite-sample estimates are retained, not clipped.
 - Euclidean kernels average RBF bandwidths
   `{0.5, 1, 2, 5, 10, 20, 50}`.
+- Global MMD compares the full stochastic style sample with an independently
+  seeded `N(0,I)` reference. Conditional MMD repeats that U-statistic per class
+  with independent references and reports the unweighted class mean.
 - JointMMD uses a spherical bandwidth ladder
   `{0.1, 0.3, 0.5, 1, 2}` for `mu_c` and the Euclidean ladder for `mu_s`.
 
@@ -131,3 +141,12 @@ New JSON files retain the flat keys `global_mmd`, `delta_inter`,
 `lp_accuracy`, `hsic`, and `joint_mmd` so old plotters can load them. These
 are compatibility aliases only. New paper tables must read the nested,
 explicitly named fields.
+
+## 8. Version compatibility
+
+`stage0-1.2.0` changes the random stream consumed by the canonical F-CS-WAE
+adapter because it samples both named content and style views, and it adds the
+effective entropy, stochastic probe information lower bound and conditional
+MMD fields. Therefore values produced by protocol 1.2 must not be averaged
+with 1.0/1.1 values. Historical paper evidence remains tagged with its
+original protocol until it is regenerated.

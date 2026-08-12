@@ -27,8 +27,9 @@ from src.datasets.loaders import (
     SUPPORTED_DATASETS,
 )
 from src.utils.dataset_config import apply_dataset_config
-from src.trainers.trainer_f_cs_wae import FCSWAETrainer
+from src.trainers.trainer_f_cs_wae import FCSWAETrainer, atomic_torch_save
 from src.metrics.evaluation import ModelEvaluator
+from src.metrics.audit_protocol import AUDIT_PROTOCOL_VERSION
 from src.utils.seed import set_seed
 from src.utils.device import set_device
 from src.utils.run_io import config_to_dict, save_run_metadata, save_metrics
@@ -56,10 +57,19 @@ def parse_args() -> argparse.Namespace:
                    help="Override cfg.phase_a_end (default 50). Set 0 to skip the "
                         "reconstruction-only warmup and start style/class regularization "
                         "from epoch 0.")
+    p.add_argument("--style-sigma-floor", type=float, default=None,
+                   help="Lower bound on posterior style standard deviation. The "
+                        "effective variance is exp(clamp(logvar,-10,10)) + floor^2.")
     p.add_argument("--output-dir",  type=str,   default=None,
                    help="Output directory (default: runs_f/<dataset>/seed_<N>)")
     p.add_argument("--skip-eval",   action="store_true",
                    help="Skip comprehensive evaluation (useful for quick training runs)")
+    p.add_argument("--resume-from", type=str, default=None,
+                   help="Resume from an explicit crash-safe training checkpoint")
+    p.add_argument("--auto-resume", action="store_true",
+                   help="Resume from <output-dir>/training_checkpoint.pt when it exists")
+    p.add_argument("--checkpoint-every", type=int, default=5,
+                   help="Save crash-safe state every N completed epochs (default: 5)")
     return p.parse_args()
 
 
@@ -87,6 +97,12 @@ def main() -> None:
         cfg.phase_a_end = args.phase_a_end
         assert cfg.phase_a_end < cfg.phase_b_end, \
             f"--phase-a-end ({cfg.phase_a_end}) must be < phase_b_end ({cfg.phase_b_end})"
+    if args.style_sigma_floor is not None:
+        if args.style_sigma_floor < 0.0:
+            raise ValueError("--style-sigma-floor must be non-negative")
+        cfg.style_sigma_floor = args.style_sigma_floor
+    if args.checkpoint_every < 1:
+        raise ValueError("--checkpoint-every must be positive")
 
     print("=" * 60)
     print("F-CS-WAE Training")
@@ -100,6 +116,7 @@ def main() -> None:
     print(f"  Output     : {save_dir}")
     print(f"  semantic_dim: {cfg.semantic_dim}  style_dim: {cfg.style_dim}")
     print(f"  phase_a_end: {cfg.phase_a_end}  (0 = skip reconstruction-only warmup)")
+    print(f"  style sigma floor: {cfg.style_sigma_floor}")
 
     # Save run metadata
     run_meta = config_to_dict(cfg)
@@ -109,6 +126,14 @@ def main() -> None:
         "n_centers":  n_centers,
         "seed":       args.seed,
         "backbone":   "resnet18",
+        "semantic_dim": cfg.semantic_dim,
+        "style_dim": cfg.style_dim,
+        "delta_final": cfg.delta_final,
+        "style_sigma_floor": cfg.style_sigma_floor,
+        "phase_a_end": cfg.phase_a_end,
+        "phase_b_end": cfg.phase_b_end,
+        "audit_protocol_version": AUDIT_PROTOCOL_VERSION,
+        "checkpoint_every": args.checkpoint_every,
     })
     save_run_metadata(save_dir, run_meta, args.seed, extra=run_meta)
 
@@ -132,24 +157,52 @@ def main() -> None:
         n_centers     = n_centers,
         rho_prior     = cfg.rho_prior,
         ema_momentum  = cfg.ema_momentum,
+        style_sigma_floor = cfg.style_sigma_floor,
     ).to(device)
 
     # Trainer
     trainer = FCSWAETrainer(model, train_loader, device=device)
 
+    checkpoint_path = os.path.join(save_dir, "training_checkpoint.pt")
+    resume_path = args.resume_from
+    if resume_path is None and args.auto_resume and os.path.exists(checkpoint_path):
+        resume_path = checkpoint_path
+    start_epoch = 0
+    history = []
+    if resume_path is not None:
+        if not os.path.exists(resume_path):
+            raise FileNotFoundError(f"Resume checkpoint not found: {resume_path}")
+        start_epoch, history = trainer.load_training_checkpoint(
+            resume_path,
+            expected_run_config=run_meta,
+        )
+        print(
+            f"Resumed full training state from {resume_path} "
+            f"after {start_epoch}/{epochs} epochs"
+        )
+
     # Train
     print("Starting training ...")
-    history = trainer.train(epochs=epochs)
+    history = trainer.train(
+        epochs=epochs,
+        start_epoch=start_epoch,
+        history=history,
+        checkpoint_path=checkpoint_path,
+        checkpoint_every=args.checkpoint_every,
+        run_config=run_meta,
+    )
 
     # Save history
     history_path = os.path.join(save_dir, "training_history.json")
-    with open(history_path, "w") as f:
+    history_tmp_path = f"{history_path}.tmp"
+    with open(history_tmp_path, "w") as f:
         json.dump(history, f, indent=2)
+    os.replace(history_tmp_path, history_path)
     print(f"Training history → {history_path}")
 
     # Save model weights
     model_path = os.path.join(save_dir, "f_cs_wae_model.pth")
-    torch.save(model.state_dict(), model_path)
+    atomic_torch_save(model.state_dict(), model_path)
     print(f"Model saved → {model_path}")
 
     # Evaluation

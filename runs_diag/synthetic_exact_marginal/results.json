@@ -1,0 +1,816 @@
+{
+  "manifest": {
+    "audit_protocol_version": "stage0-1.2.0",
+    "created_at_utc": "2026-08-11T07:52:07.083429+00:00",
+    "evaluation_config": {
+      "construction": "z~N(0,I); binary y|z~Categorical(softmax([-kappa*z1,kappa*z1])); multiclass uses softmax(kappa*z[:K])",
+      "dimension": 32,
+      "hsic_permutations": 99,
+      "kappas": [
+        0,
+        0.5,
+        1,
+        2,
+        4,
+        8,
+        16
+      ],
+      "mmd_permutations": 99,
+      "n_classes": 2,
+      "n_samples": 768,
+      "output_dir": "runs_diag/synthetic_exact_marginal",
+      "paper": false,
+      "probe_epochs": 200,
+      "replications": 5,
+      "seed": 2027
+    },
+    "experiment": "synthetic_exact_marginal",
+    "repository": {
+      "commit": "39720db8518f2d96ed9253b02dc4338a1a220b41",
+      "dirty": true
+    },
+    "runtime": {
+      "device": "cpu",
+      "python": "3.10.12",
+      "torch": "2.6.0+cu124"
+    },
+    "schema_version": "audit-result-1.0.0",
+    "seed": 2027
+  },
+  "results": {
+    "records": [
+      {
+        "class_counts": {
+          "0": 387,
+          "1": 381
+        },
+        "conditional_mmd2_u_mean": -0.00016248226165771484,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.0003611902648117393,
+        "hsic_p_value": 0.83,
+        "kappa": 0.0,
+        "probe_accuracy": 0.538961038961039,
+        "probe_cross_entropy_nats": 0.7502884268760681,
+        "probe_information_lower_bound_nats": -0.05722557994003186,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 378,
+          "1": 390
+        },
+        "conditional_mmd2_u_mean": 0.0004500746726989746,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.0006261565140448511,
+        "hsic_p_value": 0.01,
+        "kappa": 0.5,
+        "probe_accuracy": 0.6168831168831169,
+        "probe_cross_entropy_nats": 0.6267685890197754,
+        "probe_information_lower_bound_nats": 0.06629425791626087,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 385,
+          "1": 383
+        },
+        "conditional_mmd2_u_mean": 0.0011109411716461182,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.0009617209434509277,
+        "hsic_p_value": 0.01,
+        "kappa": 1.0,
+        "probe_accuracy": 0.7402597402597403,
+        "probe_cross_entropy_nats": 0.520783007144928,
+        "probe_information_lower_bound_nats": 0.1723641734150173,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 405,
+          "1": 363
+        },
+        "conditional_mmd2_u_mean": 0.0016755759716033936,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.001252685091458261,
+        "hsic_p_value": 0.01,
+        "kappa": 2.0,
+        "probe_accuracy": 0.8311688311688312,
+        "probe_cross_entropy_nats": 0.38007161021232605,
+        "probe_information_lower_bound_nats": 0.31172566277078295,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 381,
+          "1": 387
+        },
+        "conditional_mmd2_u_mean": 0.001980215311050415,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.001403355854563415,
+        "hsic_p_value": 0.01,
+        "kappa": 4.0,
+        "probe_accuracy": 0.9285714285714286,
+        "probe_cross_entropy_nats": 0.21830791234970093,
+        "probe_information_lower_bound_nats": 0.47483926821024436,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 378,
+          "1": 390
+        },
+        "conditional_mmd2_u_mean": 0.002377420663833618,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.0014272090047597885,
+        "hsic_p_value": 0.01,
+        "kappa": 8.0,
+        "probe_accuracy": 0.9285714285714286,
+        "probe_cross_entropy_nats": 0.2723798453807831,
+        "probe_information_lower_bound_nats": 0.4206830015552532,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 381,
+          "1": 387
+        },
+        "conditional_mmd2_u_mean": 0.00181618332862854,
+        "global_mmd2_u": -6.014108657836914e-05,
+        "global_mmd_null_q95": 0.00013276338577270503,
+        "global_mmd_p_value": 0.84,
+        "hsic": 0.0014317849418148398,
+        "hsic_p_value": 0.01,
+        "kappa": 16.0,
+        "probe_accuracy": 0.9025974025974026,
+        "probe_cross_entropy_nats": 0.27845731377601624,
+        "probe_information_lower_bound_nats": 0.41460553316002,
+        "replication": 0,
+        "seed": 2027
+      },
+      {
+        "class_counts": {
+          "0": 393,
+          "1": 375
+        },
+        "conditional_mmd2_u_mean": 7.772445678710938e-05,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.00038116902578622103,
+        "hsic_p_value": 0.51,
+        "kappa": 0.0,
+        "probe_accuracy": 0.487012987012987,
+        "probe_cross_entropy_nats": 0.7342403531074524,
+        "probe_information_lower_bound_nats": -0.04143053549978415,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 377,
+          "1": 391
+        },
+        "conditional_mmd2_u_mean": 0.00036141276359558105,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0006333123310469091,
+        "hsic_p_value": 0.01,
+        "kappa": 0.5,
+        "probe_accuracy": 0.6298701298701299,
+        "probe_cross_entropy_nats": 0.7348464131355286,
+        "probe_information_lower_bound_nats": -0.04203659552786032,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 378,
+          "1": 390
+        },
+        "conditional_mmd2_u_mean": 0.0011088252067565918,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0009107866790145636,
+        "hsic_p_value": 0.01,
+        "kappa": 1.0,
+        "probe_accuracy": 0.7597402597402597,
+        "probe_cross_entropy_nats": 0.4819016456604004,
+        "probe_information_lower_bound_nats": 0.21116120127563587,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 382,
+          "1": 386
+        },
+        "conditional_mmd2_u_mean": 0.0017271637916564941,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.001200662343762815,
+        "hsic_p_value": 0.01,
+        "kappa": 2.0,
+        "probe_accuracy": 0.8571428571428571,
+        "probe_cross_entropy_nats": 0.36267462372779846,
+        "probe_information_lower_bound_nats": 0.3304725568321468,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 371,
+          "1": 397
+        },
+        "conditional_mmd2_u_mean": 0.0018786489963531494,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0012744582490995526,
+        "hsic_p_value": 0.01,
+        "kappa": 4.0,
+        "probe_accuracy": 0.9090909090909091,
+        "probe_cross_entropy_nats": 0.231035977602005,
+        "probe_information_lower_bound_nats": 0.46177384000566324,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 370,
+          "1": 398
+        },
+        "conditional_mmd2_u_mean": 0.0017594397068023682,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0012971122050657868,
+        "hsic_p_value": 0.01,
+        "kappa": 8.0,
+        "probe_accuracy": 0.9025974025974026,
+        "probe_cross_entropy_nats": 0.2764434814453125,
+        "probe_information_lower_bound_nats": 0.41594452570195894,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 374,
+          "1": 394
+        },
+        "conditional_mmd2_u_mean": 0.001828998327255249,
+        "global_mmd2_u": 1.245737075805664e-05,
+        "global_mmd_null_q95": 0.00014479160308837887,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0013077835319563746,
+        "hsic_p_value": 0.01,
+        "kappa": 16.0,
+        "probe_accuracy": 0.8831168831168831,
+        "probe_cross_entropy_nats": 0.2965588867664337,
+        "probe_information_lower_bound_nats": 0.3962509308412345,
+        "replication": 1,
+        "seed": 102027
+      },
+      {
+        "class_counts": {
+          "0": 376,
+          "1": 392
+        },
+        "conditional_mmd2_u_mean": 4.1097402572631836e-05,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.00037976010935381055,
+        "hsic_p_value": 0.43,
+        "kappa": 0.0,
+        "probe_accuracy": 0.538961038961039,
+        "probe_cross_entropy_nats": 0.6916119456291199,
+        "probe_information_lower_bound_nats": 0.0014509013069163856,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 370,
+          "1": 398
+        },
+        "conditional_mmd2_u_mean": 0.00042429566383361816,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0006021958542987704,
+        "hsic_p_value": 0.01,
+        "kappa": 0.5,
+        "probe_accuracy": 0.6298701298701299,
+        "probe_cross_entropy_nats": 0.678983747959137,
+        "probe_information_lower_bound_nats": 0.013404259188134482,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 377,
+          "1": 391
+        },
+        "conditional_mmd2_u_mean": 0.0011068880558013916,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0009894904214888811,
+        "hsic_p_value": 0.01,
+        "kappa": 1.0,
+        "probe_accuracy": 0.7532467532467533,
+        "probe_cross_entropy_nats": 0.5185856819152832,
+        "probe_information_lower_bound_nats": 0.17422413569238504,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 373,
+          "1": 395
+        },
+        "conditional_mmd2_u_mean": 0.0018141865730285645,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0011794556630775332,
+        "hsic_p_value": 0.01,
+        "kappa": 2.0,
+        "probe_accuracy": 0.8766233766233766,
+        "probe_cross_entropy_nats": 0.31736189126968384,
+        "probe_information_lower_bound_nats": 0.3754479263379844,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 383,
+          "1": 385
+        },
+        "conditional_mmd2_u_mean": 0.0017104744911193848,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0012533589033409953,
+        "hsic_p_value": 0.01,
+        "kappa": 4.0,
+        "probe_accuracy": 0.8961038961038961,
+        "probe_cross_entropy_nats": 0.2667471766471863,
+        "probe_information_lower_bound_nats": 0.426400003912759,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 378,
+          "1": 390
+        },
+        "conditional_mmd2_u_mean": 0.0018950998783111572,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0013025857042521238,
+        "hsic_p_value": 0.01,
+        "kappa": 8.0,
+        "probe_accuracy": 0.922077922077922,
+        "probe_cross_entropy_nats": 0.25876641273498535,
+        "probe_information_lower_bound_nats": 0.4342964342010509,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 383,
+          "1": 385
+        },
+        "conditional_mmd2_u_mean": 0.0017852485179901123,
+        "global_mmd2_u": 9.614229202270508e-05,
+        "global_mmd_null_q95": 0.00010532140731811515,
+        "global_mmd_p_value": 0.07,
+        "hsic": 0.0013024411164224148,
+        "hsic_p_value": 0.01,
+        "kappa": 16.0,
+        "probe_accuracy": 0.9415584415584416,
+        "probe_cross_entropy_nats": 0.24343691766262054,
+        "probe_information_lower_bound_nats": 0.44971026289732474,
+        "replication": 2,
+        "seed": 202027
+      },
+      {
+        "class_counts": {
+          "0": 348,
+          "1": 420
+        },
+        "conditional_mmd2_u_mean": -1.7523765563964844e-05,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0003611286520026624,
+        "hsic_p_value": 0.74,
+        "kappa": 0.0,
+        "probe_accuracy": 0.44805194805194803,
+        "probe_cross_entropy_nats": 0.7648311853408813,
+        "probe_information_lower_bound_nats": -0.07582194686422272,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 346,
+          "1": 422
+        },
+        "conditional_mmd2_u_mean": 0.00032263994216918945,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0006270966259762645,
+        "hsic_p_value": 0.01,
+        "kappa": 0.5,
+        "probe_accuracy": 0.6688311688311688,
+        "probe_cross_entropy_nats": 0.652503252029419,
+        "probe_information_lower_bound_nats": 0.03650598644723968,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 377,
+          "1": 391
+        },
+        "conditional_mmd2_u_mean": 0.0009950101375579834,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0008930301410146058,
+        "hsic_p_value": 0.01,
+        "kappa": 1.0,
+        "probe_accuracy": 0.7142857142857143,
+        "probe_cross_entropy_nats": 0.5691453218460083,
+        "probe_information_lower_bound_nats": 0.12391752509002796,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 374,
+          "1": 394
+        },
+        "conditional_mmd2_u_mean": 0.0015542805194854736,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0011451791506260633,
+        "hsic_p_value": 0.01,
+        "kappa": 2.0,
+        "probe_accuracy": 0.8181818181818182,
+        "probe_cross_entropy_nats": 0.37717339396476746,
+        "probe_information_lower_bound_nats": 0.3156364236429008,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 390,
+          "1": 378
+        },
+        "conditional_mmd2_u_mean": 0.0017214715480804443,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0012695369077846408,
+        "hsic_p_value": 0.01,
+        "kappa": 4.0,
+        "probe_accuracy": 0.9025974025974026,
+        "probe_cross_entropy_nats": 0.272158682346344,
+        "probe_information_lower_bound_nats": 0.42090416458969226,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 398,
+          "1": 370
+        },
+        "conditional_mmd2_u_mean": 0.002084702253341675,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0013162430841475725,
+        "hsic_p_value": 0.01,
+        "kappa": 8.0,
+        "probe_accuracy": 0.9285714285714286,
+        "probe_cross_entropy_nats": 0.2246456891298294,
+        "probe_information_lower_bound_nats": 0.46774231801744204,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 384,
+          "1": 384
+        },
+        "conditional_mmd2_u_mean": 0.001997917890548706,
+        "global_mmd2_u": 6.496906280517578e-05,
+        "global_mmd_null_q95": 0.00011019110679626464,
+        "global_mmd_p_value": 0.12,
+        "hsic": 0.0013271269854158163,
+        "hsic_p_value": 0.01,
+        "kappa": 16.0,
+        "probe_accuracy": 0.935064935064935,
+        "probe_cross_entropy_nats": 0.23634517192840576,
+        "probe_information_lower_bound_nats": 0.4568020086315395,
+        "replication": 3,
+        "seed": 302027
+      },
+      {
+        "class_counts": {
+          "0": 378,
+          "1": 390
+        },
+        "conditional_mmd2_u_mean": -7.218122482299805e-05,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.00037436222191900015,
+        "hsic_p_value": 0.52,
+        "kappa": 0.0,
+        "probe_accuracy": 0.5454545454545454,
+        "probe_cross_entropy_nats": 0.7303714752197266,
+        "probe_information_lower_bound_nats": -0.037308628283690304,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 399,
+          "1": 369
+        },
+        "conditional_mmd2_u_mean": 0.0007041692733764648,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0006969383684918284,
+        "hsic_p_value": 0.01,
+        "kappa": 0.5,
+        "probe_accuracy": 0.7142857142857143,
+        "probe_cross_entropy_nats": 0.5728711485862732,
+        "probe_information_lower_bound_nats": 0.11951685856099825,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 393,
+          "1": 375
+        },
+        "conditional_mmd2_u_mean": 0.0008760988712310791,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0009164944058284163,
+        "hsic_p_value": 0.01,
+        "kappa": 1.0,
+        "probe_accuracy": 0.6883116883116883,
+        "probe_cross_entropy_nats": 0.5512675642967224,
+        "probe_information_lower_bound_nats": 0.14154225331094583,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 391,
+          "1": 377
+        },
+        "conditional_mmd2_u_mean": 0.0015673339366912842,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0012222870718687773,
+        "hsic_p_value": 0.01,
+        "kappa": 2.0,
+        "probe_accuracy": 0.8376623376623377,
+        "probe_cross_entropy_nats": 0.35164231061935425,
+        "probe_information_lower_bound_nats": 0.341167506988314,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 402,
+          "1": 366
+        },
+        "conditional_mmd2_u_mean": 0.001690596342086792,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0013329387875273824,
+        "hsic_p_value": 0.01,
+        "kappa": 4.0,
+        "probe_accuracy": 0.922077922077922,
+        "probe_cross_entropy_nats": 0.2784406840801239,
+        "probe_information_lower_bound_nats": 0.41394732306714754,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 383,
+          "1": 385
+        },
+        "conditional_mmd2_u_mean": 0.002154409885406494,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.001362779876217246,
+        "hsic_p_value": 0.01,
+        "kappa": 8.0,
+        "probe_accuracy": 0.948051948051948,
+        "probe_cross_entropy_nats": 0.2260095626115799,
+        "probe_information_lower_bound_nats": 0.4671376179483654,
+        "replication": 4,
+        "seed": 402027
+      },
+      {
+        "class_counts": {
+          "0": 391,
+          "1": 377
+        },
+        "conditional_mmd2_u_mean": 0.0019660890102386475,
+        "global_mmd2_u": -9.179115295410156e-06,
+        "global_mmd_null_q95": 0.00010231733322143553,
+        "global_mmd_p_value": 0.44,
+        "hsic": 0.0013671781634911895,
+        "hsic_p_value": 0.01,
+        "kappa": 16.0,
+        "probe_accuracy": 0.948051948051948,
+        "probe_cross_entropy_nats": 0.23464950919151306,
+        "probe_information_lower_bound_nats": 0.4584133377445232,
+        "replication": 4,
+        "seed": 402027
+      }
+    ],
+    "summary_by_kappa": [
+      {
+        "conditional_mmd2_u_mean_mean": -2.6673078536987305e-05,
+        "conditional_mmd2_u_mean_std": 9.498752420418409e-05,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0003715220547746867,
+        "hsic_rejection_rate_005": 0.0,
+        "hsic_std": 9.794958491152819e-06,
+        "kappa": 0.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.5116883116883117,
+        "probe_accuracy_std": 0.042679679805597365,
+        "probe_information_lower_bound_nats_mean": -0.04206715785616253,
+        "probe_information_lower_bound_nats_std": 0.02866196916686539
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.0004525184631347656,
+        "conditional_mmd2_u_mean_std": 0.00014941494863644032,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0006371399387717247,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 3.547215657447603e-05,
+        "kappa": 0.5,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.6519480519480519,
+        "probe_accuracy_std": 0.039923184802439976,
+        "probe_information_lower_bound_nats_mean": 0.03873695331695459,
+        "probe_information_lower_bound_nats_std": 0.060116318346185006
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.0010395526885986328,
+        "conditional_mmd2_u_mean_std": 0.00010383910417724468,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0009343045181594789,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 3.990929518931688e-05,
+        "kappa": 1.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.7311688311688311,
+        "probe_accuracy_std": 0.029614946106471113,
+        "probe_information_lower_bound_nats_mean": 0.1646418577568024,
+        "probe_information_lower_bound_nats_std": 0.0335692066025258
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.001667708158493042,
+        "conditional_mmd2_u_mean_std": 0.0001095372247411656,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0012000538641586899,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 4.0927533313880636e-05,
+        "kappa": 2.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.8441558441558442,
+        "probe_accuracy_std": 0.022958012376186585,
+        "probe_information_lower_bound_nats_mean": 0.33489001531442575,
+        "probe_information_lower_bound_nats_std": 0.025549721176430094
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.001796281337738037,
+        "conditional_mmd2_u_mean_std": 0.0001272249735559691,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0013067297404631972,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 6.183995934412973e-05,
+        "kappa": 4.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.9116883116883117,
+        "probe_accuracy_std": 0.013465221658005027,
+        "probe_information_lower_bound_nats_mean": 0.43957291995710135,
+        "probe_information_lower_bound_nats_std": 0.026996830972173695
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.0020542144775390625,
+        "conditional_mmd2_u_mean_std": 0.00023855842273985526,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.0013411859748885036,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 5.459140069858312e-05,
+        "kappa": 8.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.9259740259740259,
+        "probe_accuracy_std": 0.016298571945468996,
+        "probe_information_lower_bound_nats_mean": 0.44116077948481414,
+        "probe_information_lower_bound_nats_std": 0.02491832863211091
+      },
+      {
+        "conditional_mmd2_u_mean_mean": 0.001878887414932251,
+        "conditional_mmd2_u_mean_std": 9.612665977556297e-05,
+        "global_mmd2_u_mean": 2.084970474243164e-05,
+        "global_mmd2_u_std": 6.153690160498436e-05,
+        "global_mmd_null_q95_mean": 0.00011907696723937984,
+        "global_mmd_null_q95_std": 1.869237696290544e-05,
+        "global_mmd_p_value_mean": 0.382,
+        "global_mmd_p_value_std": 0.3092248372948072,
+        "global_mmd_rejection_rate_005": 0.0,
+        "hsic_mean": 0.001347262947820127,
+        "hsic_rejection_rate_005": 1.0,
+        "hsic_std": 5.365086465473567e-05,
+        "kappa": 16.0,
+        "n_replications": 5,
+        "probe_accuracy_mean": 0.922077922077922,
+        "probe_accuracy_std": 0.027929627490398148,
+        "probe_information_lower_bound_nats_mean": 0.43515641465492844,
+        "probe_information_lower_bound_nats_std": 0.02809451062865172
+      }
+    ]
+  }
+}

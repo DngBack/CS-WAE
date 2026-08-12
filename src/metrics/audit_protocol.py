@@ -32,7 +32,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 
-AUDIT_PROTOCOL_VERSION = "stage0-1.1.0"
+AUDIT_PROTOCOL_VERSION = "stage0-1.2.0"
 DEFAULT_EVAL_SAMPLES = 2048
 DEFAULT_HSIC_SAMPLES = 1024
 DEFAULT_HSIC_PERMUTATIONS = 200
@@ -203,6 +203,46 @@ def global_mmd_to_standard_normal(
     return mmd2_unbiased(z_s_sample, reference, sigmas)
 
 
+def conditional_mmd_to_standard_normal(
+    z_s_sample: torch.Tensor,
+    labels: torch.Tensor,
+    n_classes: int,
+    seed: int = 0,
+    sigmas: Sequence[float] = EUCLIDEAN_SIGMAS,
+) -> dict:
+    """Per-class MMD²_U(q(z_s|y=k), N(0,I)) with independent references."""
+
+    per_class: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for class_index in range(n_classes):
+        class_values = z_s_sample[labels == class_index]
+        count = int(class_values.shape[0])
+        counts[str(class_index)] = count
+        if count < 2:
+            continue
+        generator = torch.Generator(device="cpu").manual_seed(seed + class_index)
+        reference = torch.randn(
+            class_values.shape,
+            generator=generator,
+            dtype=class_values.dtype,
+            device="cpu",
+        ).to(class_values.device)
+        per_class[str(class_index)] = mmd2_unbiased(class_values, reference, sigmas)
+    if not per_class:
+        raise ValueError("Conditional MMD requires a represented class with two samples")
+    values = np.asarray(list(per_class.values()), dtype=np.float64)
+    return {
+        "mean_mmd2_u": float(values.mean()),
+        "min_mmd2_u": float(values.min()),
+        "max_mmd2_u": float(values.max()),
+        "per_class_mmd2_u": per_class,
+        "class_counts": counts,
+        "reference_seed_base": int(seed),
+        "sigmas": [float(value) for value in sigmas],
+        "estimator": "mean per-class unbiased MMD^2 U-statistic to independent N(0,I) references",
+    }
+
+
 def delta_inter(z: torch.Tensor, labels: torch.Tensor, n_classes: int) -> float:
     """Mean pairwise Euclidean distance between class-conditional means."""
 
@@ -282,9 +322,13 @@ def _torch_probe_metrics(model: nn.Module, x: np.ndarray, y: np.ndarray) -> dict
     with torch.no_grad():
         logits = model(torch.from_numpy(x).float())
         predictions = logits.argmax(1).cpu().numpy()
+        cross_entropy = float(
+            F.cross_entropy(logits, torch.from_numpy(y).long()).item()
+        )
     return {
         "accuracy": float(accuracy_score(y, predictions)),
         "macro_f1": float(f1_score(y, predictions, average="macro")),
+        "cross_entropy_nats": cross_entropy,
     }
 
 
@@ -355,6 +399,9 @@ def run_probe_suite(
     mean, scale = _fit_standardizer(x[split.train])
     x_scaled = ((x - mean) / scale).astype(np.float32)
     n_classes = int(y.max()) + 1
+    test_counts = np.bincount(y[split.test], minlength=n_classes).astype(np.float64)
+    test_probabilities = test_counts[test_counts > 0] / test_counts.sum()
+    test_label_entropy = float(-(test_probabilities * np.log(test_probabilities)).sum())
     results: dict[str, dict] = {}
 
     for name in probe_names:
@@ -382,14 +429,21 @@ def run_probe_suite(
             metric = lambda idx: _accuracy_and_f1(model, x_scaled[idx], y[idx])
         else:
             raise ValueError(f"Unknown probe '{name}'")
-        results[name] = {
+        model_result = {
             "train": metric(split.train),
             "validation": metric(split.validation),
             "test": metric(split.test),
         }
+        test_cross_entropy = model_result["test"].get("cross_entropy_nats")
+        if test_cross_entropy is not None:
+            model_result["test"]["information_lower_bound_nats"] = float(
+                test_label_entropy - test_cross_entropy
+            )
+        results[name] = model_result
 
     return {
         "feature_standardization": "mean/std fitted on train split only",
+        "test_label_entropy_nats": test_label_entropy,
         "split": split.metadata(),
         "models": results,
     }

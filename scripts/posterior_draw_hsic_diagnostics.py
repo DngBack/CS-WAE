@@ -50,7 +50,7 @@ def extract_posterior_parameters(model, loader, device):
     return {key: torch.cat(parts) for key, parts in values.items()}
 
 
-def draw_latents(parameters, seed, device):
+def draw_latents(model, parameters, seed, device):
     generator = torch.Generator(device="cpu").manual_seed(seed)
     mu_c = parameters["mu_c"]
     epsilon_c = F.normalize(
@@ -59,10 +59,11 @@ def draw_latents(parameters, seed, device):
     z_c = mobius_reparam(
         epsilon_c.to(device), mu_c.to(device), parameters["rho_c"].to(device)
     )
-    logvar = parameters["logvar_s"].clamp(-10, 10)
-    std_s = torch.exp(0.5 * logvar)
-    epsilon_s = torch.randn(std_s.shape, generator=generator, dtype=std_s.dtype)
-    z_s = parameters["mu_s"].to(device) + std_s.to(device) * epsilon_s.to(device)
+    z_s, _std_s = model.sample_style(
+        parameters["mu_s"].to(device),
+        parameters["logvar_s"].to(device),
+        generator=generator,
+    )
     return z_c, z_s
 
 
@@ -101,7 +102,7 @@ def main():
     draw_results = []
     for draw_index in range(args.draws):
         draw_seed = args.seed + draw_index
-        z_c, z_s = draw_latents(parameters, draw_seed, device)
+        z_c, z_s = draw_latents(model, parameters, draw_seed, device)
         result = classwise_conditional_hsic_permutation_test(
             z_c, z_s, labels, model.n_classes, seed=draw_seed,
             n_permutations=args.hsic_permutations,
@@ -122,7 +123,15 @@ def main():
         "all_draws_reject_at_0.05": bool(np.all(p_values <= 0.05)),
         "p_values": p_values.tolist(),
         "fraction_raw_logvar_at_or_below_minus10": float((raw_logvar <= -10.0).mean()),
-        "effective_std_median": float(np.median(np.exp(0.5 * np.clip(raw_logvar, -10, 10)))),
+        "configured_sigma_floor": float(model.style_sigma_floor),
+        "effective_std_median": float(
+            np.median(
+                np.sqrt(
+                    np.exp(np.clip(raw_logvar, -10, 10))
+                    + model.style_sigma_floor**2
+                )
+            )
+        ),
     }
 
     fig, ax = plt.subplots(figsize=(5.4, 3.3))

@@ -54,6 +54,10 @@ class FCSWAEConfig:
     eta_init: float = 0.1      # L_cls:   auxiliary CE weight at phase B start
     eta_final: float = 0.3     # L_cls:   auxiliary CE weight at phase D end
     lambda_var: float = 0.0    # diversity reg disabled: StyleMMD already handles z_s diversity
+    # Controlled posterior-noise intervention.  The effective style variance is
+    # exp(clamp(logvar_s, -10, 10)) + style_sigma_floor**2.  Zero exactly
+    # preserves the historical checkpoints and training objective.
+    style_sigma_floor: float = 0.0
 
     # --- Evaluation ---
     num_images_for_fid: int = 10000

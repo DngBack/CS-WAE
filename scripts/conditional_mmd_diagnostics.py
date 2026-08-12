@@ -71,7 +71,10 @@ from scripts.compute_leakage_diagnostics import (
     compute_global_mmd,
     compute_delta_inter,
 )
-from src.metrics.audit_protocol import DEFAULT_EVAL_SAMPLES
+from src.metrics.audit_protocol import (
+    DEFAULT_EVAL_SAMPLES,
+    conditional_mmd_to_standard_normal,
+)
 from src.utils.provenance import build_manifest, save_result_with_manifest
 from src.utils.seed import set_seed
 
@@ -88,15 +91,21 @@ def compute_conditional_mmd(
     mmd_to_marginal = np.zeros(n_classes)
     class_z = {}
 
+    canonical_prior = conditional_mmd_to_standard_normal(
+        z_s,
+        labels,
+        n_classes,
+        seed=seed + 11_000,
+    )
+    for class_key, value in canonical_prior["per_class_mmd2_u"].items():
+        mmd_to_prior[int(class_key)] = value
+
     for k in range(n_classes):
         mask = labels == k
         z_k = z_s[mask]
         class_z[k] = z_k
         if z_k.shape[0] < 2:
             continue
-        generator = torch.Generator(device="cpu").manual_seed(seed + 11_000 + k)
-        z_p = torch.randn(z_k.shape, generator=generator, dtype=z_k.dtype).to(z_k.device)
-        mmd_to_prior[k] = mmd2_rbf(z_k, z_p)
         mmd_to_marginal[k] = mmd2_rbf(z_k, z_s)
 
     pairwise_mmd = np.zeros((n_classes, n_classes))

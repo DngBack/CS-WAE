@@ -15,6 +15,12 @@ EMA center update strategy:
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+import random
+from typing import Any
+
+import numpy as np
 import torch
 import torch.optim as optim
 from tqdm import tqdm
@@ -22,6 +28,49 @@ import lpips
 
 from ..config_f_cs_wae import f_cs_wae_config as cfg
 from ..utils.loss_f_cs_wae import calculate_f_cs_wae_loss
+
+
+TRAINING_CHECKPOINT_SCHEMA_VERSION = "fcswae-training-1.0.0"
+
+
+def _capture_rng_state(train_loader) -> dict[str, Any]:
+    """Capture every RNG stream that affects the next training epoch."""
+
+    loader_generator = getattr(train_loader, "generator", None)
+    return {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch_cpu": torch.get_rng_state(),
+        "torch_cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+        "data_loader_generator": (
+            loader_generator.get_state() if loader_generator is not None else None
+        ),
+    }
+
+
+def _restore_rng_state(state: dict[str, Any], train_loader) -> None:
+    """Restore RNG state after model/optimizer construction has consumed RNG."""
+
+    random.setstate(state["python"])
+    np.random.set_state(state["numpy"])
+    torch.set_rng_state(state["torch_cpu"])
+    cuda_state = state.get("torch_cuda")
+    if cuda_state is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(cuda_state)
+    loader_state = state.get("data_loader_generator")
+    loader_generator = getattr(train_loader, "generator", None)
+    if loader_state is not None and loader_generator is not None:
+        loader_generator.set_state(loader_state)
+
+
+def atomic_torch_save(payload: dict, path: str | Path) -> None:
+    """Write a checkpoint without exposing a partially-written target file."""
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.tmp")
+    torch.save(payload, temporary)
+    os.replace(temporary, target)
 
 
 class FCSWAETrainer:
@@ -40,6 +89,87 @@ class FCSWAETrainer:
             gamma=cfg.lr_scheduler_gamma,
         )
         self.loss_fn_vgg = lpips.LPIPS(net="vgg").to(self.device)
+
+    # ------------------------------------------------------------------
+    # Crash-safe checkpointing
+    # ------------------------------------------------------------------
+
+    def save_training_checkpoint(
+        self,
+        checkpoint_path: str | Path,
+        *,
+        completed_epochs: int,
+        history: list[dict[str, float]],
+        run_config: dict[str, Any],
+    ) -> None:
+        """Atomically save all state needed to continue at an epoch boundary."""
+
+        payload = {
+            "schema_version": TRAINING_CHECKPOINT_SCHEMA_VERSION,
+            "completed_epochs": int(completed_epochs),
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "scheduler_state_dict": self.scheduler.state_dict(),
+            "history": history,
+            "run_config": run_config,
+            "rng_state": _capture_rng_state(self.train_loader),
+        }
+        atomic_torch_save(payload, checkpoint_path)
+
+    def load_training_checkpoint(
+        self,
+        checkpoint_path: str | Path,
+        *,
+        expected_run_config: dict[str, Any] | None = None,
+    ) -> tuple[int, list[dict[str, float]]]:
+        """Restore a trusted local checkpoint and return the next epoch/history."""
+
+        checkpoint = torch.load(
+            checkpoint_path,
+            # RNG snapshots must remain CPU ByteTensors. Model and optimizer
+            # loaders copy their own state to the parameter device.
+            map_location="cpu",
+            weights_only=False,
+        )
+        if checkpoint.get("schema_version") != TRAINING_CHECKPOINT_SCHEMA_VERSION:
+            raise ValueError(
+                "Unsupported training checkpoint schema: "
+                f"{checkpoint.get('schema_version')!r}"
+            )
+        if expected_run_config is not None:
+            stored = checkpoint.get("run_config", {})
+            keys = (
+                "dataset",
+                "seed",
+                "epochs",
+                "n_centers",
+                "semantic_dim",
+                "style_dim",
+                "delta_final",
+                "style_sigma_floor",
+                "phase_a_end",
+                "phase_b_end",
+            )
+            mismatches = {
+                key: (stored.get(key), expected_run_config.get(key))
+                for key in keys
+                if stored.get(key) != expected_run_config.get(key)
+            }
+            if mismatches:
+                raise ValueError(f"Resume configuration mismatch: {mismatches}")
+
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+        _restore_rng_state(checkpoint["rng_state"], self.train_loader)
+        completed_epochs = int(checkpoint["completed_epochs"])
+        history = list(checkpoint["history"])
+        if completed_epochs != len(history):
+            raise ValueError(
+                "Checkpoint history length does not match completed_epochs: "
+                f"{len(history)} != {completed_epochs}"
+            )
+        return completed_epochs, history
 
     # ------------------------------------------------------------------
     # Phase weight schedule
@@ -184,15 +314,55 @@ class FCSWAETrainer:
     # Full training loop
     # ------------------------------------------------------------------
 
-    def train(self, epochs: int | None = None) -> list[dict[str, float]]:
-        """Run all epochs. Returns per-epoch loss history."""
-        epochs = epochs or cfg.total_epochs
-        history: list[dict[str, float]] = []
+    def train(
+        self,
+        epochs: int | None = None,
+        *,
+        start_epoch: int = 0,
+        history: list[dict[str, float]] | None = None,
+        checkpoint_path: str | Path | None = None,
+        checkpoint_every: int = 1,
+        run_config: dict[str, Any] | None = None,
+    ) -> list[dict[str, float]]:
+        """Run through ``epochs``, optionally checkpointing at epoch boundaries."""
 
-        print(f"F-CS-WAE training on {self.device} — {epochs} epochs")
-        for epoch in range(epochs):
+        epochs = epochs or cfg.total_epochs
+        history = [] if history is None else list(history)
+        if checkpoint_every < 1:
+            raise ValueError("checkpoint_every must be positive")
+        if start_epoch < 0 or start_epoch > epochs:
+            raise ValueError(f"start_epoch must be in [0, {epochs}], got {start_epoch}")
+        if len(history) != start_epoch:
+            raise ValueError(
+                f"history length ({len(history)}) must equal start_epoch ({start_epoch})"
+            )
+
+        print(
+            f"F-CS-WAE training on {self.device} — target {epochs} epochs, "
+            f"starting at epoch {start_epoch + 1 if start_epoch < epochs else epochs}"
+        )
+        for epoch in range(start_epoch, epochs):
             avg = self.train_epoch(epoch)
             history.append(avg)
+            completed_epochs = epoch + 1
+            should_checkpoint = (
+                checkpoint_path is not None
+                and (
+                    completed_epochs % checkpoint_every == 0
+                    or completed_epochs == epochs
+                )
+            )
+            if should_checkpoint:
+                self.save_training_checkpoint(
+                    checkpoint_path,
+                    completed_epochs=completed_epochs,
+                    history=history,
+                    run_config=run_config or {},
+                )
+                print(
+                    f"Checkpoint saved after epoch {completed_epochs} "
+                    f"→ {checkpoint_path}"
+                )
 
         print("Training complete.")
         return history
