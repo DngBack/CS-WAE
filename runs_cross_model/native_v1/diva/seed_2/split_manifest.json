@@ -1,0 +1,119 @@
+{
+  "loader_seed": 2,
+  "schema_version": "rotated-mnist-two-domain-1.0.0",
+  "split_seed": 2027,
+  "test": {
+    "angles_degrees": [
+      -30.0,
+      30.0
+    ],
+    "digit_domain_counts": [
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        500,
+        500
+      ]
+    ],
+    "finite_sample_domain_digit_independence": true,
+    "n_paired_examples": 10000,
+    "n_source_images": 5000,
+    "official_split": "test",
+    "ordered_source_domain_pairs_sha256": "de163195d462fa39136577b624e632577693004a89c37dab62c33e813e71c0b8",
+    "ordered_source_indices_sha256": "513d4a663c09a89f8a41bb97e8ebf010f594c92f022d39fe8626205f71581d53",
+    "schema_version": "rotated-mnist-two-domain-1.0.0",
+    "sources_per_class": 500,
+    "subset_seed": 22027
+  },
+  "train": {
+    "angles_degrees": [
+      -30.0,
+      30.0
+    ],
+    "digit_domain_counts": [
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ],
+      [
+        2000,
+        2000
+      ]
+    ],
+    "finite_sample_domain_digit_independence": true,
+    "n_paired_examples": 40000,
+    "n_source_images": 20000,
+    "official_split": "train",
+    "ordered_source_domain_pairs_sha256": "7e8a2e6eb91d0df8a51cdfc262275b5ce64ac99a14737c16d74ec57458a77f9b",
+    "ordered_source_indices_sha256": "ea6ead43cbe8e723fe9ba6d86e59bd71aba06f6ab0d99e4672111177d0ec0219",
+    "schema_version": "rotated-mnist-two-domain-1.0.0",
+    "sources_per_class": 2000,
+    "subset_seed": 12027
+  }
+}

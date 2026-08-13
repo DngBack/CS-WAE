@@ -16,7 +16,7 @@ _RESNET_CHANNELS = 512
 
 
 class ResNet18Body(nn.Module):
-    """ResNet-18 feature trunk adapted for 32×32 inputs (CIFAR-style)."""
+    """ResNet-18 feature trunk with a stable 4x4 output for 32/64 inputs."""
 
     def __init__(self, in_channels: int = 3):
         super().__init__()
@@ -32,11 +32,15 @@ class ResNet18Body(nn.Module):
             m.layer3,
             m.layer4,
         )
+        # 32x32 already reaches 4x4. Shapes3D 64x64 reaches 8x8 and is
+        # adaptively pooled, avoiding a fixed flattened-size assumption while
+        # preserving all historical 32x32 parameter names/checkpoints.
+        self.output_pool = nn.AdaptiveAvgPool2d((_RESNET_SPATIAL, _RESNET_SPATIAL))
         self.out_channels = _RESNET_CHANNELS
         self.spatial = _RESNET_SPATIAL
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.body(x)
+        return self.output_pool(self.body(x))
 
 
 class ResNet18EncoderCSWAE(nn.Module):

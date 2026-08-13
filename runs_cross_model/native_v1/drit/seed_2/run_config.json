@@ -1,0 +1,22 @@
+{
+  "batch_size": 128,
+  "cross_model_protocol_version": "native-cross-model-1.0.0",
+  "dataset": "rotated_mnist_two_domain",
+  "delta_final": null,
+  "epochs": 100,
+  "family": "drit",
+  "model": {
+    "content_dim": 64,
+    "style_dim": 8
+  },
+  "n_centers": null,
+  "phase_a_end": null,
+  "phase_b_end": null,
+  "seed": 2,
+  "semantic_dim": 64,
+  "split_seed": 2027,
+  "style_dim": 8,
+  "style_sigma_floor": null,
+  "test_per_class": 500,
+  "train_per_class": 2000
+}

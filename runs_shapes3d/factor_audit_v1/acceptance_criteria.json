@@ -1,0 +1,86 @@
+{
+  "designated_semantic_factor": "shape",
+  "evaluation": {
+    "audit_per_shape": 1024,
+    "hsic_permutations": 200,
+    "hsic_samples": 1024,
+    "mmd_permutations": 500,
+    "mmd_samples": 2048,
+    "multiple_testing": "Holm correction separately within each latent view",
+    "primary_latent_view": "stochastic posterior sample"
+  },
+  "factor_evaluator_thresholds": {
+    "floor_hue": 0.9,
+    "object_hue": 0.9,
+    "orientation": 0.9,
+    "scale": 0.9,
+    "shape": 0.95,
+    "wall_hue": 0.9
+  },
+  "model": {
+    "conditional_style_mmd_weight": 0.0,
+    "ema_momentum": 0.95,
+    "image_size": 64,
+    "in_channels": 3,
+    "n_centers": 1,
+    "n_classes": 4,
+    "rho_prior": 0.7,
+    "semantic_dim": 64,
+    "style_dim": 64,
+    "style_sigma_floor": 0.0
+  },
+  "model_competence_thresholds": {
+    "content_shape_logistic_accuracy_min": 0.8,
+    "reconstruction_l1_max": 0.12,
+    "reconstruction_shape_accuracy_min": 0.8,
+    "reconstruction_style_factor_accuracy_mean_min": 0.7
+  },
+  "shapes3d_protocol_version": "shapes3d-factor-audit-1.0.0",
+  "source": {
+    "images": {
+      "dtype": "uint8",
+      "shape": [
+        480000,
+        64,
+        64,
+        3
+      ]
+    },
+    "labels": {
+      "dtype": "float64",
+      "shape": [
+        480000,
+        6
+      ]
+    },
+    "path": "/media/drive-2t/CS-WAE-bachdx2/data/shapes3d/3dshapes.h5",
+    "sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785",
+    "size_bytes": 267573662,
+    "source_url": "https://storage.googleapis.com/3d-shapes/3dshapes.h5"
+  },
+  "split": {
+    "counts": {
+      "test": 20000,
+      "train": 120000,
+      "validation": 20000
+    },
+    "seed": 2027,
+    "type": "shape-stratified IID; no compositional holdout"
+  },
+  "stage0_audit_protocol_version": "stage0-1.2.0",
+  "style_factors": [
+    "floor_hue",
+    "wall_hue",
+    "object_hue",
+    "scale",
+    "orientation"
+  ],
+  "training": {
+    "batch_size": 64,
+    "epochs": 100,
+    "factor_evaluator_batch_size": 128,
+    "factor_evaluator_epochs": 20,
+    "fixed_final_epoch": true,
+    "no_audit_based_checkpoint_selection": true
+  }
+}

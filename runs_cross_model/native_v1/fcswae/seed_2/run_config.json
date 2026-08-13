@@ -1,0 +1,30 @@
+{
+  "batch_size": 128,
+  "cross_model_protocol_version": "native-cross-model-1.0.0",
+  "dataset": "rotated_mnist_two_domain",
+  "delta_final": 0.0,
+  "epochs": 100,
+  "family": "fcswae",
+  "model": {
+    "conditional_style_mmd_weight": 0.0,
+    "ema_momentum": 0.95,
+    "image_size": 28,
+    "in_channels": 1,
+    "n_centers": 1,
+    "n_classes": 10,
+    "rho_prior": 0.7,
+    "semantic_dim": 64,
+    "style_dim": 32,
+    "style_sigma_floor": 0.0
+  },
+  "n_centers": 1,
+  "phase_a_end": 20,
+  "phase_b_end": 40,
+  "seed": 2,
+  "semantic_dim": 64,
+  "split_seed": 2027,
+  "style_dim": 32,
+  "style_sigma_floor": 0.0,
+  "test_per_class": 500,
+  "train_per_class": 2000
+}

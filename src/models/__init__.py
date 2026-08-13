@@ -22,6 +22,12 @@ from .baselines_extended import (
 
 # F-CS-WAE ablation
 from .f_cs_wae_ablation import FCSWAEAblation, create_f_cs_wae_ablation, ABLATION_VARIANTS
+from .native_factorized_baselines import NativeDIVA, NativeDRIT
+from .shapes3d_factor_evaluator import Shapes3DFactorEvaluator
+from .shapes3d_factorized_baselines import (
+    Shapes3DConditionalVAE,
+    Shapes3DContentStyleVAE,
+)
 
 __all__ = [
     # CS-WAE (original)
@@ -55,4 +61,10 @@ __all__ = [
     "FCSWAEAblation",
     "create_f_cs_wae_ablation",
     "ABLATION_VARIANTS",
+    # Native cross-model audit families
+    "NativeDIVA",
+    "NativeDRIT",
+    "Shapes3DFactorEvaluator",
+    "Shapes3DConditionalVAE",
+    "Shapes3DContentStyleVAE",
 ]

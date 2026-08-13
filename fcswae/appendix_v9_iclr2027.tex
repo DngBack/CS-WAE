@@ -1,0 +1,818 @@
+\section{Proofs}
+\label{app:proofs}
+
+\subsection{Proof of Proposition~\ref{prop:nocert}}
+
+The label is defined after drawing $\zs$ and therefore does not alter the
+marginal law of $\zs$.  Hence $q(\zs)=\mathcal N(0,I)$ and any divergence
+between these two identical measures is zero.  Because $y$ is a deterministic
+function of $\zs$, $H(y\mid\zs)=0$.  The equal-probability partition gives
+$H(y)=\log K$, and consequently
+$I(\zs;y)=H(y)-H(y\mid\zs)=\log K$.
+
+\subsection{A smooth, full-support construction}
+
+Let $z\sim\mathcal N(0,1)$ and, conditional on $z$, draw a binary label with
+\begin{equation}
+P(y=1\mid z)=\sigma(az),\qquad P(y=0\mid z)=\sigma(-az),
+\end{equation}
+where $a>0$ and $\sigma(t)=(1+e^{-t})^{-1}$.  Since the standard normal
+density $\phi$ is symmetric and $\sigma(t)+\sigma(-t)=1$,
+\begin{align}
+P(y=1)
+&=\int_{\mathbb R}\phi(z)\sigma(az)\,dz\\
+&=\frac12\int_{\mathbb R}\phi(z)
+\bigl[\sigma(az)+\sigma(-az)\bigr]\,dz=\frac12.
+\end{align}
+The generative construction starts with the standard normal and changes only
+the conditional label law, so the marginal of $z$ remains exactly standard
+normal.  Bayes' rule gives
+\begin{equation}
+q(z\mid y=1)=2\phi(z)\sigma(az),\qquad
+q(z\mid y=0)=2\phi(z)\sigma(-az).
+\end{equation}
+Both densities are smooth and strictly positive on $\mathbb R$.  When
+$a\rightarrow\infty$, the conditional label approaches the indicator of the
+sign of $z$ outside a set of Gaussian measure zero.  Thus
+$H(y\mid z)\rightarrow0$ and $I(z;y)\rightarrow\log2$ while the marginal
+remains unchanged.
+
+\subsection{Proof of Theorem~\ref{thm:decomp}}
+
+For a fixed $y$, insert the product of the encoder conditionals and apply the
+KL chain rule:
+\begin{align}
+&\KL\!\left(q(\zc,\zs\mid y)\|p(\zc\mid y)p(\zs)\right)\\
+={}&\KL\!\left(q(\zc,\zs\mid y)\|q(\zc\mid y)q(\zs\mid y)\right)\nonumber\\
+&+\KL(q(\zc\mid y)\|p(\zc\mid y))
++\KL(q(\zs\mid y)\|p(\zs)).
+\end{align}
+The first term is $I_q(\zc;\zs\mid y)$ at that label.  Averaging over
+$q(y)$ gives term 4 and term 3 of Eq.~\ref{eq:decomp}.  For the last term,
+insert the aggregate posterior $q(\zs)$:
+\begin{align}
+\mathbb E_{q(y)}\KL(q(\zs\mid y)\|p(\zs))
+={}&\mathbb E_{q(y)}\KL(q(\zs\mid y)\|q(\zs))\nonumber\\
+&+\KL(q(\zs)\|p(\zs))\\
+={}&I_q(\zs;y)+\KL(q(\zs)\|p(\zs)).
+\end{align}
+This establishes the equality for arbitrary $q(y)$.  Non-negativity follows
+from non-negativity of KL divergence and mutual information.
+
+\subsection{Proof of Corollary~\ref{cor:valid}}
+
+An expectation of a non-negative KL is zero iff its integrand is zero for
+$q(y)$-almost every $y$, which holds iff the two latent conditional measures
+are equal.  The pushforward inequality follows by applying the data-processing
+inequality to the deterministic Markov kernel induced by the decoder for each
+$y$, then averaging over $q(y)$.
+
+\section{Architecture and Training}
+\label{app:model}
+
+\subsection{Architecture}
+
+The shared encoder is a ResNet-18 adapted to small images: its first
+$7\times7$, stride-2 convolution is replaced by a $3\times3$, stride-1
+convolution and max pooling is removed.  The trunk output is flattened and
+mapped to 256 dimensions with SiLU.  Separate heads produce an unnormalized
+semantic direction, a scalar semantic concentration, a style mean, and a
+style log variance.  We use
+\begin{align}
+\muc&=\widetilde\muc/\|\widetilde\muc\|_2, &
+\rho_c&=\sigma(r_c)(1-\varepsilon),\\
+\zs&=\mus+\exp(\tfrac12\log\sigma_s^2)\odot\epsilon,
+&\epsilon&\sim\mathcal N(0,I).
+\end{align}
+The semantic code is sampled by a Spherical Cauchy M\"obius
+reparameterization.  The decoder concatenates $[\zc;\zs]$, projects it to a
+$512\times4\times4$ tensor, and applies three residual bilinear-upsample
+blocks with channel widths $256,128,64$.  Its sigmoid output is interpolated
+to the native dataset resolution when necessary.  MNIST and Fashion-MNIST
+therefore remain $28\times28$ and single-channel; CIFAR-10 remains
+$32\times32\times3$.
+
+For class $k$, the semantic prior is a Spherical Cauchy distribution centered
+at an EMA direction $m_k$, with concentration $\rho_p=0.7$.  The center is
+updated once per epoch from encoded class-mean directions with momentum
+$0.95$.  The style prior is $\mathcal N(0,I)$.
+
+\subsection{Objective}
+
+The training objective is
+\begin{align}
+\mathcal L={}&\mathcal L_{\mathrm{rec}}
++\alpha(t)\mathcal L_{\mathrm{class}}
++\beta(t)\mathcal L_{\mathrm{agg}}
++\gamma(t)\mathcal L_{\mathrm{style}}\nonumber\\
+&+\delta(t)\mathcal L_{\mathrm{style-cls}}
++\eta(t)\mathcal L_{\mathrm{cls}}.
+\end{align}
+$\mathcal L_{\mathrm{rec}}$ is L1 plus $0.1$ LPIPS
+\citep{zhang2018unreasonable}.  $\mathcal L_{\mathrm{class}}$ matches each
+semantic class conditional to its spherical prior, $\mathcal L_{\mathrm{agg}}$
+matches aggregate semantic codes to the class-prior mixture,
+$\mathcal L_{\mathrm{style}}$ matches sampled style codes to a standard
+Gaussian, and $\mathcal L_{\mathrm{cls}}$ is cross entropy from $\muc$.
+The baseline checkpoints audited in the main paper explicitly set
+$\delta=0$; the repository default for new remedied runs is $\delta=1$, so
+the run manifest or command-line override is required to distinguish them.
+
+\begin{table}[ht]
+\caption{Case-study training hyperparameters.}
+\label{tab:hyperparameters}
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Optimizer & Adam, learning rate $10^{-3}$ \\
+Schedule & StepLR, step 100, factor $0.5$ \\
+Batch size / epochs & 128 / 300 \\
+Gradient clipping & global norm 1.0 \\
+Semantic / style dimension & 64 / 128 \\
+Semantic-prior concentration & 0.7 \\
+EMA momentum & 0.95 \\
+Final class / aggregate MMD weights & 2.0 / 5.0 \\
+Final global style MMD weight & 1.0 \\
+Final auxiliary-classifier weight & 0.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training has four phases: reconstruction only for epochs 0--49; global style
+MMD and the auxiliary classifier ramp during epochs 50--99; semantic class
+and aggregate MMD ramp to half strength during epochs 100--199; all terms
+reach full strength during epochs 200--299.  For remedied runs, per-class
+style MMD follows the global-style ramp.  No image augmentation is used.
+
+\section{Canonical Audit Protocol}
+\label{app:protocol}
+
+\subsection{Data split and latent views}
+
+For each checkpoint we select 2,048 examples from the standard test split
+with evaluation seed 0.  Probe indices are generated by a deterministic
+stratified 60/20/20 split, yielding 1,228 training, 410 validation, and 410
+test examples.  Standardization parameters are estimated only on the 1,228
+probe-training examples.  The split indices are stored by SHA-256 hash in
+each result manifest.
+
+The encoder is evaluated once to obtain $(\muc,\mus,\log\sigma_s^2)$ and a
+seeded stochastic draw $\zs$.  We use:
+\begin{itemize}
+    \item $\mus$ for representation probes and deterministic mean swaps;
+    \item $\zs$ for global MMD, conditional style statistics, and the
+    sampling-contract probe; and
+    \item both $(\muc,\mus)$ and repeated posterior draws $(\zc,\zs)$ for
+    the conditional-dependence diagnostic.
+\end{itemize}
+Agreement between these views is reported as an empirical result rather than
+assumed.
+
+\subsection{Probe suite}
+
+The suite contains multinomial logistic regression, a fixed two-layer MLP,
+RBF-SVM, and $k$-NN.  Validation data are used for fixed early-stopping or
+model-selection rules; every headline accuracy is evaluated once on the
+untouched test partition.  We report accuracy and macro-F1.  The main paper
+uses logistic regression as the simplest standardized headline and includes
+RBF-SVM to detect nonlinear separation.
+
+\subsection{MMD and HSIC}
+
+Global MMD is the unbiased U-statistic with the averaged Euclidean RBF kernel
+\begin{equation}
+k(u,v)=\frac17\sum_{\sigma\in\{0.5,1,2,5,10,20,50\}}
+\exp\!\left(-\frac{\|u-v\|_2^2}{2\sigma^2}\right).
+\end{equation}
+The Gaussian reference has the same sample count as the encoded set and uses
+an RNG stream independent of posterior sampling.  A balanced pooled-label
+permutation test calibrates the finite-sample null with 500 permutations.
+The resulting null 95th percentiles are $1.88$--$2.45\times10^{-5}$, whereas
+observed global MMD is $2.48$--$5.79\times10^{-4}$; exact equality is rejected
+for every checkpoint ($p=1/501$).  We therefore use ``small'' only as a
+relative numerical description, not as acceptance of the equality null.
+$\Dinter$ is not an MMD; it is the average Euclidean distance between all
+pairs of class-conditional style means.
+
+HSIC centers a multiscale style Gram matrix and a label Gram matrix and uses
+1,024 examples for bounded memory.  We calibrate it by 200 label
+permutations.  With the plus-one correction,
+\begin{equation}
+p=\frac{1+\#\{T_b\ge T_{\mathrm{obs}}\}}{201},
+\end{equation}
+so $p=0.004975$ is reported rather than $p=0$.  Conditional HSIC for term 4
+permutes styles independently inside every represented class.
+
+We do not report the current JointMMD U-statistic as a headline result.  Its
+joint and recombined samples share observations, so the nominal independent
+two-sample U-statistic assumptions require a sample-splitting calibration
+that is not yet part of the canonical protocol.
+
+\section{Full Stage-0 Results}
+\label{app:full-results}
+
+\begin{table}[ht]
+\caption{Full held-out probe suite from the original audit.  Values are test
+accuracy in percent.  MNIST/Fashion-MNIST rows are seed-0 details; CIFAR-10 is
+mean $\pm$ sample standard deviation over model seeds 0, 1, 2.}
+\label{tab:full-probes}
+\centering
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & View & Logistic & MLP & RBF-SVM & $k$-NN \\
+\midrule
+MNIST & $\mus$ & 99.76 & 99.51 & 99.76 & 97.80 \\
+      & $\zs$  & 99.76 & 99.51 & 99.76 & 97.80 \\
+Fashion & $\mus$ & 88.29 & 90.73 & 93.17 & 85.12 \\
+        & $\zs$  & 88.29 & 90.73 & 93.17 & 85.61 \\
+CIFAR-10 & $\mus$ & $68.46\pm6.29$ & $70.49\pm3.83$ &
+$70.24\pm3.23$ & $42.52\pm6.93$ \\
+         & $\zs$ & $68.62\pm6.19$ & $70.57\pm3.50$ &
+$70.16\pm3.36$ & $42.20\pm7.11$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\caption{Completed three-seed headline replication for the original MNIST and
+Fashion-MNIST checkpoints.  Values are rounded aggregate results; every
+seedwise HSIC test attains $p=1/201$.}
+\label{tab:mnist-fashion-aggregate-v9}
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Dataset & Global MMD & Logit $z_s$ (\%) & Cond. MMD & HSIC $p$ \\
+\midrule
+MNIST & .00058 & 99.6 & .0160 & .00498 \\
+Fashion-MNIST & .00034 & 88.0 & .010 & .00498 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\caption{Per-seed CIFAR-10 results for the two principal probes.}
+\label{tab:cifar-seeds}
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Seed & $\Dinter(\zs)$ & Logit $\mus$ & Logit $\zs$ & RBF $\mus$ & RBF $\zs$ \\
+\midrule
+0 & 3.801 & 61.46 & 61.71 & 66.59 & 66.34 \\
+1 & 4.264 & 73.66 & 73.66 & 72.68 & 72.68 \\
+2 & 3.797 & 70.24 & 70.49 & 71.46 & 71.46 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For term 4, ten stochastic posterior draws per checkpoint all attain the
+minimum calibrated $p=1/201$.  The sample-view statistic is
+$0.002682\pm0.000005$ across draws on MNIST, $0.002459$ on Fashion-MNIST,
+and has per-model means $0.002250$, $0.002292$, and $0.002338$ on CIFAR-10.
+The seed-0 $\delta=1$ checkpoints also reject on all ten draws, with means
+$0.002507$ (MNIST) and $0.002283$ (CIFAR-10).  These calibrated kernel tests
+are evidence of stochastic within-class dependence, not numerical estimates
+of $I(\zc;\zs\mid y)$.
+
+\subsection{Structure of the conditional mismatch}
+
+The class averages reported for the original checkpoints compress a
+structured ten-class discrepancy.  Figure~\ref{fig:pairwise-mmd-app} compares every
+pair of class-conditional style distributions.  Broad off-diagonal mass is
+visible on both datasets, rather than separation being confined to a few
+class pairs.  These matrices use the same stochastic-view diagnostic as the
+per-class prior comparison; their scale should not be compared across
+datasets as if it were a normalized dependence measure.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.47\textwidth}
+\centering
+\includegraphics[width=\linewidth,trim=0 0 0 70,clip]{conditional_mmd_pairwise_heatmap_mnist.png}\\[-0.4em]
+\small (a) MNIST
+\end{minipage}\hfill
+\begin{minipage}{0.47\textwidth}
+\centering
+\includegraphics[width=\linewidth,trim=0 0 0 70,clip]{conditional_mmd_pairwise_heatmap_cifar10.png}\\[-0.4em]
+\small (b) CIFAR-10
+\end{minipage}
+\caption{Pairwise $\MMD^2(q(\zs\mid y=i),q(\zs\mid y=j))$ for the
+unrepaired seed-0 checkpoints.  The diagonal is zero by construction;
+off-diagonal structure shows that conditional style distributions differ
+throughout the label set.}
+\label{fig:pairwise-mmd-app}
+\end{figure}
+
+Figure~\ref{fig:projection-app} gives a complementary one-dimensional view.
+The projection direction is computed from the class means rather than chosen
+after inspecting individual examples.  Several MNIST classes separate along
+this direction, but the overlap also illustrates why a single projection is
+not a substitute for the held-out multivariate probes.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\textwidth,trim=0 0 0 80,clip]{conditional_mmd_projection_histogram_mnist.png}
+\caption{MNIST stochastic styles projected onto the leading direction of
+the class-mean matrix at $\delta=0$.  The direction explains 13.1\% of the
+class-mean variance.  The plot is descriptive; the held-out probes and HSIC
+tests provide the quantitative evidence.}
+\label{fig:projection-app}
+\end{figure}
+\FloatBarrier
+
+\subsection{Posterior-variance inspection}
+
+The fractions of raw style log-variance coordinates at or below the clamp
+floor are 99.9966\% (MNIST), 99.9989\% (Fashion-MNIST), and 100\% for all
+three CIFAR-10 checkpoints.  Because this statistic was added during the
+post-hoc checkpoint audit, it is reported in the human-readable audit report;
+future manifests should also store it as a first-class numeric field.
+
+\subsection{Complete conditional-regularization sweep}
+
+Table~\ref{tab:full-delta-sweep} expands the four points shown in the main
+paper to all six archived $\delta$ settings.  We retain ACC, $\Dinter$, and
+FID because they are directly tied to the sweep artifacts, but omit the
+historical probe column until it is regenerated with the canonical held-out
+split.  Each point is a separate single-seed training run.
+
+\begin{table}[ht]
+\caption{Complete single-seed per-class-style-MMD sweep.  Lower FID and
+$\Dinter$ are better; no uncertainty or significance claim is made.}
+\label{tab:full-delta-sweep}
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+& \multicolumn{3}{c}{MNIST} & \multicolumn{3}{c}{CIFAR-10} \\
+$\delta$ & ACC & $\Dinter$ & FID & ACC & $\Dinter$ & FID \\
+\midrule
+0    & .9915 & 6.21 & 74.0 & .8129 & 3.74 & 80.5 \\
+.03  & .9944 & 3.27 & 62.8 & .8111 & 2.48 & 79.1 \\
+.1   & .9898 & 2.12 & 52.6 & .8100 & 2.03 & 77.5 \\
+.3   & .9936 & 1.55 & 59.4 & .7148 & 1.59 & 72.0 \\
+1    & .8592 & 1.22 & 43.4 & .8000 & 1.05 & 74.4 \\
+3    & .9929 & 1.18 & 41.5 & .7994 & .95  & 76.1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\FloatBarrier
+
+\section{Generation and Decoder Diagnostics}
+\label{app:decoder}
+
+\subsection{External generation evaluation}
+
+The independent MNIST evaluator is a four-convolution CNN trained for 20
+epochs on real images only.  Its standard test accuracy is 99.34\%.  The
+CIFAR-10 evaluator is a WideResNet-28-10 trained for 200 epochs with standard
+random-crop and horizontal-flip augmentation on real training images only;
+its test accuracy is 96.16\%.  Neither evaluator contributes to the
+generative model's loss.
+
+\begin{table}[ht]
+\caption{Per-checkpoint external Gen-ACC.  Each entry uses 1,000 images per
+requested class and a class-conditional style bank fitted on 12,000 training
+examples.}
+\label{tab:generation-seeds}
+\centering
+\small
+\begin{tabular}{llrr}
+\toprule
+Dataset & Model seed & Global Gaussian & Class diagonal $\tau=.25$ \\
+\midrule
+MNIST & 0 & 0.1047 & 1.0000 \\
+CIFAR-10 & 0 & 0.1262 & 0.4016 \\
+CIFAR-10 & 1 & 0.1320 & 0.5386 \\
+CIFAR-10 & 2 & 0.1268 & 0.4747 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The class-diagonal distribution is fit from encoded training styles and
+therefore deliberately conditions style on the requested label.  Its gain
+tests whether the decoder is sensitive to the conditional mismatch.  It is
+not an unconditional generative model and does not repair the encoder.
+
+Figure~\ref{fig:cifar-sampling-app} displays the qualitative counterpart of
+Table~\ref{tab:generation-seeds}.  Conditioning style makes the requested
+category more visually consistent in some rows, but shrinking the diagonal
+Gaussian to $\tau=.25$ also reduces variation and can produce blurry or
+prototype-like outputs.  This is why Gen-ACC is not interpreted as a
+stand-alone measure of generative quality; diversity-sensitive evaluation on
+the same generated pools remains necessary.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.43\textwidth]{cifar10_sampling_grid_trimmed.png}
+\caption{Archived CIFAR-10 samples from the seed-0 checkpoint.  For four
+requested classes, odd rows use the global Gaussian style prior and even rows
+use the post-hoc class-diagonal prior at $\tau=.25$.  The grid is qualitative;
+external Gen-ACC is reported in Table~\ref{tab:generation-seeds}.}
+\label{fig:cifar-sampling-app}
+\end{figure}
+\FloatBarrier
+
+\subsection{Independent-evaluator deterministic mean swaps}
+
+For each ordered pair of distinct classes $(a,b)$, the diagnostic decodes
+$\mathrm{Dec}(\muc^{(a)},\mus^{(b)})$ for 500 donor pairs and evaluates pixels
+with the independent real-image classifier.  On unrepaired checkpoints,
+identity follows the style donor on 99.28\% of MNIST and 63.92\% of CIFAR-10
+off-diagonal swaps, while following the semantic donor on 0.06\% and 4.72\%.
+At $\delta=1$, style-following falls to 23.37\% and 35.92\%, and semantic-
+following rises to 51.00\% and 18.74\%, respectively.  Full rate matrices,
+the other-class outcome, and pair-bootstrap intervals are stored in the
+external-swap artifacts.
+
+\begin{figure}[t]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.86\linewidth]{mnist_swap_grid_delta0.png}\\[-0.4em]
+\small (a) MNIST
+\end{minipage}\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\includegraphics[width=0.86\linewidth]{cifar10_swap_grid_delta0.png}\\[-0.4em]
+\small (b) CIFAR-10
+\end{minipage}
+\caption{Deterministic mean-swap grids at $\delta=0$.  Rows donate
+semantic means and columns donate style means.  Column-controlled identity
+is visually strong on MNIST and weaker but still present for several
+CIFAR-10 classes.  Quantitative rates in the text use independent pixel
+classifiers; the grids are qualitative.}
+\label{fig:swap-grid-app}
+\end{figure}
+\FloatBarrier
+
+\section{Reproducibility and Current Evidence Boundary}
+\label{app:reproducibility-v8-superseded}
+
+\iffalse % superseded by the v9 evidence boundary below
+
+All Stage-0 results are stored as JSON plus SHA-256 sidecars.  Each manifest
+records the repository state, checkpoint hash, evaluation seed, fixed subset,
+latent view, probe split, feature preprocessing, and evaluator metadata.  The
+canonical protocol version for the present draft is
+\texttt{stage0-1.1.0}.  The five audited checkpoints are MNIST seed 0,
+Fashion-MNIST seed 0, and CIFAR-10 seeds 0, 1, 2; all use evaluation seed 0.
+
+The current draft intentionally excludes the earlier cross-model probe table,
+multi-remedy comparison, five-seed remedy/sampling tables, and explicit
+split-latent baseline ranges.  Those measurements were not yet regenerated
+under the held-out Stage-0 protocol with complete artifacts.  They should be
+reintroduced only after model-specific loaders, manifests, and canonical
+outputs are available.  This boundary keeps every quantitative claim in the
+present paper tied to an inspectable artifact.
+
+The submission source, rendered author block, supplementary archive, and all
+externally hosted materials must remain anonymous throughout review.
+\fi
+
+\section{Exact-Marginal Experiment}
+\label{app:synthetic-v9}
+
+\subsection{Construction and protocol}
+
+For every replication we draw $n=2{,}048$ vectors
+$z\sim\mathcal N(0,I_{128})$ once, then reuse that latent sample while drawing
+binary labels from logits $[-\kappa z_1,\kappa z_1]$ for
+$\kappa\in\{0,.5,1,2,4,8,16\}$.  Thus the population marginal and the
+finite latent sample are invariant to $\kappa$; only the label mechanism
+changes.  We run 50 replications from base seed 2027, 499 global-MMD
+permutations, 499 HSIC permutations, and a stratified 60/20/20 linear-probe
+split.  The independent Gaussian reference and the labels use distinct random
+streams.  Plus-one calibration gives minimum $p=1/500$.
+
+\begin{table}[ht]
+\caption{Complete synthetic result.  Probe values are mean $\pm$ sample
+standard deviation over 50 replications; rejection columns are empirical
+rates.  The global statistic is repeated across $\kappa$ within each
+replication by design.}
+\label{tab:synthetic-full-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{rrrrrrrr}
+\toprule
+$\kappa$ & Probe (\%) & $\widehat I_{LB}$ & Global MMD & MMD rej. & HSIC & HSIC rej. & Cond. MMD \\
+\midrule
+0   & $49.58\pm1.86$ & -.050 & $-9.47\!\times\!10^{-7}$ & .06 & .000176 & .02 & .000006 \\
+.5  & $62.48\pm2.58$ & .031 & $-9.47\!\times\!10^{-7}$ & .06 & .000239 & 1.00 & .000130 \\
+1   & $74.49\pm2.09$ & .171 & $-9.47\!\times\!10^{-7}$ & .06 & .000314 & 1.00 & .000280 \\
+2   & $83.28\pm2.07$ & .334 & $-9.47\!\times\!10^{-7}$ & .06 & .000377 & 1.00 & .000405 \\
+4   & $89.51\pm1.45$ & .437 & $-9.47\!\times\!10^{-7}$ & .06 & .000404 & 1.00 & .000455 \\
+8   & $91.82\pm1.63$ & .471 & $-9.47\!\times\!10^{-7}$ & .06 & .000413 & 1.00 & .000479 \\
+16  & $92.30\pm1.51$ & .475 & $-9.47\!\times\!10^{-7}$ & .06 & .000415 & 1.00 & .000478 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The unbiased global MMD can be negative under the null.  Three of 50 global
+tests reject, inside the frozen central 95\% prediction interval $[0,6]$ for
+$\operatorname{Binomial}(50,.05)$.  HSIC has Spearman trend 1.0 and
+conditional MMD trend .964.  Seven of eight frozen checks pass.  The failed
+check required mean probe accuracy strictly above 90\% at each of
+$\{4,8,16\}$; $\kappa=4$ reaches 89.51\%.  No threshold, level, or inequality
+was changed after observing the result.
+
+\begin{table}[ht]
+\caption{Supplementary sample-size sensitivity at $\kappa=16$.  Values are
+rounded aggregate results from the completed follow-up runs.}
+\label{tab:synthetic-n-v9}
+\centering
+\small
+\begin{tabular}{rrr}
+\toprule
+$n$ & Probe accuracy (\%) & Global-MMD rejection (\%) \\
+\midrule
+512  & 92.0 & 6.0 \\
+1,024 & 92.2 & 5.0 \\
+2,048 & 92.3 & 6.0 \\
+4,096 & 92.5 & 5.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The probe effect is essentially stable across an eightfold range in sample
+size, whereas the rejection rate remains near the nominal $5\%$ level.  The
+follow-up therefore supports a variance-reduction interpretation rather than
+an effect-size increase with $n$.
+
+\section{Controlled Posterior-Entropy Intervention}
+\label{app:entropy-v9}
+
+The intervention adds a fixed floor in variance space and uses the resulting
+$\sigma_{\rm eff}$ in both training and audit.  A floor of zero reproduces the
+historical sampler.  Every nonzero setting is retrained for 300 epochs with
+MNIST model seed 0 and CIFAR-10 model seeds $\{0,1,2\}$; the corresponding
+baseline checkpoints are reused.  The CIFAR-10 confirmation
+levels $\{0,.15,.35\}$ were fixed after both $.15$ and $.35$ passed the
+predeclared MNIST promotion rule.  That rule required an entropy increase of
+at least .75 nats/dimension, probe accuracy at least .20, HSIC rejection,
+conditional MMD above global MMD, and final reconstruction no more than twice
+baseline.
+
+\begin{table}[ht]
+\caption{Complete MNIST entropy sweep.  Median standard deviation is the
+effective posterior value; floor hit refers to the raw log-variance head.}
+\label{tab:entropy-mnist-full-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{rrrrrrrrrrr}
+\toprule
+$\sigma_f$ & $H$/dim & Med. std & Raw floor & Probe & $\widehat I_{LB}$ & Global & Cond. & Ratio & Gen-ACC & Rec. \\
+\midrule
+0 & -3.581 & .00674 & 100.00\% & 99.76\% & 2.283 & .000579 & .016024 & 27.68 & 10.15\% & .01259 \\
+.025 & -2.215 & .02589 & 99.16\% & 99.51\% & 2.273 & .000599 & .016352 & 27.31 & 10.05\% & .01273 \\
+.05 & -1.553 & .05045 & 99.17\% & 99.51\% & 2.273 & .000648 & .016135 & 24.88 & 11.95\% & .01315 \\
+.15 & -.477 & .15015 & 99.77\% & 98.78\% & 2.228 & .000654 & .012044 & 18.41 & 37.35\% & .01520 \\
+.35 & .381 & .35006 & 96.50\% & 95.61\% & 2.159 & .000518 & .007516 & 14.51 & 93.50\% & .01658 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[ht]
+\caption{Seed-0 detail for the fixed CIFAR-10 entropy confirmation.}
+\label{tab:entropy-cifar-full-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{rrrrrrrrrr}
+\toprule
+$\sigma_f$ & $H$/dim & Med. std & Probe & $\widehat I_{LB}$ & Global & Cond. & Ratio & Gen-ACC & Rec. \\
+\midrule
+0 & -3.581 & .00674 & 61.46\% & 1.111 & .000249 & .005789 & 23.29 & 12.60\% & .05140 \\
+.15 & -.477 & .15015 & 28.78\% & .256 & .000743 & .003690 & 4.97 & 27.35\% & .05940 \\
+.35 & .369 & .35006 & 9.76\% & -.115 & .000667 & .001287 & 1.93 & 54.25\% & .06476 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\caption{Three-seed CIFAR-10 entropy confirmation.  Entries are rounded means
+over model seeds; $p=.00498$ means that every seed reaches the minimum
+plus-one calibrated HSIC value with 200 permutations.}
+\label{tab:entropy-cifar-aggregate-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rrrrrrr}
+\toprule
+$\sigma_f$ & Probe (\%) & Global MMD & Cond. MMD & HSIC $p$ & Gen-ACC (\%) & Rec. L1 \\
+\midrule
+0 & 68.0 & .00030 & .0058 & .00498 & 13.0 & .052 \\
+.15 & 29.0 & .00070 & .0037 & .00498 & 27.0 & .059 \\
+.35 & 10.5 & .00067 & .0013 & .00498 & 52.0 & .065 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+HSIC attains $p=1/201$ at every MNIST level and for every CIFAR-10 seed.  This
+outcome is read alongside effect sizes: the three-seed CIFAR-10 $.35$ probe is
+only $10.5\%$ and does not support practically recoverable label information
+even though the kernel test still detects dependence.  Raw floor-hit is 100\%
+at all CIFAR levels;
+the experiment manipulates effective noise rather than claiming that the
+variance head stops collapsing.
+
+\begin{figure}[ht]
+\centering
+\begin{minipage}{0.49\textwidth}
+\includegraphics[width=\linewidth]{entropy_sweep_mnist.png}\\[-0.4em]
+\centering\small (a) MNIST
+\end{minipage}\hfill
+\begin{minipage}{0.49\textwidth}
+\includegraphics[width=\linewidth]{entropy_sweep_cifar10.png}\\[-0.4em]
+\centering\small (b) CIFAR-10
+\end{minipage}
+\caption{Leakage, marginal/conditional discrepancy, and independent Gen-ACC
+as effective posterior entropy increases.  Curves are single-seed controlled
+interventions, not confidence intervals over training.}
+\label{fig:entropy-full-v9}
+\end{figure}
+\FloatBarrier
+
+\section{Native Cross-Model Details}
+\label{app:cross-model-v9}
+
+The fixed population contains 40,000 paired training examples and 10,000
+paired test examples.  Each canonical domain audit uses 1,000 balanced test
+examples.  The independent Rotated-MNIST evaluator is trained only on real
+images and reaches 96.05\% test accuracy.  All models use their final
+100-epoch checkpoint for seeds 0--2.
+
+\begin{table}[ht]
+\caption{Per-seed native cross-model results, macro-averaged over the two
+domains.  Probe, content, and retention values are percentages.}
+\label{tab:cross-model-seeds-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+Family & Seed & Global & Cond. & Logit & RBF & HSIC domains & Content & Retention \\
+\midrule
+F-CS-WAE & 0 & .003287 & .032431 & 94.00 & 97.75 & 2/2 reject & 99.25 & 12.55 \\
+F-CS-WAE & 1 & .003209 & .030989 & 92.50 & 96.25 & 2/2 reject & 99.50 & 11.10 \\
+F-CS-WAE & 2 & .003481 & .033365 & 89.25 & 96.00 & 2/2 reject & 99.50 & 13.45 \\
+\midrule
+DRIT & 0 & .259014 & .272479 & 25.00 & 25.50 & 2/2 reject & 87.50 & 9.80 \\
+DRIT & 1 & .261287 & .274362 & 29.50 & 23.25 & 2/2 reject & 90.00 & 10.00 \\
+DRIT & 2 & .245482 & .270487 & 48.75 & 48.75 & 2/2 reject & 87.25 & 9.80 \\
+\midrule
+DIVA & 0 & .0000096 & .000268 & 11.50 & 12.50 & .0746, .0398 & 96.00 & 90.25 \\
+DIVA & 1 & -.0000452 & .0000288 & 11.00 & 11.25 & .2687, .0249 & 97.50 & 89.50 \\
+DIVA & 2 & -.0000181 & .000231 & 9.50 & 11.75 & .1194, .7264 & 96.50 & 88.60 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+All F-CS-WAE and DRIT domain-level HSIC values equal $1/201$.  For DIVA, Holm
+step-down correction over its six raw tests leaves no rejection.  DIVA's six
+global-MMD tests also do not reject.  Its posterior entropy is approximately
+1.36--1.38 nats/dimension; F-CS-WAE is approximately -3.58 and DRIT ranges
+from -1.88 to -1.57.  The cross-model result therefore does not by itself
+remove posterior entropy as a confound for F-CS-WAE; that role belongs to
+Appendix~\ref{app:entropy-v9}.
+
+\section{Shapes3D Known-Factor Audit}
+\label{app:shapes3d-v9}
+
+Shapes3D provides 480,000 $64\times64$ images containing every combination of
+10 floor hues, 10 wall hues, 10 object hues, 8 scales, 4 shapes, and 15
+orientations.  The fixed shape-stratified IID split contains 120,000 training,
+20,000 validation, and 20,000 test images.  F-CS-WAE and the learned C/S VAE
+use seeds $\{0,1,2\}$; the observed-shape oracle uses seed 0.  Every model has
+64 content and 64 style dimensions and is audited at epoch 100 on 4,096
+examples (1,024 per shape).  Global MMD uses 2,048 examples and 500
+permutations; factor HSIC uses
+up to 1,024 examples and 200 permutations.  Holm correction is applied
+separately within each latent view.
+
+\begin{table}[ht]
+\caption{Completed three-seed Shapes3D replication.  Entries are rounded
+means over seeds $\{0,1,2\}$.  The observed-shape oracle remains a seed-0
+auxiliary control and is reported in the main paper.}
+\label{tab:shapes3d-aggregate-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+Model & $z_s\!\to$shape & $z_c\!\to$style & Cond. shape MMD & Prior shape & Swap shape & Rec. L1 \\
+\midrule
+F-CS-WAE & 99.0 & 87.0 & .0085 & 89.0 & 88.0 & .0023 \\
+Learned C/S VAE & 25.5 & 9.5 & .00004 & 99.7 & 99.8 & .0029 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[ht]
+\caption{Seed-0 held-out logistic factor probes on stochastic latent samples.
+Columns follow dataset order.  The intended pattern is content high only for
+shape and style low only for shape.}
+\label{tab:shapes3d-probes-full-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllrrrrrr}
+\toprule
+Model & View & Floor & Wall & Object & Scale & Shape & Orient. \\
+\midrule
+F-CS-WAE & content & 99.76 & 99.88 & 80.98 & 68.05 & 100.00 & 89.88 \\
+          & style   & 100.00 & 100.00 & 100.00 & 95.61 & 100.00 & 100.00 \\
+\midrule
+Observed-shape cVAE & content & 9.76 & 9.51 & 9.02 & 14.27 & 100.00 & 8.29 \\
+                    & style   & 100.00 & 99.63 & 99.02 & 45.49 & 25.98 & 39.76 \\
+\midrule
+Learned C/S VAE & content & 8.90 & 11.22 & 8.90 & 11.95 & 100.00 & 5.85 \\
+                & style   & 84.02 & 91.46 & 88.29 & 44.15 & 25.73 & 42.93 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+After Holm correction, F-CS-WAE rejects dependence for all six factors in
+both views.  Each control rejects only shape in content and only the five
+nuisance factors in style.  The corresponding shape HSIC raw $p$-values in
+style are .597 for the observed-shape cVAE and .826 for the learned model.
+
+\begin{table}[ht]
+\caption{Seed-0 independent factor-evaluator decoder checks.  Posterior swaps keep
+content from the source and style from a different-shape donor; ``target'' is
+source shape for shape and donor value for nuisance factors.}
+\label{tab:shapes3d-decoder-full-v9}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrr}
+\toprule
+Model & Floor & Wall & Object & Scale & Orient. & Swap shape & Prior shape \\
+\midrule
+F-CS-WAE & 100.00 & 99.90 & 99.95 & 80.93 & 100.00 & 87.74 & 89.43 \\
+Observed-shape cVAE & 99.98 & 100.00 & 99.80 & 95.02 & 99.93 & 100.00 & 99.88 \\
+Learned C/S VAE & 99.98 & 99.93 & 99.85 & 99.73 & 99.93 & 100.00 & 99.78 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+All three models pass the frozen competence checks: independent factor
+evaluator, content-shape probe, reconstruction L1 below .12, reconstruction
+shape accuracy above .8, and mean reconstructed nuisance-factor accuracy
+above .7.  The observed-shape cVAE supplies content directly from the label;
+it is an oracle control for the intended split, not a like-for-like
+representation-learning competitor.  The learned content--style VAE is the
+stronger negative control.
+
+\section{Reproducibility and Evidence Boundary}
+\label{app:reproducibility}
+
+The original checkpoint audit uses protocol \texttt{stage0-1.1.0}; all new
+synthetic, entropy, cross-model, and Shapes3D audits use
+\texttt{stage0-1.2.0}.  Primary artifact roots are:
+\begin{itemize}
+    \item \texttt{runs\_diag/synthetic\_exact\_marginal\_paper};
+    \item \texttt{runs\_f/entropy\_sweep};
+    \item \texttt{runs\_cross\_model/native\_v1}; and
+    \item \texttt{runs\_shapes3d/factor\_audit\_v1}.
+\end{itemize}
+Rounded follow-up values are consolidated in
+\path{fcswae/reported_followup_aggregates_v9.json}.
+Each final JSON has a SHA-256 sidecar or embeds the criteria, checkpoint,
+split, evaluator, source-file, and repository hashes.  Synthetic criteria are
+frozen in \texttt{acceptance\_criteria.json}, with the composite decision in
+\texttt{acceptance\_result.json}.  Entropy summaries record the frozen CIFAR
+promotion decision.  Cross-model reporting is derived from nine native
+checkpoint audits without using the legacy proxy artifacts.  Shapes3D suite
+completion records all three models as complete and competence-passing.
+The completed sample-size sweep and additional three-seed MNIST,
+Fashion-MNIST, CIFAR-10 entropy, and Shapes3D runs are available here as
+rounded aggregate exports.  We do not reconstruct standard deviations or
+aggregate $p$-values from those summaries; seedwise claims are stated only
+when the same calibrated decision holds for every run.
+
+The synthetic manifest and several model audits record a dirty worktree.  The
+artifact hashes make the evaluated outputs immutable, but a camera-ready
+archive should include the exact source diff or regenerate from a clean tagged
+revision.  The present scope is 50 synthetic replications at the primary
+$n=2{,}048$ setting, four sample sizes at $\kappa=16$, three training seeds per
+native cross-model family, three-seed original-image headlines, three
+CIFAR-10 entropy seeds, three F-CS-WAE/learned-VAE Shapes3D seeds, and one
+MNIST entropy and observed-shape-oracle seed.  We make no uncertainty claim
+beyond those boundaries.  Submission source, rendered
+author blocks, and supplementary metadata must remain anonymous during
+review.

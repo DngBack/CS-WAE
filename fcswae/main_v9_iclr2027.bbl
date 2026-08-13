@@ -1,0 +1,184 @@
+\begin{thebibliography}{26}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bouchacourt et~al.(2018)Bouchacourt, Tomioka, and
+  Nowozin]{bouchacourt2018multilevel}
+Diane Bouchacourt, Ryota Tomioka, and Sebastian Nowozin.
+\newblock Multi-level variational autoencoder: Learning disentangled
+  representations from grouped observations.
+\newblock In \emph{Proceedings of the AAAI Conference on Artificial
+  Intelligence}, volume~32, pp.\  2095--2102, 2018.
+\newblock \doi{10.1609/aaai.v32i1.11867}.
+
+\bibitem[Chen et~al.(2018)Chen, Li, Grosse, and Duvenaud]{chen2018isolating}
+Ricky T.~Q. Chen, Xuechen Li, Roger Grosse, and David Duvenaud.
+\newblock Isolating sources of disentanglement in variational autoencoders.
+\newblock \emph{arXiv preprint arXiv:1802.04942}, 2018.
+
+\bibitem[Gabbay \& Hoshen(2020)Gabbay and Hoshen]{gabbay2020lord}
+Aviv Gabbay and Yedid Hoshen.
+\newblock Demystifying inter-class disentanglement.
+\newblock In \emph{International Conference on Learning Representations}, 2020.
+
+\bibitem[Ganin \& Lempitsky(2015)Ganin and Lempitsky]{ganin2015unsupervised}
+Yaroslav Ganin and Victor Lempitsky.
+\newblock Unsupervised domain adaptation by backpropagation.
+\newblock In \emph{International Conference on Machine Learning}, pp.\
+  1180--1189, 2015.
+
+\bibitem[{Google DeepMind}(2018)]{deepmind2018shapes3d}
+{Google DeepMind}.
+\newblock 3d shapes dataset.
+\newblock \url{https://github.com/google-deepmind/3d-shapes}, 2018.
+\newblock Accessed 2026-08-12.
+
+\bibitem[Gretton et~al.(2012)Gretton, Borgwardt, Rasch, Sch{\"o}lkopf, and
+  Smola]{gretton2012kernel}
+Arthur Gretton, Karsten~M. Borgwardt, Malte~J. Rasch, Bernhard Sch{\"o}lkopf,
+  and Alexander Smola.
+\newblock A kernel two-sample test.
+\newblock \emph{Journal of Machine Learning Research}, 13:\penalty0 723--773,
+  2012.
+
+\bibitem[Higgins et~al.(2017)Higgins, Matthey, Pal, Burgess, Glorot, Botvinick,
+  Mohamed, and Lerchner]{higgins2017beta}
+Irina Higgins, Loic Matthey, Arka Pal, Christopher Burgess, Xavier Glorot,
+  Matthew Botvinick, Shakir Mohamed, and Alexander Lerchner.
+\newblock {beta-VAE}: Learning basic visual concepts with a constrained
+  variational framework.
+\newblock \emph{International Conference on Learning Representations}, 2017.
+
+\bibitem[Hoffman \& Johnson(2016)Hoffman and Johnson]{hoffman2016elbo}
+Matthew~D. Hoffman and Matthew~J. Johnson.
+\newblock {ELBO} surgery: Yet another way to carve up the variational evidence
+  lower bound.
+\newblock In \emph{NIPS Workshop on Advances in Approximate Bayesian
+  Inference}, 2016.
+
+\bibitem[Huang et~al.(2018)Huang, Liu, Belongie, and Kautz]{huang2018munit}
+Xun Huang, Ming-Yu Liu, Serge Belongie, and Jan Kautz.
+\newblock Multimodal unsupervised image-to-image translation.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision},
+  pp.\  172--189, 2018.
+
+\bibitem[Ilse et~al.(2020)Ilse, Tomczak, Louizos, and Welling]{ilse2020diva}
+Maximilian Ilse, Jakub~M. Tomczak, Christos Louizos, and Max Welling.
+\newblock {DIVA}: Domain invariant variational autoencoders.
+\newblock In \emph{Proceedings of the Third Conference on Medical Imaging with
+  Deep Learning}, volume 121 of \emph{Proceedings of Machine Learning
+  Research}, pp.\  322--348, 2020.
+
+\bibitem[Jha et~al.(2018)Jha, Anand, Singh, and Veeravasarapu]{jha2018cycle}
+Ananya~Harsh Jha, Saket Anand, Maneesh Singh, and V.~S.~R. Veeravasarapu.
+\newblock Disentangling factors of variation with cycle-consistent variational
+  auto-encoders.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision},
+  pp.\  805--820, 2018.
+
+\bibitem[Kim \& Mnih(2018)Kim and Mnih]{kim2018disentangling}
+Hyunjik Kim and Andriy Mnih.
+\newblock Disentangling by factorising.
+\newblock \emph{arXiv preprint arXiv:1802.05983}, 2018.
+
+\bibitem[Kingma \& Welling(2013)Kingma and Welling]{kingma2013autoencoding}
+Diederik~P. Kingma and Max Welling.
+\newblock Auto-encoding variational bayes.
+\newblock \emph{arXiv preprint arXiv:1312.6114}, 2013.
+
+\bibitem[Kumar et~al.(2018)Kumar, Sattigeri, and Balakrishnan]{kumar2018dipvae}
+Abhishek Kumar, Prasanna Sattigeri, and Avinash Balakrishnan.
+\newblock Variational inference of disentangled latent concepts from unlabeled
+  observations.
+\newblock In \emph{International Conference on Learning Representations}, 2018.
+
+\bibitem[Lample et~al.(2017)Lample, Zeghidour, Usunier, Bordes, Denoyer, and
+  Ranzato]{lample2017fader}
+Guillaume Lample, Neil Zeghidour, Nicolas Usunier, Antoine Bordes, Ludovic
+  Denoyer, and Marc'Aurelio Ranzato.
+\newblock Fader networks: Manipulating images by sliding attributes.
+\newblock In \emph{Advances in Neural Information Processing Systems}, 2017.
+
+\bibitem[Lee et~al.(2018)Lee, Tseng, Huang, Singh, and Yang]{lee2018drit}
+Hsin-Ying Lee, Hung-Yu Tseng, Jia-Bin Huang, Maneesh Singh, and Ming-Hsuan
+  Yang.
+\newblock Diverse image-to-image translation via disentangled representations.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision},
+  pp.\  35--51, 2018.
+
+\bibitem[Locatello et~al.(2019)Locatello, Bauer, Lucic, Raetsch, Gelly,
+  Sch{\"o}lkopf, and Bachem]{locatello2019challenging}
+Francesco Locatello, Stefan Bauer, Mario Lucic, Gunnar Raetsch, Sylvain Gelly,
+  Bernhard Sch{\"o}lkopf, and Olivier Bachem.
+\newblock Challenging common assumptions in the unsupervised learning of
+  disentangled representations.
+\newblock In \emph{Proceedings of the 36th International Conference on Machine
+  Learning}, volume~97 of \emph{Proceedings of Machine Learning Research}, pp.\
+   4114--4124, 2019.
+
+\bibitem[Louizos et~al.(2015)Louizos, Swersky, Li, Welling, and
+  Zemel]{louizos2015variational}
+Christos Louizos, Kevin Swersky, Yujia Li, Max Welling, and Richard Zemel.
+\newblock The variational fair autoencoder.
+\newblock \emph{arXiv preprint arXiv:1511.00830}, 2015.
+
+\bibitem[Ma et~al.(2025)Ma, Yang, Li, Gui, Krause, Schusterbauer, and
+  Ommer]{ma2025scflow}
+Pingchuan Ma, Xiaopei Yang, Yusong Li, Ming Gui, Felix Krause, Johannes
+  Schusterbauer, and Bj{\"o}rn Ommer.
+\newblock {SCFlow}: Implicitly learning style and content disentanglement with
+  flow models.
+\newblock In \emph{Proceedings of the IEEE/CVF International Conference on
+  Computer Vision}, pp.\  14919--14929, 2025.
+
+\bibitem[Mathieu et~al.(2016)Mathieu, Zhao, Ramesh, Sprechmann, and
+  LeCun]{mathieu2016disentangling}
+Michael~F. Mathieu, Junbo~Jake Zhao, Aditya Ramesh, Pablo Sprechmann, and Yann
+  LeCun.
+\newblock Disentangling factors of variation in deep representation using
+  adversarial training.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~29, 2016.
+
+\bibitem[Moyer et~al.(2018)Moyer, Gao, Brekelmans, Galstyan, and
+  Ver~Steeg]{moyer2018invariant}
+Daniel Moyer, Shuyang Gao, Rob Brekelmans, Aram Galstyan, and Greg Ver~Steeg.
+\newblock Invariant representations without adversarial training.
+\newblock In \emph{Advances in Neural Information Processing Systems}, pp.\
+  9102--9111, 2018.
+
+\bibitem[Ridgeway \& Mozer(2018)Ridgeway and Mozer]{ridgeway2018leakage}
+Karl Ridgeway and Michael~C. Mozer.
+\newblock Open-ended content-style recombination via leakage filtering.
+\newblock \emph{arXiv preprint arXiv:1810.00110}, 2018.
+
+\bibitem[Sohn et~al.(2015)Sohn, Lee, and Yan]{sohn2015learning}
+Kihyuk Sohn, Honglak Lee, and Xinchen Yan.
+\newblock Learning structured output representation using deep conditional
+  generative models.
+\newblock \emph{Advances in Neural Information Processing Systems}, 2015.
+
+\bibitem[Tolstikhin et~al.(2017)Tolstikhin, Bousquet, Gelly, and
+  Sch{\"o}lkopf]{tolstikhin2017wasserstein}
+Ilya Tolstikhin, Olivier Bousquet, Sylvain Gelly, and Bernhard Sch{\"o}lkopf.
+\newblock Wasserstein auto-encoders.
+\newblock \emph{arXiv preprint arXiv:1711.01558}, 2017.
+
+\bibitem[Wu et~al.(2025)Wu, Wang, Raj, and Xia]{wu2025variance}
+Yuxuan Wu, Ziyu Wang, Bhiksha Raj, and Gus Xia.
+\newblock Unsupervised disentanglement of content and style via
+  variance-invariance constraints.
+\newblock In \emph{International Conference on Learning Representations}, 2025.
+
+\bibitem[Zhang et~al.(2018)Zhang, Isola, Efros, Shechtman, and
+  Wang]{zhang2018unreasonable}
+Richard Zhang, Phillip Isola, Alexei~A. Efros, Eli Shechtman, and Oliver Wang.
+\newblock The unreasonable effectiveness of deep features as a perceptual
+  metric.
+\newblock In \emph{Proceedings of the IEEE Conference on Computer Vision and
+  Pattern Recognition}, 2018.
+
+\end{thebibliography}

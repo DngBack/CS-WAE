@@ -15,6 +15,11 @@ import torch
 import torch.nn.functional as F
 
 from ..models.f_cs_wae import effective_style_variance, sample_style_posterior
+from ..models.native_factorized_baselines import NativeDIVA, NativeDRIT
+from ..models.shapes3d_factorized_baselines import (
+    Shapes3DConditionalVAE,
+    Shapes3DContentStyleVAE,
+)
 from ..utils.utils import mobius_reparam
 
 
@@ -43,6 +48,7 @@ class FactorizedAuditAdapter(ABC):
         *,
         generator: torch.Generator,
         domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
     ) -> FactorizedLatentViews:
         """Return native content/style means and stochastic samples."""
 
@@ -83,8 +89,9 @@ class FCSWAEAuditAdapter(FactorizedAuditAdapter):
         *,
         generator: torch.Generator,
         domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
     ) -> FactorizedLatentViews:
-        del domain
+        del domain, labels
         mu_c, rho_c, mu_s, logvar_s = self.model.encode(images)
 
         generator_device = torch.device(getattr(generator, "device", "cpu"))
@@ -156,8 +163,9 @@ class FCSWAEAblationAuditAdapter(FactorizedAuditAdapter):
         *,
         generator: torch.Generator,
         domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
     ) -> FactorizedLatentViews:
-        del domain
+        del domain, labels
         if not self.model.use_style_latent:
             raise ValueError("The no_z_s ablation has no style block to audit")
         mu_c_raw, parameter_c, mu_s, logvar_s = self.model.encoder(images)
@@ -232,9 +240,298 @@ class FCSWAEAblationAuditAdapter(FactorizedAuditAdapter):
         }
 
 
+def _homogeneous_domain(domain: torch.Tensor | int | None) -> int:
+    if domain is None:
+        raise ValueError("This native adapter requires an explicit domain")
+    if isinstance(domain, int):
+        return int(domain)
+    values = torch.unique(domain.detach().cpu().long())
+    if values.numel() != 1:
+        raise ValueError(
+            "Domain-specific latent spaces must be audited one domain at a time"
+        )
+    return int(values.item())
+
+
+class DRITAuditAdapter(FactorizedAuditAdapter):
+    """Audit DRIT's native content and domain-specific attribute spaces."""
+
+    @torch.no_grad()
+    def encode_views(
+        self,
+        images: torch.Tensor,
+        *,
+        generator: torch.Generator,
+        domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+    ) -> FactorizedLatentViews:
+        del labels
+        domain_index = _homogeneous_domain(domain)
+        content = self.model.encode_content(images, domain_index)
+        mean, logvar, sample, std = self.model.encode_style(
+            images, domain_index, generator=generator
+        )
+        return FactorizedLatentViews(
+            content_mean=content,
+            content_sample=content,
+            style_mean=mean,
+            style_sample=sample,
+            style_logvar=logvar,
+            style_effective_std=std,
+        )
+
+    def sample_style_prior(
+        self,
+        n_samples: int,
+        *,
+        generator: torch.Generator,
+        device: torch.device,
+        dtype: torch.dtype,
+        domain: int | None = None,
+    ) -> torch.Tensor:
+        _homogeneous_domain(domain)
+        generator_device = torch.device(getattr(generator, "device", "cpu"))
+        return torch.randn(
+            (n_samples, self.model.style_dim),
+            generator=generator,
+            dtype=dtype,
+            device=generator_device,
+        ).to(device)
+
+    def decode(
+        self,
+        content: torch.Tensor,
+        style: torch.Tensor,
+        *,
+        domain: torch.Tensor | int | None = None,
+    ) -> torch.Tensor:
+        return self.model.decode(content, style, _homogeneous_domain(domain))
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "model_family": "DRIT",
+            "native_factorization": True,
+            "content_view": "shared content representation after domain-specific stem",
+            "style_view": "domain-specific Gaussian attribute code",
+            "style_prior": "N(0, I) within each domain-specific attribute space",
+            "sampler": "translate native content using target-domain attribute z_a~N(0,I)",
+            "audit_domain_policy": "separate domains; macro-average statistics",
+            "primary_source": "Lee et al., ECCV 2018; HsinYingLee/DRIT",
+        }
+
+
+class DIVAAuditAdapter(FactorizedAuditAdapter):
+    """Audit DIVA's residual ``z_x`` while treating ``z_y`` as content."""
+
+    @torch.no_grad()
+    def encode_views(
+        self,
+        images: torch.Tensor,
+        *,
+        generator: torch.Generator,
+        domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+    ) -> FactorizedLatentViews:
+        del domain, labels
+        views = self.model.encode_views(images, generator=generator)
+        std = torch.exp(0.5 * views.zx_logvar.clamp(-10.0, 10.0))
+        return FactorizedLatentViews(
+            content_mean=views.zy_mean,
+            content_sample=views.zy_sample,
+            style_mean=views.zx_mean,
+            style_sample=views.zx_sample,
+            style_logvar=views.zx_logvar,
+            style_effective_std=std,
+        )
+
+    def sample_style_prior(
+        self,
+        n_samples: int,
+        *,
+        generator: torch.Generator,
+        device: torch.device,
+        dtype: torch.dtype,
+        domain: int | None = None,
+    ) -> torch.Tensor:
+        del domain
+        generator_device = torch.device(getattr(generator, "device", "cpu"))
+        return torch.randn(
+            (n_samples, self.model.style_dim),
+            generator=generator,
+            dtype=dtype,
+            device=generator_device,
+        ).to(device)
+
+    def decode(
+        self,
+        content: torch.Tensor,
+        style: torch.Tensor,
+        *,
+        domain: torch.Tensor | int | None = None,
+    ) -> torch.Tensor:
+        domain_index = _homogeneous_domain(domain)
+        domain_labels = torch.full(
+            (content.shape[0],), domain_index, device=content.device, dtype=torch.long
+        )
+        domain_mean, _domain_logvar = self.model.conditional_domain_prior(
+            domain_labels
+        )
+        return self.model.decode(domain_mean, style, content)
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "model_family": "DIVA",
+            "native_factorization": True,
+            "content_view": "class-specific z_y",
+            "style_view": "residual z_x",
+            "control_view": "domain-specific z_d",
+            "style_prior": "N(0, I) for z_x",
+            "sampler": "z_d~p(z_d|d), z_x~N(0,I), z_y~p(z_y|y)",
+            "audit_domain_policy": "separate domains; macro-average statistics",
+            "primary_source": "Ilse et al., MIDL 2020; AMLab-Amsterdam/DIVA",
+        }
+
+
+class Shapes3DConditionalVAEAuditAdapter(FactorizedAuditAdapter):
+    """Adapter for observed-shape content and stochastic residual style."""
+
+    @torch.no_grad()
+    def encode_views(
+        self,
+        images: torch.Tensor,
+        *,
+        generator: torch.Generator,
+        domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+    ) -> FactorizedLatentViews:
+        del domain
+        if labels is None:
+            raise ValueError("Conditional VAE audit requires observed shape labels")
+        content, mean, logvar, sample, std = self.model.encode_views(
+            images, labels, generator=generator
+        )
+        return FactorizedLatentViews(
+            content_mean=content,
+            content_sample=content,
+            style_mean=mean,
+            style_sample=sample,
+            style_logvar=logvar,
+            style_effective_std=std,
+        )
+
+    def sample_style_prior(
+        self,
+        n_samples: int,
+        *,
+        generator: torch.Generator,
+        device: torch.device,
+        dtype: torch.dtype,
+        domain: int | None = None,
+    ) -> torch.Tensor:
+        del domain
+        generator_device = torch.device(getattr(generator, "device", "cpu"))
+        return torch.randn(
+            (n_samples, self.model.style_dim),
+            generator=generator,
+            dtype=dtype,
+            device=generator_device,
+        ).to(device)
+
+    def decode(
+        self,
+        content: torch.Tensor,
+        style: torch.Tensor,
+        *,
+        domain: torch.Tensor | int | None = None,
+    ) -> torch.Tensor:
+        del domain
+        return self.model.decode(content, style)
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "model_family": "Conditional VAE",
+            "native_factorization": True,
+            "content_view": "observed shape-label embedding",
+            "style_view": "Gaussian residual z",
+            "style_prior": "N(0, I)",
+            "sampler": "observed requested shape content + independent z~N(0,I)",
+        }
+
+
+class Shapes3DContentStyleVAEAuditAdapter(FactorizedAuditAdapter):
+    """Adapter for the learned semantic/residual DIVA-type baseline."""
+
+    @torch.no_grad()
+    def encode_views(
+        self,
+        images: torch.Tensor,
+        *,
+        generator: torch.Generator,
+        domain: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
+    ) -> FactorizedLatentViews:
+        del domain, labels
+        views = self.model.encode_views(images, generator=generator)
+        return FactorizedLatentViews(
+            content_mean=views.content_mean,
+            content_sample=views.content_sample,
+            style_mean=views.style_mean,
+            style_sample=views.style_sample,
+            style_logvar=views.style_logvar,
+            style_effective_std=views.style_std,
+        )
+
+    def sample_style_prior(
+        self,
+        n_samples: int,
+        *,
+        generator: torch.Generator,
+        device: torch.device,
+        dtype: torch.dtype,
+        domain: int | None = None,
+    ) -> torch.Tensor:
+        del domain
+        generator_device = torch.device(getattr(generator, "device", "cpu"))
+        return torch.randn(
+            (n_samples, self.model.style_dim),
+            generator=generator,
+            dtype=dtype,
+            device=generator_device,
+        ).to(device)
+
+    def decode(
+        self,
+        content: torch.Tensor,
+        style: torch.Tensor,
+        *,
+        domain: torch.Tensor | int | None = None,
+    ) -> torch.Tensor:
+        del domain
+        return self.model.decode(content, style)
+
+    def metadata(self) -> dict[str, Any]:
+        return {
+            "model_family": "Supervised content-style VAE",
+            "native_factorization": True,
+            "content_view": "learned Gaussian semantic z_c",
+            "style_view": "learned Gaussian residual z_s",
+            "style_prior": "N(0, I)",
+            "sampler": "z_c~p(z_c|shape), z_s~N(0,I), independently",
+            "family_note": "DIVA-type without a domain subspace",
+        }
+
+
 def build_factorized_audit_adapter(model: torch.nn.Module) -> FactorizedAuditAdapter:
     """Return a registered native adapter or fail instead of guessing a split."""
 
+    if isinstance(model, Shapes3DConditionalVAE):
+        return Shapes3DConditionalVAEAuditAdapter(model)
+    if isinstance(model, Shapes3DContentStyleVAE):
+        return Shapes3DContentStyleVAEAuditAdapter(model)
+    if isinstance(model, NativeDRIT):
+        return DRITAuditAdapter(model)
+    if isinstance(model, NativeDIVA):
+        return DIVAAuditAdapter(model)
     if hasattr(model, "variant_config") and hasattr(model, "use_style_latent"):
         return FCSWAEAblationAuditAdapter(model)
     required = ("encode", "sample_style", "style_sigma_floor", "style_dim", "decoder")
@@ -272,3 +569,7 @@ def summarize_style_posterior(
             (entropy_per_example / logvar_s.shape[1]).mean().item()
         ),
     }
+    if isinstance(model, Shapes3DConditionalVAE):
+        return Shapes3DConditionalVAEAuditAdapter(model)
+    if isinstance(model, Shapes3DContentStyleVAE):
+        return Shapes3DContentStyleVAEAuditAdapter(model)

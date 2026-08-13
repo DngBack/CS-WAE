@@ -1,0 +1,33 @@
+{
+  "batch_size": 64,
+  "dataset": "shapes3d",
+  "dataset_sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785",
+  "delta_final": 0.0,
+  "epochs": 100,
+  "model": {
+    "conditional_style_mmd_weight": 0.0,
+    "ema_momentum": 0.95,
+    "image_size": 64,
+    "in_channels": 3,
+    "n_centers": 1,
+    "n_classes": 4,
+    "rho_prior": 0.7,
+    "semantic_dim": 64,
+    "style_dim": 64,
+    "style_sigma_floor": 0.0
+  },
+  "n_centers": 1,
+  "phase_a_end": 20,
+  "phase_b_end": 40,
+  "seed": 0,
+  "semantic_dim": 64,
+  "shapes3d_protocol_version": "shapes3d-factor-audit-1.0.0",
+  "split_counts": {
+    "test": 20000,
+    "train": 120000,
+    "validation": 20000
+  },
+  "split_seed": 2027,
+  "style_dim": 64,
+  "style_sigma_floor": 0.0
+}

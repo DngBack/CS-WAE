@@ -1,0 +1,59 @@
+{
+  "checkpoint": {
+    "path": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/evaluator/seed_0/factor_evaluator.pth",
+    "sha256": "950de341818ebc18f2e8c0e83deb0cc4ceb9400d324a9d6c7803c10204da187e"
+  },
+  "competence_checks": {
+    "floor_hue": true,
+    "object_hue": true,
+    "orientation": true,
+    "scale": true,
+    "shape": true,
+    "wall_hue": true
+  },
+  "fixed_final_epoch": 20,
+  "passes_competence_gate": true,
+  "protocol_version": "shapes3d-factor-audit-1.0.0",
+  "schema_version": "shapes3d-factor-evaluator-result-1.0.0",
+  "split_manifest_sha256": "900f35eb56c9d9af0be2482774c16029793f34e11e0f092b7d9d5423d0458328",
+  "test": {
+    "accuracy": {
+      "floor_hue": 1.0,
+      "object_hue": 1.0,
+      "orientation": 1.0,
+      "scale": 1.0,
+      "shape": 1.0,
+      "wall_hue": 1.0
+    },
+    "cross_entropy_nats": {
+      "floor_hue": 5.543215809922231e-10,
+      "object_hue": 5.960463873577737e-11,
+      "orientation": 5.960459599663182e-10,
+      "scale": 2.3245754320555533e-09,
+      "shape": 4.708765313665708e-10,
+      "wall_hue": 2.8610173927745564e-10
+    },
+    "macro_accuracy": 1.0,
+    "n_samples": 20000
+  },
+  "validation": {
+    "accuracy": {
+      "floor_hue": 1.0,
+      "object_hue": 1.0,
+      "orientation": 1.0,
+      "scale": 1.0,
+      "shape": 1.0,
+      "wall_hue": 1.0
+    },
+    "cross_entropy_nats": {
+      "floor_hue": 1.4305111086798662e-10,
+      "object_hue": 1.9669512951736578e-10,
+      "orientation": 2.7418122705569205e-10,
+      "scale": 2.9921453414516463e-09,
+      "shape": 5.662438827158667e-10,
+      "wall_hue": 4.768371049124198e-11
+    },
+    "macro_accuracy": 1.0,
+    "n_samples": 20000
+  }
+}

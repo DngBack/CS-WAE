@@ -253,7 +253,8 @@ class FCSWAETrainer:
             ),
         )
 
-        for data, labels in pbar:
+        for batch in pbar:
+            data, labels = batch[:2]
             data, labels = data.to(self.device), labels.to(self.device)
             self.optimizer.zero_grad()
 

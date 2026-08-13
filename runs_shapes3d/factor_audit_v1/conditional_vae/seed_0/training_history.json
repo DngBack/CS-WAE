@@ -1,0 +1,904 @@
+{
+  "epochs": [
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0005,
+      "reconstruction": 0.042331716758509476,
+      "shape_ce": 0.0,
+      "style_kl": 3.0435501947184402,
+      "total": 0.04385349189688762
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.001,
+      "reconstruction": 0.012823756356537342,
+      "shape_ce": 0.0,
+      "style_kl": 1.75335094648997,
+      "total": 0.014577107366422813
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0015,
+      "reconstruction": 0.01023145751481255,
+      "shape_ce": 0.0,
+      "style_kl": 1.2667830563545226,
+      "total": 0.012131632115940254
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.002,
+      "reconstruction": 0.008380993072440227,
+      "shape_ce": 0.0,
+      "style_kl": 0.9375254205385843,
+      "total": 0.01025604399840037
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0025,
+      "reconstruction": 0.007553543745229641,
+      "shape_ce": 0.0,
+      "style_kl": 0.762893184630076,
+      "total": 0.009460776663323244
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.003,
+      "reconstruction": 0.007024457009881735,
+      "shape_ce": 0.0,
+      "style_kl": 0.6734641814867656,
+      "total": 0.009044849585493406
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0034999999999999996,
+      "reconstruction": 0.006582447393238544,
+      "shape_ce": 0.0,
+      "style_kl": 0.593374844233195,
+      "total": 0.008659259413431089
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.004,
+      "reconstruction": 0.006260332107295593,
+      "shape_ce": 0.0,
+      "style_kl": 0.5453888130664826,
+      "total": 0.008441887469093004
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0045000000000000005,
+      "reconstruction": 0.00611069283336401,
+      "shape_ce": 0.0,
+      "style_kl": 0.5200293074766795,
+      "total": 0.008450824619332949
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.005,
+      "reconstruction": 0.005779706314951181,
+      "shape_ce": 0.0,
+      "style_kl": 0.48450461422602337,
+      "total": 0.008202229326218367
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0055000000000000005,
+      "reconstruction": 0.005618888947616021,
+      "shape_ce": 0.0,
+      "style_kl": 0.4696175529162089,
+      "total": 0.008201785470793645
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.006,
+      "reconstruction": 0.0055022471979260445,
+      "shape_ce": 0.0,
+      "style_kl": 0.455565491660436,
+      "total": 0.008235640167693297
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.006500000000000001,
+      "reconstruction": 0.005379234392940998,
+      "shape_ce": 0.0,
+      "style_kl": 0.44823203263282774,
+      "total": 0.008292742663621903
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.006999999999999999,
+      "reconstruction": 0.005274163807183504,
+      "shape_ce": 0.0,
+      "style_kl": 0.43539539510409037,
+      "total": 0.008321931667377552
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0075,
+      "reconstruction": 0.00517883982732892,
+      "shape_ce": 0.0,
+      "style_kl": 0.4150532550652822,
+      "total": 0.008291739170998335
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.008,
+      "reconstruction": 0.0050930141362051165,
+      "shape_ce": 0.0,
+      "style_kl": 0.39853126614888507,
+      "total": 0.00828126440991958
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0085,
+      "reconstruction": 0.005019515682260196,
+      "shape_ce": 0.0,
+      "style_kl": 0.3911940166473389,
+      "total": 0.008344664997359117
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.009000000000000001,
+      "reconstruction": 0.004965756203979254,
+      "shape_ce": 0.0,
+      "style_kl": 0.38584612902005516,
+      "total": 0.00843837121874094
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.0095,
+      "reconstruction": 0.0049088415111104644,
+      "shape_ce": 0.0,
+      "style_kl": 0.38062097182273863,
+      "total": 0.008524740618964036
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004862636124591033,
+      "shape_ce": 0.0,
+      "style_kl": 0.3718338850339254,
+      "total": 0.008580974890291691
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004780714472631614,
+      "shape_ce": 0.0,
+      "style_kl": 0.37281484095255535,
+      "total": 0.008508862800647814
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004745439188182354,
+      "shape_ce": 0.0,
+      "style_kl": 0.3722590666929881,
+      "total": 0.008468029768019915
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004615949475516875,
+      "shape_ce": 0.0,
+      "style_kl": 0.36443598114649456,
+      "total": 0.00826030921091636
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.00457418587654829,
+      "shape_ce": 0.0,
+      "style_kl": 0.3671042314529419,
+      "total": 0.008245228111495573
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004520419720063607,
+      "shape_ce": 0.0,
+      "style_kl": 0.3653345213413238,
+      "total": 0.008173764859388272
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0044351142843564355,
+      "shape_ce": 0.0,
+      "style_kl": 0.36496939619382224,
+      "total": 0.008084808161606392
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004382039317240317,
+      "shape_ce": 0.0,
+      "style_kl": 0.35999679907162985,
+      "total": 0.00798200723255674
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004319496419777473,
+      "shape_ce": 0.0,
+      "style_kl": 0.35945171376864116,
+      "total": 0.00791401347865661
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004314181849360466,
+      "shape_ce": 0.0,
+      "style_kl": 0.3586866056283315,
+      "total": 0.007901047825068236
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004226368775094549,
+      "shape_ce": 0.0,
+      "style_kl": 0.3582442709604899,
+      "total": 0.007808811402320862
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004158518133809169,
+      "shape_ce": 0.0,
+      "style_kl": 0.3558867279847463,
+      "total": 0.007717385340978702
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0041956749410678945,
+      "shape_ce": 0.0,
+      "style_kl": 0.35749754295349123,
+      "total": 0.007770650284985701
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.004087149335195621,
+      "shape_ce": 0.0,
+      "style_kl": 0.3528014330705007,
+      "total": 0.007615163589517276
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0040638972441355385,
+      "shape_ce": 0.0,
+      "style_kl": 0.35387582869529727,
+      "total": 0.007602655453979969
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003999893214181065,
+      "shape_ce": 0.0,
+      "style_kl": 0.34964356908798216,
+      "total": 0.0074963288232684135
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0039910372172792755,
+      "shape_ce": 0.0,
+      "style_kl": 0.35245901815096536,
+      "total": 0.007515627325077851
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0039542493887245655,
+      "shape_ce": 0.0,
+      "style_kl": 0.3499212357203166,
+      "total": 0.007453461671123902
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0039023741411666076,
+      "shape_ce": 0.0,
+      "style_kl": 0.3484548443953196,
+      "total": 0.007386922512451807
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0038765699441234273,
+      "shape_ce": 0.0,
+      "style_kl": 0.3472852904319763,
+      "total": 0.007349422783652942
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0038508694500972826,
+      "shape_ce": 0.0,
+      "style_kl": 0.3476438456058502,
+      "total": 0.007327307832737764
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0038127533356348674,
+      "shape_ce": 0.0,
+      "style_kl": 0.35025521632830303,
+      "total": 0.007315305423736572
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0037862428706139325,
+      "shape_ce": 0.0,
+      "style_kl": 0.34488284182548523,
+      "total": 0.007235071211308241
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0037551035360743603,
+      "shape_ce": 0.0,
+      "style_kl": 0.34610558735529584,
+      "total": 0.00721615933974584
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.00372592208335797,
+      "shape_ce": 0.0,
+      "style_kl": 0.34786773444811503,
+      "total": 0.007204599358389775
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0037071622324486575,
+      "shape_ce": 0.0,
+      "style_kl": 0.34573202889760335,
+      "total": 0.007164482457439105
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003641053164501985,
+      "shape_ce": 0.0,
+      "style_kl": 0.34556082383791603,
+      "total": 0.007096661319335302
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003641312024369836,
+      "shape_ce": 0.0,
+      "style_kl": 0.3422604786078135,
+      "total": 0.007063916737089554
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0036226811863482,
+      "shape_ce": 0.0,
+      "style_kl": 0.34234612929026287,
+      "total": 0.007046142408251762
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0035898499821623167,
+      "shape_ce": 0.0,
+      "style_kl": 0.3419045625050863,
+      "total": 0.0070088955357670785
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0035955700612316528,
+      "shape_ce": 0.0,
+      "style_kl": 0.3449639689604441,
+      "total": 0.007045209676772356
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0031733511961996555,
+      "shape_ce": 0.0,
+      "style_kl": 0.331064718580246,
+      "total": 0.006483998307834069
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003175043052310745,
+      "shape_ce": 0.0,
+      "style_kl": 0.32662436931927996,
+      "total": 0.006441286677618821
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0031637206908315422,
+      "shape_ce": 0.0,
+      "style_kl": 0.32615601579348247,
+      "total": 0.0064252807768682635
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0031142205155144137,
+      "shape_ce": 0.0,
+      "style_kl": 0.3272305662790934,
+      "total": 0.0063865260998408
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003101905148352186,
+      "shape_ce": 0.0,
+      "style_kl": 0.3278809675693512,
+      "total": 0.006380714751780033
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0030752685103565456,
+      "shape_ce": 0.0,
+      "style_kl": 0.3268500256061554,
+      "total": 0.0063437686905264854
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.003066546342149377,
+      "shape_ce": 0.0,
+      "style_kl": 0.3244789020220439,
+      "total": 0.0063113352902233605
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0030643295454482237,
+      "shape_ce": 0.0,
+      "style_kl": 0.3254777263323466,
+      "total": 0.006319106735537449
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0030348973015944165,
+      "shape_ce": 0.0,
+      "style_kl": 0.3246615708510081,
+      "total": 0.006281512940178315
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0030110309517631926,
+      "shape_ce": 0.0,
+      "style_kl": 0.3265357022921244,
+      "total": 0.006276387898872296
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0030250728069494168,
+      "shape_ce": 0.0,
+      "style_kl": 0.32628432477315267,
+      "total": 0.0062879159840444725
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002998219708601634,
+      "shape_ce": 0.0,
+      "style_kl": 0.32547742853164674,
+      "total": 0.006252993922183911
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002997449729343255,
+      "shape_ce": 0.0,
+      "style_kl": 0.3267659250418345,
+      "total": 0.006265108911196391
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002974881603444616,
+      "shape_ce": 0.0,
+      "style_kl": 0.3239989713827769,
+      "total": 0.006214871246864398
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0029722809430211784,
+      "shape_ce": 0.0,
+      "style_kl": 0.3245227912267049,
+      "total": 0.0062175087846815585
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002951658927028378,
+      "shape_ce": 0.0,
+      "style_kl": 0.32571025540033977,
+      "total": 0.006208761402716239
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0029422261701275904,
+      "shape_ce": 0.0,
+      "style_kl": 0.32523386333783466,
+      "total": 0.006194564728438854
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002942991743981838,
+      "shape_ce": 0.0,
+      "style_kl": 0.3246904512723287,
+      "total": 0.006189896185447772
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002912354215482871,
+      "shape_ce": 0.0,
+      "style_kl": 0.3256841267267863,
+      "total": 0.0061691954135894775
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002921465479582548,
+      "shape_ce": 0.0,
+      "style_kl": 0.32274191981951394,
+      "total": 0.006148884601394336
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0029013242198775214,
+      "shape_ce": 0.0,
+      "style_kl": 0.3225090273857117,
+      "total": 0.006126414419213931
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0029122581757605077,
+      "shape_ce": 0.0,
+      "style_kl": 0.32440590432484945,
+      "total": 0.006156317141403755
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028967745071897906,
+      "shape_ce": 0.0,
+      "style_kl": 0.3223887316703796,
+      "total": 0.006120661751677593
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028920973585297664,
+      "shape_ce": 0.0,
+      "style_kl": 0.32460847908655804,
+      "total": 0.006138182073831558
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002868722859273354,
+      "shape_ce": 0.0,
+      "style_kl": 0.32180155854225156,
+      "total": 0.006086738369117181
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028571073530862727,
+      "shape_ce": 0.0,
+      "style_kl": 0.32453052339553834,
+      "total": 0.006102412506689628
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028420748228828114,
+      "shape_ce": 0.0,
+      "style_kl": 0.3229549965540568,
+      "total": 0.00607162471661965
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028519933082163332,
+      "shape_ce": 0.0,
+      "style_kl": 0.3238020858446757,
+      "total": 0.0060900141015648845
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002828229876110951,
+      "shape_ce": 0.0,
+      "style_kl": 0.3225300877571106,
+      "total": 0.006053530682623386
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028258918349941572,
+      "shape_ce": 0.0,
+      "style_kl": 0.323976060628891,
+      "total": 0.006065652367224296
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002827611951902509,
+      "shape_ce": 0.0,
+      "style_kl": 0.32257350891431175,
+      "total": 0.006053346964965264
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027983679300795,
+      "shape_ce": 0.0,
+      "style_kl": 0.32524165331522625,
+      "total": 0.006050784398367008
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0028245561257004737,
+      "shape_ce": 0.0,
+      "style_kl": 0.3249842055956523,
+      "total": 0.00607439811800917
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002785226792966326,
+      "shape_ce": 0.0,
+      "style_kl": 0.3216756052176158,
+      "total": 0.006001982776323954
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002797723920891682,
+      "shape_ce": 0.0,
+      "style_kl": 0.32214564525286354,
+      "total": 0.0060191803075373175
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027776530160258214,
+      "shape_ce": 0.0,
+      "style_kl": 0.32476037770907085,
+      "total": 0.00602525672664245
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002770699274415771,
+      "shape_ce": 0.0,
+      "style_kl": 0.3213778345902761,
+      "total": 0.005984477553019921
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027817401309808095,
+      "shape_ce": 0.0,
+      "style_kl": 0.32280678226153053,
+      "total": 0.006009807882457972
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027575632443030676,
+      "shape_ce": 0.0,
+      "style_kl": 0.3225145113627116,
+      "total": 0.005982708282023668
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.00275320981827875,
+      "shape_ce": 0.0,
+      "style_kl": 0.32281442265510557,
+      "total": 0.005981353969375293
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002756910591199994,
+      "shape_ce": 0.0,
+      "style_kl": 0.3213364291032155,
+      "total": 0.00597027480478088
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027498697283367315,
+      "shape_ce": 0.0,
+      "style_kl": 0.3222456864674886,
+      "total": 0.005972326524804036
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002858428354312976,
+      "shape_ce": 0.0,
+      "style_kl": 0.32124636368751525,
+      "total": 0.006070891923705737
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002729044704635938,
+      "shape_ce": 0.0,
+      "style_kl": 0.32160069629351296,
+      "total": 0.0059450515940785405
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002723657406742374,
+      "shape_ce": 0.0,
+      "style_kl": 0.32265879616737364,
+      "total": 0.005950245296458404
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027138434650997322,
+      "shape_ce": 0.0,
+      "style_kl": 0.3226730529467265,
+      "total": 0.005940573917826017
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002723306299994389,
+      "shape_ce": 0.0,
+      "style_kl": 0.32147986652056376,
+      "total": 0.00593810488730669
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.002705593567962448,
+      "shape_ce": 0.0,
+      "style_kl": 0.32161131529808046,
+      "total": 0.005921706644197305
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027039472362647456,
+      "shape_ce": 0.0,
+      "style_kl": 0.3216025188922882,
+      "total": 0.0059199723439912
+    },
+    {
+      "classifier_weight": 0.1,
+      "content_kl": 0.0,
+      "kl_weight": 0.01,
+      "reconstruction": 0.0027076126471161843,
+      "shape_ce": 0.0,
+      "style_kl": 0.32122587407430014,
+      "total": 0.0059198713118831315
+    }
+  ]
+}

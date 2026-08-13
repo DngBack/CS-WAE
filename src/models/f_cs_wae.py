@@ -6,7 +6,7 @@ Latent space is split into:
   z_s in R^{d_s}    — style latent in Euclidean space
 
 Encoder: shared ResNet-18 backbone → semantic head (mu_c, rho_c) + style head (mu_s, logvar_s)
-Decoder: concat(z_c, z_s) → ResBlock decoder (4×4 → 32×32)
+Decoder: concat(z_c, z_s) → native ResBlock decoder (4×4 → 32×32 or 64×64)
 Priors:  z_c ~ SphericalCauchy(m_k, rho_p) per class k (EMA centers, no gradient)
          z_s ~ N(0, I)
 """
@@ -139,7 +139,8 @@ class ResBlockDecoder(nn.Module):
         ResBlockUp 512 → 256   (4 → 8)
         ResBlockUp 256 → 128   (8 → 16)
         ResBlockUp 128 → 64    (16 → 32)
-        GN + SiLU → Conv2d(64 → in_channels) → Sigmoid
+        optional ResBlockUp 64 → 32 (32 → 64)
+        GN + SiLU → Conv2d → in_channels → Sigmoid
     """
 
     def __init__(
@@ -150,19 +151,26 @@ class ResBlockDecoder(nn.Module):
         image_size: int = 32,
     ):
         super().__init__()
+        if image_size not in (28, 32, 64):
+            raise ValueError("F-CS-WAE decoder supports image_size in {28,32,64}")
         self.image_size = image_size
         latent_dim = semantic_dim + style_dim
 
         self.fc = nn.Linear(latent_dim, 512 * 4 * 4)
-        self.ups = nn.Sequential(
+        up_blocks = [
             ResBlockUp(512, 256),
             ResBlockUp(256, 128),
             ResBlockUp(128, 64),
-        )
+        ]
+        output_channels = 64
+        if image_size == 64:
+            up_blocks.append(ResBlockUp(64, 32))
+            output_channels = 32
+        self.ups = nn.Sequential(*up_blocks)
         self.out = nn.Sequential(
-            nn.GroupNorm(8, 64),
+            nn.GroupNorm(8, output_channels),
             nn.SiLU(),
-            nn.Conv2d(64, in_channels, kernel_size=3, padding=1),
+            nn.Conv2d(output_channels, in_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
         )
 
@@ -171,6 +179,8 @@ class ResBlockDecoder(nn.Module):
         x = x.view(-1, 512, 4, 4)
         x = self.ups(x)
         x = self.out(x)
+        # Only the legacy 28x28 path crops/interpolates the native 32x32
+        # decoder. Shapes3D 64x64 always uses the fourth native upsampling block.
         if x.shape[-1] != self.image_size:
             x = F.interpolate(x, size=(self.image_size, self.image_size),
                               mode="bilinear", align_corners=False)

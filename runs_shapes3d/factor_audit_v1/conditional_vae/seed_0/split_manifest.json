@@ -1,0 +1,294 @@
+{
+  "designated_semantic_factor": "shape",
+  "factor_cardinalities": [
+    10,
+    10,
+    10,
+    8,
+    4,
+    15
+  ],
+  "factor_names": [
+    "floor_hue",
+    "wall_hue",
+    "object_hue",
+    "scale",
+    "shape",
+    "orientation"
+  ],
+  "loader_seed": 0,
+  "schema_version": "shapes3d-factor-audit-split-1.0.0",
+  "source": {
+    "images": {
+      "dtype": "uint8",
+      "shape": [
+        480000,
+        64,
+        64,
+        3
+      ]
+    },
+    "labels": {
+      "dtype": "float64",
+      "shape": [
+        480000,
+        6
+      ]
+    },
+    "local_cache": {
+      "factor_indices": {
+        "dtype": "int64",
+        "path": "3dshapes_factor_indices.npy",
+        "shape": [
+          480000,
+          6
+        ]
+      },
+      "images": {
+        "dtype": "uint8",
+        "path": "3dshapes_images_uint8.npy",
+        "shape": [
+          480000,
+          64,
+          64,
+          3
+        ]
+      },
+      "schema_version": "shapes3d-local-cache-1.0.0",
+      "source_sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785"
+    },
+    "path": "/media/drive-2t/CS-WAE-bachdx2/data/shapes3d/3dshapes.h5",
+    "sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785",
+    "size_bytes": 267573662,
+    "source_url": "https://storage.googleapis.com/3d-shapes/3dshapes.h5"
+  },
+  "split_seed": 2027,
+  "split_type": "fixed shape-stratified IID factor split",
+  "splits": {
+    "test": {
+      "factor_counts": {
+        "floor_hue": [
+          2020,
+          2023,
+          1945,
+          2064,
+          1982,
+          1981,
+          1954,
+          2003,
+          2062,
+          1966
+        ],
+        "object_hue": [
+          1977,
+          2020,
+          1951,
+          2019,
+          2046,
+          1960,
+          2003,
+          2057,
+          1991,
+          1976
+        ],
+        "orientation": [
+          1311,
+          1308,
+          1356,
+          1428,
+          1294,
+          1310,
+          1334,
+          1311,
+          1326,
+          1311,
+          1321,
+          1359,
+          1341,
+          1319,
+          1371
+        ],
+        "scale": [
+          2442,
+          2425,
+          2520,
+          2605,
+          2544,
+          2537,
+          2474,
+          2453
+        ],
+        "shape": [
+          5000,
+          5000,
+          5000,
+          5000
+        ],
+        "wall_hue": [
+          2009,
+          2016,
+          1991,
+          1936,
+          2025,
+          2017,
+          1977,
+          2030,
+          1950,
+          2049
+        ]
+      },
+      "n_samples": 20000,
+      "ordered_indices_sha256": "ceeb87d1aa528350fd30bae28424e64b5361902f41abf3d469015c36847100cc"
+    },
+    "train": {
+      "factor_counts": {
+        "floor_hue": [
+          11993,
+          12136,
+          11833,
+          11970,
+          12095,
+          12086,
+          11847,
+          12094,
+          11991,
+          11955
+        ],
+        "object_hue": [
+          12039,
+          12077,
+          11913,
+          11959,
+          12026,
+          12052,
+          11915,
+          11962,
+          11939,
+          12118
+        ],
+        "orientation": [
+          8012,
+          7900,
+          7995,
+          7975,
+          8031,
+          7986,
+          8082,
+          8031,
+          7919,
+          8032,
+          7975,
+          8142,
+          7985,
+          7974,
+          7961
+        ],
+        "scale": [
+          15016,
+          15008,
+          14989,
+          15129,
+          14967,
+          15003,
+          14939,
+          14949
+        ],
+        "shape": [
+          30000,
+          30000,
+          30000,
+          30000
+        ],
+        "wall_hue": [
+          11991,
+          11787,
+          11994,
+          12069,
+          12061,
+          11923,
+          11897,
+          12099,
+          12082,
+          12097
+        ]
+      },
+      "n_samples": 120000,
+      "ordered_indices_sha256": "31cf5c4b330bed5328da51258301da02c9bc49d41b6956090de7932ac409e67f"
+    },
+    "validation": {
+      "factor_counts": {
+        "floor_hue": [
+          1974,
+          2049,
+          2017,
+          2025,
+          2009,
+          1944,
+          2039,
+          1970,
+          2008,
+          1965
+        ],
+        "object_hue": [
+          2020,
+          1956,
+          2096,
+          1967,
+          1990,
+          1917,
+          2003,
+          2042,
+          1984,
+          2025
+        ],
+        "orientation": [
+          1260,
+          1332,
+          1374,
+          1402,
+          1369,
+          1333,
+          1341,
+          1308,
+          1314,
+          1313,
+          1326,
+          1323,
+          1328,
+          1380,
+          1297
+        ],
+        "scale": [
+          2483,
+          2449,
+          2536,
+          2438,
+          2565,
+          2558,
+          2482,
+          2489
+        ],
+        "shape": [
+          5000,
+          5000,
+          5000,
+          5000
+        ],
+        "wall_hue": [
+          1990,
+          2006,
+          1946,
+          2021,
+          1907,
+          2022,
+          2040,
+          2023,
+          2035,
+          2010
+        ]
+      },
+      "n_samples": 20000,
+      "ordered_indices_sha256": "cba7758e7b9cccf436f462632212ec6cddeb1dc977cd5e06d970c2fbf4183d60"
+    }
+  }
+}

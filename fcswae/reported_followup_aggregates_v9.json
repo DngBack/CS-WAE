@@ -1,0 +1,100 @@
+{
+  "schema_version": "reported-followup-aggregate-1.0.0",
+  "provenance": {
+    "source": "user-supplied summaries from completed external runs",
+    "integration_date": "2026-08-13",
+    "paper": "main_v9_iclr2027.tex",
+    "reporting_rule": "Values are rounded aggregates. This file is not a substitute for raw per-seed manifests and does not infer missing standard deviations."
+  },
+  "shapes3d": {
+    "seeds": 3,
+    "f_cs_wae": {
+      "style_to_shape_accuracy_pct": 99.0,
+      "content_to_style_accuracy_pct": 87.0,
+      "conditional_shape_mmd": 0.0085,
+      "prior_shape_retention_pct": 89.0,
+      "swap_shape_retention_pct": 88.0,
+      "reconstruction_l1": 0.0023
+    },
+    "learned_content_style_vae": {
+      "style_to_shape_accuracy_pct": 25.5,
+      "content_to_style_accuracy_pct": 9.5,
+      "conditional_shape_mmd": 0.00004,
+      "prior_shape_retention_pct": 99.7,
+      "swap_shape_retention_pct": 99.8,
+      "reconstruction_l1": 0.0029
+    }
+  },
+  "cifar10_entropy": {
+    "seeds": 3,
+    "levels": [
+      {
+        "sigma_floor": 0.0,
+        "logistic_probe_pct": 68.0,
+        "global_mmd": 0.00030,
+        "conditional_mmd": 0.0058,
+        "hsic_p_value_each_seed": 0.00498,
+        "generation_accuracy_pct": 13.0,
+        "reconstruction_l1": 0.052
+      },
+      {
+        "sigma_floor": 0.15,
+        "logistic_probe_pct": 29.0,
+        "global_mmd": 0.00070,
+        "conditional_mmd": 0.0037,
+        "hsic_p_value_each_seed": 0.00498,
+        "generation_accuracy_pct": 27.0,
+        "reconstruction_l1": 0.059
+      },
+      {
+        "sigma_floor": 0.35,
+        "logistic_probe_pct": 10.5,
+        "global_mmd": 0.00067,
+        "conditional_mmd": 0.0013,
+        "hsic_p_value_each_seed": 0.00498,
+        "generation_accuracy_pct": 52.0,
+        "reconstruction_l1": 0.065
+      }
+    ]
+  },
+  "synthetic_exact_marginal": {
+    "kappa": 16,
+    "sample_size_sweep": [
+      {
+        "n": 512,
+        "probe_accuracy_pct": 92.0,
+        "global_mmd_rejection_rate_pct": 6.0
+      },
+      {
+        "n": 1024,
+        "probe_accuracy_pct": 92.2,
+        "global_mmd_rejection_rate_pct": 5.0
+      },
+      {
+        "n": 2048,
+        "probe_accuracy_pct": 92.3,
+        "global_mmd_rejection_rate_pct": 6.0
+      },
+      {
+        "n": 4096,
+        "probe_accuracy_pct": 92.5,
+        "global_mmd_rejection_rate_pct": 5.0
+      }
+    ]
+  },
+  "original_image_audit": {
+    "seeds": 3,
+    "mnist": {
+      "global_mmd": 0.00058,
+      "logistic_style_probe_pct": 99.6,
+      "conditional_mmd": 0.0160,
+      "hsic_p_value_each_seed": 0.00498
+    },
+    "fashion_mnist": {
+      "global_mmd": 0.00034,
+      "logistic_style_probe_pct": 88.0,
+      "conditional_mmd": 0.010,
+      "hsic_p_value_each_seed": 0.00498
+    }
+  }
+}

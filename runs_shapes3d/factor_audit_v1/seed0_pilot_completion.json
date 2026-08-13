@@ -1,0 +1,45 @@
+{
+  "complete": true,
+  "created_at_utc": "2026-08-13T03:41:42.562164+00:00",
+  "execution_order": [
+    "fcswae",
+    "conditional_vae",
+    "content_style_vae"
+  ],
+  "models": {
+    "conditional_vae": {
+      "artifact": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/conditional_vae/seed_0/factor_audit.json",
+      "competence_checks": {
+        "content_shape_probe": true,
+        "factor_evaluator": true,
+        "reconstruction_l1": true,
+        "reconstruction_shape": true,
+        "reconstruction_style_mean": true
+      },
+      "passes_competence_gate": true
+    },
+    "content_style_vae": {
+      "artifact": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/content_style_vae/seed_0/factor_audit.json",
+      "competence_checks": {
+        "content_shape_probe": true,
+        "factor_evaluator": true,
+        "reconstruction_l1": true,
+        "reconstruction_shape": true,
+        "reconstruction_style_mean": true
+      },
+      "passes_competence_gate": true
+    },
+    "fcswae": {
+      "artifact": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/fcswae/seed_0/factor_audit.json",
+      "competence_checks": {
+        "content_shape_probe": true,
+        "factor_evaluator": true,
+        "reconstruction_l1": true,
+        "reconstruction_shape": true,
+        "reconstruction_style_mean": true
+      },
+      "passes_competence_gate": true
+    }
+  },
+  "schema_version": "shapes3d-seed0-pilot-suite-completion-1.0.0"
+}

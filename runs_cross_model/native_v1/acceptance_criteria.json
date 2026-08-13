@@ -1,0 +1,48 @@
+{
+  "competence_thresholds": {
+    "content_logistic_accuracy_min": 0.8,
+    "external_real_test_accuracy_min": 0.95,
+    "prior_style_content_retention_min": 0.7,
+    "reconstruction_l1_max": 0.2
+  },
+  "cross_model_protocol_version": "native-cross-model-1.0.0",
+  "dataset": {
+    "angles_degrees": [
+      -30.0,
+      30.0
+    ],
+    "audit_sources_per_class_per_domain": 100,
+    "name": "two-domain Rotated-MNIST",
+    "split_seed": 2027,
+    "test_sources_per_class": 500,
+    "train_sources_per_class": 2000
+  },
+  "evaluation": {
+    "domain_policy": "audit each domain separately, then macro-average",
+    "hsic_permutations": 200,
+    "mmd_permutations": 500,
+    "probe_split": "stratified 60/20/20, scaling fit on probe train only"
+  },
+  "families": [
+    "fcswae",
+    "drit",
+    "diva"
+  ],
+  "legacy_proxy_artifacts_excluded": "/home/bachdx2/CS-WAE/runs_diag/cross_model",
+  "native_style_blocks": {
+    "diva": "residual z_x with standard Gaussian prior",
+    "drit": "domain-specific Gaussian attribute z_a, audited separately",
+    "fcswae": "Euclidean z_s"
+  },
+  "stage0_audit_protocol_version": "stage0-1.2.0",
+  "training": {
+    "epochs": 100,
+    "independent_evaluator_epochs": 20,
+    "model_seeds": [
+      0,
+      1,
+      2
+    ],
+    "selection_policy": "fixed final epoch; no audit-based checkpoint selection"
+  }
+}

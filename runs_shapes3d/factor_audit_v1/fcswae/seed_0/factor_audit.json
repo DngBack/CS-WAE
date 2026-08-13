@@ -1,0 +1,1888 @@
+{
+  "manifest": {
+    "acceptance_criteria_sha256": "4892495ff3d1610fa5ac0dd8a994ca2d14bbe1cb283eef5666e5b651676614ec",
+    "checkpoint": {
+      "path": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/fcswae/seed_0/model.pth",
+      "sha256": "2f0ec42d5d2ee9d4bb9c65b92af0f058c55415bed7406352fbe5af26663ed34c"
+    },
+    "created_at_utc": "2026-08-12T19:30:27.918824+00:00",
+    "factor_evaluator": {
+      "path": "/home/bachdx2/CS-WAE/runs_shapes3d/factor_audit_v1/evaluator/seed_0/factor_evaluator.pth",
+      "sha256": "950de341818ebc18f2e8c0e83deb0cc4ceb9400d324a9d6c7803c10204da187e"
+    },
+    "implementation_file_sha256": {
+      "scripts/run_shapes3d_factor_audit.py": "182878d5bb7a429e5e89c5531f1eb2ca6c058893c7b366cb6952f891d5ee988e",
+      "src/datasets/shapes3d.py": "458d8ab91d0a7e1d635ed5765c76e60e6b2b658e570eb015c7426f4cc23034c2",
+      "src/metrics/audit_protocol.py": "0d5a89944162de49e54c94de9268e27cbbae22a64d2003744ec607614de4e082",
+      "src/metrics/factorized_adapter.py": "19cfe1f14582df35add4e85f0531d5eac3ea421929808fa44c2955868f33b810",
+      "src/metrics/statistical_reporting.py": "e0258b018bc22b733091547ba3375602d0220d5388bb89837666637e68c7f176",
+      "src/models/backbone.py": "714edcdd63608383aba550da9c66b8234fe0c7f03867cabbdf74e92d64ca0a62",
+      "src/models/f_cs_wae.py": "f053e16e0854908fd214aebad6855bcb96ad567f27b639f83c72be0117ab162c",
+      "src/models/shapes3d_factor_evaluator.py": "b4b56ab4ca2b3e5ba48ef4f77ab27cd0aa51870dc1805f21726dc0eca05fe9f5",
+      "src/trainers/trainer_f_cs_wae.py": "f12ece0a1257b93e74a39ab8c75619af5e607532083acc0455b2f097e02633d9"
+    },
+    "protocol_version": "shapes3d-factor-audit-1.0.0",
+    "repository": {
+      "commit": "122b718b8868f4becbee4e95a562aa948ada3064",
+      "dirty": true
+    },
+    "schema_version": "shapes3d-factor-audit-result-1.0.0",
+    "seed": 0,
+    "split_manifest": {
+      "designated_semantic_factor": "shape",
+      "factor_cardinalities": [
+        10,
+        10,
+        10,
+        8,
+        4,
+        15
+      ],
+      "factor_names": [
+        "floor_hue",
+        "wall_hue",
+        "object_hue",
+        "scale",
+        "shape",
+        "orientation"
+      ],
+      "loader_seed": 0,
+      "schema_version": "shapes3d-factor-audit-split-1.0.0",
+      "source": {
+        "images": {
+          "dtype": "uint8",
+          "shape": [
+            480000,
+            64,
+            64,
+            3
+          ]
+        },
+        "labels": {
+          "dtype": "float64",
+          "shape": [
+            480000,
+            6
+          ]
+        },
+        "local_cache": {
+          "factor_indices": {
+            "dtype": "int64",
+            "path": "3dshapes_factor_indices.npy",
+            "shape": [
+              480000,
+              6
+            ]
+          },
+          "images": {
+            "dtype": "uint8",
+            "path": "3dshapes_images_uint8.npy",
+            "shape": [
+              480000,
+              64,
+              64,
+              3
+            ]
+          },
+          "schema_version": "shapes3d-local-cache-1.0.0",
+          "source_sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785"
+        },
+        "path": "/media/drive-2t/CS-WAE-bachdx2/data/shapes3d/3dshapes.h5",
+        "sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785",
+        "size_bytes": 267573662,
+        "source_url": "https://storage.googleapis.com/3d-shapes/3dshapes.h5"
+      },
+      "split_seed": 2027,
+      "split_type": "fixed shape-stratified IID factor split",
+      "splits": {
+        "test": {
+          "factor_counts": {
+            "floor_hue": [
+              2020,
+              2023,
+              1945,
+              2064,
+              1982,
+              1981,
+              1954,
+              2003,
+              2062,
+              1966
+            ],
+            "object_hue": [
+              1977,
+              2020,
+              1951,
+              2019,
+              2046,
+              1960,
+              2003,
+              2057,
+              1991,
+              1976
+            ],
+            "orientation": [
+              1311,
+              1308,
+              1356,
+              1428,
+              1294,
+              1310,
+              1334,
+              1311,
+              1326,
+              1311,
+              1321,
+              1359,
+              1341,
+              1319,
+              1371
+            ],
+            "scale": [
+              2442,
+              2425,
+              2520,
+              2605,
+              2544,
+              2537,
+              2474,
+              2453
+            ],
+            "shape": [
+              5000,
+              5000,
+              5000,
+              5000
+            ],
+            "wall_hue": [
+              2009,
+              2016,
+              1991,
+              1936,
+              2025,
+              2017,
+              1977,
+              2030,
+              1950,
+              2049
+            ]
+          },
+          "n_samples": 20000,
+          "ordered_indices_sha256": "ceeb87d1aa528350fd30bae28424e64b5361902f41abf3d469015c36847100cc"
+        },
+        "train": {
+          "factor_counts": {
+            "floor_hue": [
+              11993,
+              12136,
+              11833,
+              11970,
+              12095,
+              12086,
+              11847,
+              12094,
+              11991,
+              11955
+            ],
+            "object_hue": [
+              12039,
+              12077,
+              11913,
+              11959,
+              12026,
+              12052,
+              11915,
+              11962,
+              11939,
+              12118
+            ],
+            "orientation": [
+              8012,
+              7900,
+              7995,
+              7975,
+              8031,
+              7986,
+              8082,
+              8031,
+              7919,
+              8032,
+              7975,
+              8142,
+              7985,
+              7974,
+              7961
+            ],
+            "scale": [
+              15016,
+              15008,
+              14989,
+              15129,
+              14967,
+              15003,
+              14939,
+              14949
+            ],
+            "shape": [
+              30000,
+              30000,
+              30000,
+              30000
+            ],
+            "wall_hue": [
+              11991,
+              11787,
+              11994,
+              12069,
+              12061,
+              11923,
+              11897,
+              12099,
+              12082,
+              12097
+            ]
+          },
+          "n_samples": 120000,
+          "ordered_indices_sha256": "31cf5c4b330bed5328da51258301da02c9bc49d41b6956090de7932ac409e67f"
+        },
+        "validation": {
+          "factor_counts": {
+            "floor_hue": [
+              1974,
+              2049,
+              2017,
+              2025,
+              2009,
+              1944,
+              2039,
+              1970,
+              2008,
+              1965
+            ],
+            "object_hue": [
+              2020,
+              1956,
+              2096,
+              1967,
+              1990,
+              1917,
+              2003,
+              2042,
+              1984,
+              2025
+            ],
+            "orientation": [
+              1260,
+              1332,
+              1374,
+              1402,
+              1369,
+              1333,
+              1341,
+              1308,
+              1314,
+              1313,
+              1326,
+              1323,
+              1328,
+              1380,
+              1297
+            ],
+            "scale": [
+              2483,
+              2449,
+              2536,
+              2438,
+              2565,
+              2558,
+              2482,
+              2489
+            ],
+            "shape": [
+              5000,
+              5000,
+              5000,
+              5000
+            ],
+            "wall_hue": [
+              1990,
+              2006,
+              1946,
+              2021,
+              1907,
+              2022,
+              2040,
+              2023,
+              2035,
+              2010
+            ]
+          },
+          "n_samples": 20000,
+          "ordered_indices_sha256": "cba7758e7b9cccf436f462632212ec6cddeb1dc977cd5e06d970c2fbf4183d60"
+        }
+      }
+    },
+    "stage0_audit_protocol_version": "stage0-1.2.0"
+  },
+  "results": {
+    "audit_source_indices_sha256": "ed97a1b339bda7bc7cae39cd37e85e603497adbeccea3b931227ddf39aba2ad5",
+    "competence_checks": {
+      "content_shape_probe": true,
+      "factor_evaluator": true,
+      "reconstruction_l1": true,
+      "reconstruction_shape": true,
+      "reconstruction_style_mean": true
+    },
+    "decoder": {
+      "posterior_swap_definition": "content from source; style from a donor with a different shape; shape target is source and all other factor targets are donor",
+      "posterior_swap_target_accuracy": {
+        "floor_hue": 1.0,
+        "object_hue": 0.99951171875,
+        "orientation": 1.0,
+        "scale": 0.809326171875,
+        "shape": 0.87744140625,
+        "wall_hue": 0.9990234375
+      },
+      "prior_style_factor_accuracy_against_source": {
+        "floor_hue": 0.1044921875,
+        "object_hue": 0.108642578125,
+        "orientation": 0.073974609375,
+        "scale": 0.13232421875,
+        "shape": 0.894287109375,
+        "wall_hue": 0.1162109375
+      },
+      "reconstruction_factor_accuracy": {
+        "floor_hue": 1.0,
+        "object_hue": 0.999755859375,
+        "orientation": 1.0,
+        "scale": 1.0,
+        "shape": 1.0,
+        "wall_hue": 0.99951171875
+      },
+      "reconstruction_l1": 0.0022817728628676073
+    },
+    "factor_audit": {
+      "content": {
+        "factors": {
+          "floor_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.00019190934304788243,
+              "null_quantiles": {
+                "q90": 0.00021807293669553473,
+                "q95": 0.00022431116231018676,
+                "q99": 0.00024031238674069745
+              },
+              "null_std": 2.11486643362054e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0009415532113052905
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.9975609756097561,
+                    "cross_entropy_nats": 0.05102559179067612,
+                    "information_lower_bound_nats": 2.250744807382587,
+                    "macro_f1": 0.997603255476557
+                  },
+                  "train": {
+                    "accuracy": 0.9991859991859992,
+                    "cross_entropy_nats": 0.05039438232779503,
+                    "macro_f1": 0.9991965798176977
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.05522838607430458,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9719512195121951,
+                    "macro_f1": 0.9718785834125659
+                  },
+                  "train": {
+                    "accuracy": 0.991045991045991,
+                    "macro_f1": 0.991001465103451
+                  },
+                  "validation": {
+                    "accuracy": 0.978021978021978,
+                    "macro_f1": 0.9777735758342656
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "3ed9c9ebc3bd7a0d3e68f6a1faf7b5276a332c038f815b06def0c23618eecc68",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.301770399173263
+            }
+          },
+          "object_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.00018891380430432036,
+              "null_quantiles": {
+                "q90": 0.00022042349737603215,
+                "q95": 0.00023453397734556346,
+                "q99": 0.00026015248877229156
+              },
+              "null_std": 2.5954742841229778e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0004028094990644604
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.8097560975609757,
+                    "cross_entropy_nats": 0.9082949757575989,
+                    "information_lower_bound_nats": 1.3924215934237218,
+                    "macro_f1": 0.8076448352284444
+                  },
+                  "train": {
+                    "accuracy": 0.8648758648758649,
+                    "cross_entropy_nats": 0.8110334277153015,
+                    "macro_f1": 0.8631564045345407
+                  },
+                  "validation": {
+                    "accuracy": 0.8205128205128205,
+                    "cross_entropy_nats": 0.8899227380752563,
+                    "macro_f1": 0.8170155781807648
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.348780487804878,
+                    "macro_f1": 0.3467262841033567
+                  },
+                  "train": {
+                    "accuracy": 0.5095645095645096,
+                    "macro_f1": 0.5031744258631529
+                  },
+                  "validation": {
+                    "accuracy": 0.32722832722832723,
+                    "macro_f1": 0.32410567349826486
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "a559752dee67410bac3b5be3ebe0d7125e5f10682c8c29c9d75fbb8aae318914",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.3007165691813207
+            }
+          },
+          "orientation": {
+            "circular_probe": {
+              "estimator": "ridge regression on sin/cos orientation targets",
+              "mean_absolute_circular_error_degrees": 6.884797064258414,
+              "split": {
+                "indices_sha256": "d3440c73782d5b7db49312dcb5828043f43c2fde0310b82b244457d4f1ea7fba",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              }
+            },
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.00020015104884805624,
+              "null_quantiles": {
+                "q90": 0.00022678124078083782,
+                "q95": 0.00023719627133687025,
+                "q99": 0.00025029298034496606
+              },
+              "null_std": 2.0961976163878952e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0008478558738715947
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.8987804878048781,
+                    "cross_entropy_nats": 0.40846580266952515,
+                    "information_lower_bound_nats": 2.29798495521136,
+                    "macro_f1": 0.8960359523245433
+                  },
+                  "train": {
+                    "accuracy": 0.9340659340659341,
+                    "cross_entropy_nats": 0.36807718873023987,
+                    "macro_f1": 0.9328710009714726
+                  },
+                  "validation": {
+                    "accuracy": 0.8937728937728938,
+                    "cross_entropy_nats": 0.4211635887622833,
+                    "macro_f1": 0.8903259887198273
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.7024390243902439,
+                    "macro_f1": 0.6986564694443711
+                  },
+                  "train": {
+                    "accuracy": 0.8103378103378104,
+                    "macro_f1": 0.8050386621057335
+                  },
+                  "validation": {
+                    "accuracy": 0.7155067155067155,
+                    "macro_f1": 0.7092014094521951
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "c02fbe1d37555d26bb316f252e431dea8c687e7036cc20ee057f7c8ec8a51fd9",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.706450757880885
+            }
+          },
+          "scale": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1024,
+              "null_mean": 0.00018470329909177962,
+              "null_quantiles": {
+                "q90": 0.00022281005803961306,
+                "q95": 0.00023215428300318308,
+                "q99": 0.00024719801178434863
+              },
+              "null_std": 2.7163317133462497e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0009492409881204367
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.6804878048780488,
+                    "cross_entropy_nats": 0.8769776821136475,
+                    "information_lower_bound_nats": 1.2012166103589612,
+                    "macro_f1": 0.6803444047205716
+                  },
+                  "train": {
+                    "accuracy": 0.7228327228327228,
+                    "cross_entropy_nats": 0.8260911107063293,
+                    "macro_f1": 0.7233541182463283
+                  },
+                  "validation": {
+                    "accuracy": 0.6495726495726496,
+                    "cross_entropy_nats": 0.9205176830291748,
+                    "macro_f1": 0.6503592511442443
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.7195121951219512,
+                    "macro_f1": 0.7234868158734823
+                  },
+                  "train": {
+                    "accuracy": 0.8290598290598291,
+                    "macro_f1": 0.8310684846415151
+                  },
+                  "validation": {
+                    "accuracy": 0.7081807081807082,
+                    "macro_f1": 0.7111468855576388
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "0e58649f6437a2ca6c51968fd2d99f9b5bf816f237f4c1bfd253bc55035d2f4f",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.0781942924726087
+            }
+          },
+          "shape": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1024,
+              "null_mean": 0.00015714234752522315,
+              "null_quantiles": {
+                "q90": 0.00020424851682037109,
+                "q95": 0.0002379817022301722,
+                "q99": 0.00025523611373500887
+              },
+              "null_std": 3.717358989369079e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.024216920137405396
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.0008043903508223593,
+                    "information_lower_bound_nats": 1.3854899707690682,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.0007822656189091504,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.0008981001446954906,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "4adf30266234b13ad7915c5088e4ad2cf9aab32d4fe3f5d255f1f4835c67e26f",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 1.3862943611198906
+            }
+          },
+          "wall_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.00019306853908346967,
+              "null_quantiles": {
+                "q90": 0.0002263076865347102,
+                "q95": 0.00023443304817192254,
+                "q99": 0.0002684053740813396
+              },
+              "null_std": 2.539395439581288e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0010445727966725826
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.998780487804878,
+                    "cross_entropy_nats": 0.06194368749856949,
+                    "information_lower_bound_nats": 2.2399855127225345,
+                    "macro_f1": 0.9987713413485093
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.04960101470351219,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.04954736679792404,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9707317073170731,
+                    "macro_f1": 0.9704001299584026
+                  },
+                  "train": {
+                    "accuracy": 0.9906389906389906,
+                    "macro_f1": 0.9906553491008419
+                  },
+                  "validation": {
+                    "accuracy": 0.9743589743589743,
+                    "macro_f1": 0.9742179859027473
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "4d68a44a183eb101b5ff03713109b5950bf3220d15770ef68e9a18c7e9885b45",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.301929200221104
+            }
+          }
+        },
+        "latent_view": "content",
+        "multiple_testing": {
+          "adjusted_p_values": [
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716
+          ],
+          "alpha": 0.05,
+          "method": "Holm step-down family-wise error control",
+          "n_tests": 6,
+          "raw_p_values": [
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453
+          ],
+          "reject": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      },
+      "style": {
+        "factors": {
+          "floor_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.0005790751037420705,
+              "null_quantiles": {
+                "q90": 0.0005888014798983932,
+                "q95": 0.0005915726505918428,
+                "q99": 0.0005959539458854124
+              },
+              "null_std": 7.6171935670276876e-06,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0026056976057589054
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.010523146018385887,
+                    "information_lower_bound_nats": 2.2912472531548773,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.00774642126634717,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.011301932856440544,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9926829268292683,
+                    "macro_f1": 0.9927021820397635
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 0.9938949938949939,
+                    "macro_f1": 0.9938508126783269
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "a2c60ae3c81d8c26931e46621e0e2ef49977ce9bec117ab5aa8b7c1791ca646f",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.301770399173263
+            }
+          },
+          "object_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.0005783357500331476,
+              "null_quantiles": {
+                "q90": 0.0005879125557839871,
+                "q95": 0.0005909140745643526,
+                "q99": 0.0005957352771656587
+              },
+              "null_std": 7.47013001448283e-06,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0016392216784879565
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.028343919664621353,
+                    "information_lower_bound_nats": 2.2723726495166994,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.0230930857360363,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.030895333737134933,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9963414634146341,
+                    "macro_f1": 0.9964064122782625
+                  },
+                  "train": {
+                    "accuracy": 0.9995929995929996,
+                    "macro_f1": 0.9995588043210086
+                  },
+                  "validation": {
+                    "accuracy": 0.9938949938949939,
+                    "macro_f1": 0.9940377861854037
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "19ee4e29c5969a953f9b739f6156afa60dcd5baf479a7c2ff36bfd67faacc140",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.3007165691813207
+            }
+          },
+          "orientation": {
+            "circular_probe": {
+              "estimator": "ridge regression on sin/cos orientation targets",
+              "mean_absolute_circular_error_degrees": 3.0187111401657494,
+              "split": {
+                "indices_sha256": "0e41c996d4f1f7e9c1644ac7d12731d30ac4aa3dff2de8493075001f77f35260",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              }
+            },
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.0006012450813432224,
+              "null_quantiles": {
+                "q90": 0.0006086535751819611,
+                "q95": 0.0006115028954809532,
+                "q99": 0.000615512405638583
+              },
+              "null_std": 6.080102059721762e-06,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0017657537246122956
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.07665698975324631,
+                    "information_lower_bound_nats": 2.6297937681276387,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.06035652384161949,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 0.9987789987789988,
+                    "cross_entropy_nats": 0.07013193517923355,
+                    "macro_f1": 0.9987366288251244
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9524390243902439,
+                    "macro_f1": 0.9519014800446371
+                  },
+                  "train": {
+                    "accuracy": 0.9971509971509972,
+                    "macro_f1": 0.997096617769288
+                  },
+                  "validation": {
+                    "accuracy": 0.9560439560439561,
+                    "macro_f1": 0.9558961126654937
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "959f92f9542c042c8b775e5ce3dfd42ee9c7bc4679d68557a8bc5e6d98bf3c10",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.706450757880885
+            }
+          },
+          "scale": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1024,
+              "null_mean": 0.0005605482560349629,
+              "null_quantiles": {
+                "q90": 0.000570458231959492,
+                "q95": 0.0005736032355343922,
+                "q99": 0.0005800364998867735
+              },
+              "null_std": 7.58620865006183e-06,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.001304391771554947
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 0.9560975609756097,
+                    "cross_entropy_nats": 0.20462416112422943,
+                    "information_lower_bound_nats": 1.8735701313483792,
+                    "macro_f1": 0.9561981415617844
+                  },
+                  "train": {
+                    "accuracy": 0.9857549857549858,
+                    "cross_entropy_nats": 0.16744525730609894,
+                    "macro_f1": 0.9858596041462548
+                  },
+                  "validation": {
+                    "accuracy": 0.9645909645909646,
+                    "cross_entropy_nats": 0.20274324715137482,
+                    "macro_f1": 0.9642940735354872
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9097560975609756,
+                    "macro_f1": 0.9105586480145347
+                  },
+                  "train": {
+                    "accuracy": 0.9881969881969882,
+                    "macro_f1": 0.9881532789657737
+                  },
+                  "validation": {
+                    "accuracy": 0.9157509157509157,
+                    "macro_f1": 0.915198745926276
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "f250e273c9cbbfa6d53ed36f706b3ff09c48c6806cca2a6bc59227639b13f568",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.0781942924726087
+            }
+          },
+          "shape": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1024,
+              "null_mean": 0.0004806129845383111,
+              "null_quantiles": {
+                "q90": 0.0004959718557074666,
+                "q95": 0.0004985903156921268,
+                "q99": 0.0005074644408887252
+              },
+              "null_std": 1.0919435783296088e-05,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.0024234200827777386
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.007183500565588474,
+                    "information_lower_bound_nats": 1.379110860554302,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.007507899310439825,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.008018247783184052,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "macro_f1": 1.0
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "9d63aae73ad234fe871602dcdf0de3e1aef9734a0e0242f5f9eabf08a9b35788",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 1.3862943611198906
+            }
+          },
+          "wall_hue": {
+            "hsic": {
+              "estimator": "biased centered HSIC with permutation calibration",
+              "holm_adjusted_p_value": 0.029850746268656716,
+              "holm_reject": true,
+              "n_permutations": 200,
+              "n_samples": 1020,
+              "null_mean": 0.0005790833497303538,
+              "null_quantiles": {
+                "q90": 0.0005875500792171806,
+                "q95": 0.0005916511960094795,
+                "q99": 0.000598010445246473
+              },
+              "null_std": 7.320800988779148e-06,
+              "p_value": 0.004975124378109453,
+              "permutation_batch_size": 32,
+              "sigmas": [
+                0.5,
+                1.0,
+                2.0,
+                5.0,
+                10.0,
+                20.0,
+                50.0
+              ],
+              "statistic": 0.002663922496140003
+            },
+            "probes": {
+              "feature_standardization": "mean/std fitted on train split only",
+              "models": {
+                "logistic": {
+                  "test": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.01580609194934368,
+                    "information_lower_bound_nats": 2.2861231082717604,
+                    "macro_f1": 1.0
+                  },
+                  "train": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.012028354220092297,
+                    "macro_f1": 1.0
+                  },
+                  "validation": {
+                    "accuracy": 1.0,
+                    "cross_entropy_nats": 0.015998652204871178,
+                    "macro_f1": 1.0
+                  }
+                },
+                "rbf_svm": {
+                  "test": {
+                    "accuracy": 0.9926829268292683,
+                    "macro_f1": 0.9927338086811032
+                  },
+                  "train": {
+                    "accuracy": 0.9991859991859992,
+                    "macro_f1": 0.9991866470793557
+                  },
+                  "validation": {
+                    "accuracy": 0.9914529914529915,
+                    "macro_f1": 0.9914609259461219
+                  }
+                }
+              },
+              "split": {
+                "indices_sha256": "cad08e9ff998a811556a0b6cbfb242c96b613d321950514ab6f631f8376b3266",
+                "test_size": 820,
+                "train_size": 2457,
+                "validation_size": 819
+              },
+              "test_label_entropy_nats": 2.301929200221104
+            }
+          }
+        },
+        "latent_view": "style",
+        "multiple_testing": {
+          "adjusted_p_values": [
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716,
+            0.029850746268656716
+          ],
+          "alpha": 0.05,
+          "method": "Holm step-down family-wise error control",
+          "n_tests": 6,
+          "raw_p_values": [
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453,
+            0.004975124378109453
+          ],
+          "reject": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    },
+    "n_audit_samples": 4096,
+    "passes_competence_gate": true,
+    "sampling_contract": {
+      "conditional_shape_mmd": {
+        "class_counts": {
+          "0": 1024,
+          "1": 1024,
+          "2": 1024,
+          "3": 1024
+        },
+        "estimator": "mean per-class unbiased MMD^2 U-statistic to independent N(0,I) references",
+        "max_mmd2_u": 0.009194672107696533,
+        "mean_mmd2_u": 0.008610054850578308,
+        "min_mmd2_u": 0.007763087749481201,
+        "per_class_mmd2_u": {
+          "0": 0.007763087749481201,
+          "1": 0.009194672107696533,
+          "2": 0.00917118787765503,
+          "3": 0.008311271667480469
+        },
+        "reference_seed_base": 36000,
+        "sigmas": [
+          0.5,
+          1.0,
+          2.0,
+          5.0,
+          10.0,
+          20.0,
+          50.0
+        ]
+      },
+      "global_style_mmd": {
+        "estimator": "unbiased MMD^2 U-statistic with balanced pooled-label permutation null",
+        "interpretation_warning": "This tests exact distributional equality; failure to reject is not proof of equivalence.",
+        "n_per_group": 2048,
+        "n_permutations": 500,
+        "null_mean": -7.537603378295899e-07,
+        "null_quantiles": {
+          "q05": -2.9981136322021484e-05,
+          "q50": -2.9802322387695312e-06,
+          "q95": 3.404021263122558e-05,
+          "q99": 5.8845281600952134e-05
+        },
+        "null_std": 1.974734420802223e-05,
+        "null_values": [
+          -2.4616718292236328e-05,
+          4.947185516357422e-06,
+          -1.3530254364013672e-05,
+          1.710653305053711e-05,
+          3.159046173095703e-06,
+          -7.331371307373047e-06,
+          -1.4007091522216797e-05,
+          1.3887882232666016e-05,
+          -7.092952728271484e-06,
+          3.629922866821289e-05,
+          1.4901161193847656e-06,
+          -3.069639205932617e-05,
+          -5.900859832763672e-06,
+          1.2516975402832031e-06,
+          2.771615982055664e-05,
+          5.424022674560547e-06,
+          -9.953975677490234e-06,
+          -9.119510650634766e-06,
+          -3.4749507904052734e-05,
+          -7.927417755126953e-06,
+          -8.761882781982422e-06,
+          -2.6881694793701172e-05,
+          -3.403425216674805e-05,
+          1.233816146850586e-05,
+          -3.2842159271240234e-05,
+          -1.8537044525146484e-05,
+          -1.0311603546142578e-05,
+          -2.7239322662353516e-05,
+          6.735324859619141e-06,
+          1.5676021575927734e-05,
+          -6.020069122314453e-06,
+          -1.233816146850586e-05,
+          1.4722347259521484e-05,
+          -1.3530254364013672e-05,
+          1.0311603546142578e-05,
+          7.987022399902344e-05,
+          -4.231929779052734e-06,
+          4.416704177856445e-05,
+          -5.781650543212891e-06,
+          7.212162017822266e-06,
+          -2.3245811462402344e-06,
+          7.748603820800781e-07,
+          1.1742115020751953e-05,
+          -1.1622905731201172e-05,
+          -1.0788440704345703e-05,
+          -9.834766387939453e-06,
+          1.8477439880371094e-06,
+          -6.258487701416016e-06,
+          8.046627044677734e-06,
+          5.066394805908203e-06,
+          -2.4974346160888672e-05,
+          -1.436471939086914e-05,
+          -5.900859832763672e-06,
+          -1.1026859283447266e-05,
+          1.6391277313232422e-05,
+          -5.900859832763672e-06,
+          -1.1146068572998047e-05,
+          -2.199411392211914e-05,
+          -1.901388168334961e-05,
+          5.424022674560547e-06,
+          9.953975677490234e-06,
+          6.514787673950195e-05,
+          9.119510650634766e-06,
+          -5.185604095458984e-06,
+          1.1324882507324219e-06,
+          1.2099742889404297e-05,
+          3.039836883544922e-06,
+          2.676248550415039e-05,
+          1.7881393432617188e-07,
+          -1.3768672943115234e-05,
+          3.9517879486083984e-05,
+          -3.874301910400391e-06,
+          2.2590160369873047e-05,
+          1.1146068572998047e-05,
+          3.11732292175293e-05,
+          -6.020069122314453e-06,
+          -2.2709369659423828e-05,
+          1.3172626495361328e-05,
+          2.580881118774414e-05,
+          5.960464477539063e-08,
+          2.485513687133789e-05,
+          2.562999725341797e-06,
+          2.980232238769531e-07,
+          -6.854534149169922e-06,
+          1.1622905731201172e-05,
+          2.5212764739990234e-05,
+          -3.874301910400391e-06,
+          -5.185604095458984e-06,
+          -2.9206275939941406e-06,
+          1.1980533599853516e-05,
+          3.3974647521972656e-06,
+          3.5822391510009766e-05,
+          -5.364418029785156e-07,
+          1.4603137969970703e-05,
+          -2.205371856689453e-06,
+          1.3768672943115234e-05,
+          1.9252300262451172e-05,
+          2.562999725341797e-06,
+          1.4483928680419922e-05,
+          3.4868717193603516e-05,
+          1.2516975402832031e-06,
+          3.403425216674805e-05,
+          -2.9027462005615234e-05,
+          1.2695789337158203e-05,
+          4.214048385620117e-05,
+          -2.092123031616211e-05,
+          1.7344951629638672e-05,
+          -1.0669231414794922e-05,
+          1.5556812286376953e-05,
+          -6.973743438720703e-06,
+          -1.4901161193847656e-06,
+          -3.993511199951172e-06,
+          4.231929779052734e-06,
+          1.043081283569336e-05,
+          1.5795230865478516e-05,
+          -6.556510925292969e-07,
+          -1.0311603546142578e-05,
+          -2.4378299713134766e-05,
+          3.415346145629883e-05,
+          1.0788440704345703e-05,
+          -4.035234451293945e-05,
+          8.046627044677734e-06,
+          -4.857778549194336e-05,
+          -2.7954578399658203e-05,
+          1.0788440704345703e-05,
+          1.138448715209961e-05,
+          -1.8417835235595703e-05,
+          -1.9729137420654297e-05,
+          -2.187490463256836e-05,
+          -2.092123031616211e-05,
+          1.8537044525146484e-05,
+          1.8775463104248047e-05,
+          1.3172626495361328e-05,
+          1.6093254089355469e-06,
+          -6.258487701416016e-06,
+          -5.960464477539063e-08,
+          -1.531839370727539e-05,
+          -6.020069122314453e-06,
+          3.3974647521972656e-06,
+          2.3245811462402344e-06,
+          7.748603820800781e-07,
+          -1.4603137969970703e-05,
+          -7.748603820800781e-07,
+          -2.7835369110107422e-05,
+          1.4126300811767578e-05,
+          2.6404857635498047e-05,
+          -2.2232532501220703e-05,
+          -1.150369644165039e-05,
+          3.36766242980957e-05,
+          4.112720489501953e-06,
+          1.2099742889404297e-05,
+          -1.9848346710205078e-05,
+          5.543231964111328e-06,
+          -2.2232532501220703e-05,
+          9.59634780883789e-06,
+          9.119510650634766e-06,
+          -4.07099723815918e-05,
+          -2.4616718292236328e-05,
+          -1.1622905731201172e-05,
+          -1.3172626495361328e-05,
+          1.8894672393798828e-05,
+          -2.9146671295166016e-05,
+          4.690885543823242e-05,
+          1.3530254364013672e-05,
+          9.59634780883789e-06,
+          3.9517879486083984e-05,
+          1.341104507446289e-05,
+          1.0907649993896484e-05,
+          8.165836334228516e-06,
+          1.5795230865478516e-05,
+          3.0338764190673828e-05,
+          -3.331899642944336e-05,
+          -8.64267349243164e-06,
+          3.88026237487793e-05,
+          -5.781650543212891e-06,
+          -1.627206802368164e-05,
+          2.9981136322021484e-05,
+          -1.4603137969970703e-05,
+          1.1265277862548828e-05,
+          -3.260374069213867e-05,
+          1.0788440704345703e-05,
+          -1.6033649444580078e-05,
+          1.0788440704345703e-05,
+          1.722574234008789e-05,
+          -7.569789886474609e-06,
+          2.7239322662353516e-05,
+          -1.329183578491211e-05,
+          5.781650543212891e-06,
+          -2.4616718292236328e-05,
+          -1.5437602996826172e-05,
+          -8.285045623779297e-06,
+          1.8656253814697266e-05,
+          -1.0669231414794922e-05,
+          6.377696990966797e-06,
+          2.3186206817626953e-05,
+          -2.205371856689453e-06,
+          -3.653764724731445e-05,
+          -2.2232532501220703e-05,
+          -9.715557098388672e-06,
+          -6.496906280517578e-06,
+          -1.9490718841552734e-05,
+          1.2695789337158203e-05,
+          1.4007091522216797e-05,
+          -5.185604095458984e-06,
+          -2.3663043975830078e-05,
+          8.940696716308594e-07,
+          -1.6987323760986328e-05,
+          -2.4974346160888672e-05,
+          -9.834766387939453e-06,
+          -1.2218952178955078e-05,
+          -3.451108932495117e-05,
+          -3.3974647521972656e-06,
+          -6.735324859619141e-06,
+          -8.881092071533203e-06,
+          -1.0192394256591797e-05,
+          -3.516674041748047e-06,
+          3.039836883544922e-06,
+          1.9609928131103516e-05,
+          2.3305416107177734e-05,
+          2.0563602447509766e-05,
+          3.3974647521972656e-06,
+          -2.771615982055664e-05,
+          2.1398067474365234e-05,
+          -3.68952751159668e-05,
+          -2.6524066925048828e-05,
+          1.0073184967041016e-05,
+          -1.4126300811767578e-05,
+          -1.341104507446289e-05,
+          6.258487701416016e-06,
+          9.47713851928711e-06,
+          -1.0669231414794922e-05,
+          -2.1517276763916016e-05,
+          -8.285045623779297e-06,
+          -2.9027462005615234e-05,
+          -1.2099742889404297e-05,
+          -2.0563602447509766e-05,
+          1.1324882507324219e-06,
+          -9.47713851928711e-06,
+          5.513429641723633e-05,
+          -1.233816146850586e-05,
+          2.6881694793701172e-05,
+          -6.616115570068359e-06,
+          3.88026237487793e-05,
+          6.377696990966797e-06,
+          1.1980533599853516e-05,
+          1.913309097290039e-05,
+          -1.1742115020751953e-05,
+          5.543231964111328e-06,
+          8.761882781982422e-06,
+          1.8477439880371094e-06,
+          -4.589557647705078e-06,
+          -2.008676528930664e-05,
+          2.5570392608642578e-05,
+          -7.748603820800781e-07,
+          8.64267349243164e-06,
+          -7.808208465576172e-06,
+          3.516674041748047e-06,
+          -4.470348358154297e-06,
+          -7.68899917602539e-06,
+          -4.1544437408447266e-05,
+          -8.52346420288086e-06,
+          -1.9848346710205078e-05,
+          -1.1980533599853516e-05,
+          2.7954578399658203e-05,
+          3.3915042877197266e-05,
+          1.8477439880371094e-06,
+          2.6404857635498047e-05,
+          -2.7835369110107422e-05,
+          3.2782554626464844e-06,
+          1.8477439880371094e-06,
+          -8.404254913330078e-06,
+          -3.641843795776367e-05,
+          3.874301910400391e-06,
+          7.569789886474609e-06,
+          -2.7000904083251953e-05,
+          -5.304813385009766e-06,
+          -3.4749507904052734e-05,
+          -1.817941665649414e-05,
+          -1.901388168334961e-05,
+          -8.165836334228516e-06,
+          -6.735324859619141e-06,
+          3.594160079956055e-05,
+          2.771615982055664e-05,
+          7.212162017822266e-06,
+          -9.953975677490234e-06,
+          4.51207160949707e-05,
+          -2.1517276763916016e-05,
+          -2.086162567138672e-06,
+          -4.708766937255859e-06,
+          -2.6166439056396484e-05,
+          4.947185516357422e-06,
+          -5.543231964111328e-06,
+          -2.294778823852539e-05,
+          4.708766937255859e-06,
+          1.519918441772461e-05,
+          -1.6868114471435547e-05,
+          -4.470348358154297e-06,
+          -3.236532211303711e-05,
+          2.9206275939941406e-06,
+          -8.761882781982422e-06,
+          -2.4974346160888672e-05,
+          -7.748603820800781e-07,
+          -6.556510925292969e-07,
+          -2.2351741790771484e-05,
+          6.020069122314453e-06,
+          -6.139278411865234e-06,
+          2.4497509002685547e-05,
+          6.616115570068359e-06,
+          -1.0132789611816406e-06,
+          -5.185604095458984e-06,
+          7.206201553344727e-05,
+          1.722574234008789e-05,
+          -4.827976226806641e-06,
+          1.806020736694336e-05,
+          -6.139278411865234e-06,
+          -1.7702579498291016e-05,
+          -9.47713851928711e-06,
+          2.3245811462402344e-06,
+          7.748603820800781e-07,
+          -1.0907649993896484e-05,
+          -1.9729137420654297e-05,
+          -1.055002212524414e-05,
+          6.556510925292969e-07,
+          -1.1146068572998047e-05,
+          1.7940998077392578e-05,
+          -1.043081283569336e-05,
+          8.285045623779297e-06,
+          -2.8073787689208984e-05,
+          -7.927417755126953e-06,
+          2.8014183044433594e-06,
+          -4.112720489501953e-06,
+          -2.7835369110107422e-05,
+          -1.7583370208740234e-05,
+          2.2590160369873047e-05,
+          3.653764724731445e-05,
+          -3.606081008911133e-05,
+          -2.4974346160888672e-05,
+          2.866983413696289e-05,
+          -2.4020671844482422e-05,
+          -3.516674041748047e-06,
+          6.80088996887207e-05,
+          -2.4974346160888672e-05,
+          -2.1398067474365234e-05,
+          6.616115570068359e-06,
+          3.594160079956055e-05,
+          -2.187490463256836e-05,
+          -1.4960765838623047e-05,
+          -5.900859832763672e-06,
+          2.4497509002685547e-05,
+          3.141164779663086e-05,
+          2.1636486053466797e-05,
+          -7.927417755126953e-06,
+          1.1265277862548828e-05,
+          -1.0788440704345703e-05,
+          -3.516674041748047e-06,
+          -1.8298625946044922e-05,
+          -5.066394805908203e-06,
+          1.8656253814697266e-05,
+          3.319978713989258e-05,
+          2.580881118774414e-05,
+          1.329183578491211e-05,
+          1.6987323760986328e-05,
+          -1.7702579498291016e-05,
+          -1.2814998626708984e-05,
+          -2.4259090423583984e-05,
+          2.3663043975830078e-05,
+          6.03795051574707e-05,
+          -1.996755599975586e-05,
+          2.2590160369873047e-05,
+          -1.2516975402832031e-06,
+          -2.5331974029541016e-05,
+          2.1159648895263672e-05,
+          -2.9861927032470703e-05,
+          1.8298625946044922e-05,
+          -5.960464477539063e-08,
+          5.662441253662109e-06,
+          -3.039836883544922e-06,
+          -6.258487701416016e-06,
+          -1.0788440704345703e-05,
+          -7.331371307373047e-06,
+          -9.238719940185547e-06,
+          2.3186206817626953e-05,
+          -2.199411392211914e-05,
+          -1.2934207916259766e-05,
+          -5.781650543212891e-06,
+          -2.2470951080322266e-05,
+          -1.8537044525146484e-05,
+          -9.238719940185547e-06,
+          1.6510486602783203e-05,
+          7.212162017822266e-06,
+          -3.2782554626464844e-06,
+          -1.9729137420654297e-05,
+          1.5676021575927734e-05,
+          -1.722574234008789e-05,
+          -1.9252300262451172e-05,
+          3.993511199951172e-06,
+          -1.1980533599853516e-05,
+          -3.7550926208496094e-06,
+          -1.150369644165039e-05,
+          -2.6166439056396484e-05,
+          5.185604095458984e-06,
+          -1.2934207916259766e-05,
+          -2.3186206817626953e-05,
+          2.3245811462402344e-06,
+          -2.7120113372802734e-05,
+          -1.9371509552001953e-05,
+          -3.236532211303711e-05,
+          6.616115570068359e-06,
+          -2.205371856689453e-06,
+          -2.7835369110107422e-05,
+          -5.364418029785156e-07,
+          -1.8894672393798828e-05,
+          2.866983413696289e-05,
+          1.1324882507324219e-06,
+          -1.7464160919189453e-05,
+          1.3649463653564453e-05,
+          -4.708766937255859e-06,
+          1.0907649993896484e-05,
+          3.129243850708008e-05,
+          -4.369020462036133e-05,
+          -7.212162017822266e-06,
+          2.7358531951904297e-05,
+          4.708766937255859e-06,
+          -1.7464160919189453e-05,
+          9.000301361083984e-06,
+          -1.3172626495361328e-05,
+          -4.351139068603516e-06,
+          2.1755695343017578e-05,
+          -2.0444393157958984e-05,
+          6.377696990966797e-06,
+          -1.2934207916259766e-05,
+          9.59634780883789e-06,
+          8.285045623779297e-06,
+          5.662441253662109e-06,
+          8.285045623779297e-06,
+          1.2516975402832031e-06,
+          1.2695789337158203e-05,
+          -5.900859832763672e-06,
+          -8.940696716308594e-07,
+          -1.6033649444580078e-05,
+          -4.827976226806641e-06,
+          -1.7881393432617188e-07,
+          1.043081283569336e-05,
+          -5.304813385009766e-06,
+          2.0563602447509766e-05,
+          7.68899917602539e-06,
+          -1.4841556549072266e-05,
+          2.6047229766845703e-05,
+          2.8014183044433594e-06,
+          6.854534149169922e-06,
+          2.855062484741211e-05,
+          3.331899642944336e-05,
+          -1.6033649444580078e-05,
+          -1.8894672393798828e-05,
+          8.046627044677734e-06,
+          -1.150369644165039e-05,
+          -2.980232238769531e-07,
+          3.039836883544922e-06,
+          -3.993511199951172e-06,
+          -3.820657730102539e-05,
+          8.881092071533203e-06,
+          3.701448440551758e-05,
+          1.1742115020751953e-05,
+          -2.086162567138672e-06,
+          2.980232238769531e-07,
+          -1.6987323760986328e-05,
+          -1.2576580047607422e-05,
+          -1.4483928680419922e-05,
+          -1.3768672943115234e-05,
+          -1.4126300811767578e-05,
+          -7.569789886474609e-06,
+          -1.7464160919189453e-05,
+          -1.3887882232666016e-05,
+          -3.11732292175293e-05,
+          -2.199411392211914e-05,
+          1.1324882507324219e-06,
+          -2.7358531951904297e-05,
+          -9.953975677490234e-06,
+          2.8014183044433594e-06,
+          1.5556812286376953e-05,
+          -2.9981136322021484e-05,
+          5.882978439331055e-05,
+          -3.2961368560791016e-05,
+          -4.172325134277344e-07,
+          -3.272294998168945e-05,
+          4.297494888305664e-05,
+          -8.165836334228516e-06,
+          -7.569789886474609e-06,
+          -1.1324882507324219e-06,
+          5.781650543212891e-06,
+          -7.092952728271484e-06,
+          -2.9981136322021484e-05,
+          4.2498111724853516e-05,
+          1.0669231414794922e-05,
+          -3.993511199951172e-06,
+          -4.172325134277344e-07,
+          1.9609928131103516e-05,
+          -3.343820571899414e-05,
+          -9.000301361083984e-06,
+          8.165836334228516e-06
+        ],
+        "p_value": 0.001996007984031936,
+        "sigmas": [
+          0.5,
+          1.0,
+          2.0,
+          5.0,
+          10.0,
+          20.0,
+          50.0
+        ],
+        "standardized_excess": 38.83016606757913,
+        "statistic": 0.0007660388946533203
+      },
+      "style_posterior": {
+        "configured_sigma_floor": 0.0,
+        "effective_noise_rms_norm_mean": 1.0820491313934326,
+        "effective_std_mean": 0.028906729072332382,
+        "effective_std_median": 0.0067379469983279705,
+        "entropy_nats_mean": -217.7296600341797,
+        "entropy_nats_per_dimension_mean": -3.4020259380340576,
+        "raw_logvar_at_or_below_minus10_fraction": 0.8672752380371094
+      }
+    }
+  }
+}

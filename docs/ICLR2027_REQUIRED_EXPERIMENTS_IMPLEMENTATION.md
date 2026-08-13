@@ -160,6 +160,52 @@ Các test mới tối thiểu:
 
 ## 5. Experiment 1: Cross-model audit
 
+### 5.0. Implementation entry point
+
+**Execution status (2026-08-12):** full matrix `3 families x 3 seeds` đã hoàn
+tất. Kết quả, interpretation boundaries và artifact hashes được khóa trong
+[native cross-model experiment report](NATIVE_CROSS_MODEL_AUDIT_EXPERIMENT_REPORT.md).
+
+Cross-model protocol mới có version `native-cross-model-1.0.0` và chỉ đăng ký
+ba adapter cho latent blocks do chính model định nghĩa:
+
+- F-CS-WAE: Euclidean style code `z_s`;
+- DRIT: Gaussian attribute code riêng của từng domain;
+- DIVA: residual code `z_x` có prior `N(0,I)`.
+
+Runner canonical là:
+
+```bash
+# Pilot paper-eligible: ba family, seed 0
+.venv/bin/python scripts/run_native_cross_model_audit.py \
+  --stage pilot --devices cuda:0 cuda:1 \
+  --checkpoint-every 5 --auto-resume --skip-existing
+
+# Full matrix: ba family x ba seed cố định
+.venv/bin/python scripts/run_native_cross_model_audit.py \
+  --stage full --seeds 0 1 2 --devices cuda:0 cuda:1 \
+  --checkpoint-every 5 --auto-resume --skip-existing
+```
+
+Long run phải được đặt trong user service. Output mới nằm ở
+`runs_cross_model/native_v1/`; runner không đọc `runs_diag/cross_model/` và
+manifest mỗi audit ghi rõ `legacy_proxy_artifacts_used=false`.
+
+Trước khi train, runner khóa `acceptance_criteria.json`, split hash và các
+ngưỡng competence. Mỗi family dùng final epoch cố định, không chọn checkpoint
+dựa trên leakage metric. Audit chạy tách domain rồi macro-average, vì pooling
+hai DRIT attribute spaces sẽ vi phạm native sampling contract.
+
+DRIT và DIVA giữ nguyên factorization và các defining losses từ implementation
+gốc, nhưng dùng backbone 28x28 gọn chung cho controlled Rotated-MNIST setup.
+Do đó artifact phải được mô tả là native-family common-backbone adaptation,
+không phải exact reproduction của benchmark architecture gốc.
+
+Các revision dùng để đối chiếu implementation là DRIT
+`f19f50a8fa5f28dffbd93a0ed034da616232d769` và DIVA
+`4c5282a8e54feee01626f5e8a54595ea570ac169`. Audit manifest ghi cả các revision
+này và SHA-256 của dataset, adapter, model, trainer và runner source đang chạy.
+
 ### 5.1. Vì sao phải làm
 
 Đây là experiment trả lời câu hỏi: hiện tượng có phải một bug riêng của
@@ -607,6 +653,39 @@ Exact claim thuộc về synthetic construction; checkpoint claim vẫn chỉ l�
 numerically small global discrepancy.
 
 ## 8. Experiment 4: Ground-truth factor dataset
+
+### 8.0. Implementation entry point và trạng thái
+
+**Execution status (2026-08-12):** loader, native 64x64 F-CS-WAE,
+independent six-head factor evaluator, latent factor audit, Holm correction,
+decoder interventions, atomic artifacts và resume checkpoint đã được triển
+khai. Seed 0 đang chạy dưới user service `fcswae-shapes3d-seed0.service`.
+
+File HDF5 chính thức dùng gzip chunks lớn, nên loader tạo một lossless uint8
+NPY memory-mapped cache theo thứ tự source. Cache chỉ loại bottleneck giải nén
+ngẫu nhiên; source SHA-256, factor rows, fixed split và acceptance criteria
+không đổi.
+
+Canonical command:
+
+```bash
+systemd-run --user --unit=fcswae-shapes3d-seed0 --collect --same-dir \
+  --property=Restart=on-failure --property=RestartSec=30s \
+  .venv/bin/python scripts/run_shapes3d_factor_audit.py \
+  --stage seed0 --seed 0 --device cuda:0 \
+  --epochs 100 --evaluator-epochs 20 \
+  --batch-size 64 --evaluator-batch-size 128 \
+  --num-workers 4 --checkpoint-every 5 \
+  --probe-epochs 300 --mmd-permutations 500 --hsic-permutations 200 \
+  --auto-resume --skip-existing
+```
+
+Theo dõi bằng:
+
+```bash
+systemctl --user status fcswae-shapes3d-seed0
+journalctl --user -u fcswae-shapes3d-seed0 -f
+```
 
 ### 8.1. Vì sao phải làm
 

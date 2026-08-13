@@ -1,0 +1,831 @@
+{
+  "family_summary": {
+    "diva": {
+      "base_competent_seeds": 3,
+      "frozen_all_check_passing_seeds": 3,
+      "global_mmd_domain_tests_holm": {
+        "adjusted_p_values": [
+          1.0,
+          0.8862275449101795,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.7485029940119761,
+          0.14770459081836326,
+          0.8023952095808383,
+          0.8483033932135728,
+          0.716566866267465,
+          0.4870259481037924
+        ],
+        "reject": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      "label_hsic_domain_tests_holm": {
+        "adjusted_p_values": [
+          0.29850746268656714,
+          0.1990049751243781,
+          0.5373134328358209,
+          0.1492537313432836,
+          0.3582089552238806,
+          0.7263681592039801
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.07462686567164178,
+          0.03980099502487562,
+          0.26865671641791045,
+          0.024875621890547265,
+          0.11940298507462686,
+          0.7263681592039801
+        ],
+        "reject": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ]
+      },
+      "metrics": {
+        "conditional_minus_global_mmd2_u": {
+          "mean": 0.00019379357496897382,
+          "std": 0.00010391559755884932
+        },
+        "conditional_mmd2_u": {
+          "mean": 0.0001758923133214315,
+          "std": 0.0001287939125679914
+        },
+        "content_logistic_accuracy": {
+          "mean": 0.9666666666666667,
+          "std": 0.00763762615825974
+        },
+        "global_mmd2_u": {
+          "mean": -1.7901261647542317e-05,
+          "std": 2.738898825288402e-05
+        },
+        "label_hsic": {
+          "mean": 0.0005317822894236693,
+          "std": 5.401540102907645e-06
+        },
+        "prior_style_content_retention": {
+          "mean": 0.8945,
+          "std": 0.008261355820929187
+        },
+        "reconstruction_l1": {
+          "mean": 0.03448827964108006,
+          "std": 9.165129477611241e-05
+        },
+        "style_logistic_accuracy": {
+          "mean": 0.10666666666666665,
+          "std": 0.01040832999733066
+        },
+        "style_mlp_accuracy": {
+          "mean": 0.09583333333333333,
+          "std": 0.007216878364870329
+        },
+        "style_rbf_accuracy": {
+          "mean": 0.11833333333333333,
+          "std": 0.006291528696058962
+        }
+      },
+      "n_seeds": 3
+    },
+    "drit": {
+      "base_competent_seeds": 3,
+      "frozen_all_check_passing_seeds": 0,
+      "global_mmd_domain_tests_holm": {
+        "adjusted_p_values": [
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936
+        ],
+        "reject": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "label_hsic_domain_tests_holm": {
+        "adjusted_p_values": [
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453
+        ],
+        "reject": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "metrics": {
+        "conditional_minus_global_mmd2_u": {
+          "mean": 0.017181376616160083,
+          "std": 0.006777789755146427
+        },
+        "conditional_mmd2_u": {
+          "mean": 0.27244247992833454,
+          "std": 0.0019378930046216394
+        },
+        "content_logistic_accuracy": {
+          "mean": 0.8825,
+          "std": 0.015206906325745544
+        },
+        "global_mmd2_u": {
+          "mean": 0.2552611033121745,
+          "std": 0.008544759620713448
+        },
+        "label_hsic": {
+          "mean": 0.001520909902562077,
+          "std": 0.0007441366660413663
+        },
+        "prior_style_content_retention": {
+          "mean": 0.09866666666666668,
+          "std": 0.0011547005383792527
+        },
+        "reconstruction_l1": {
+          "mean": 0.04283660001170878,
+          "std": 0.002111806283148259
+        },
+        "style_logistic_accuracy": {
+          "mean": 0.3441666666666667,
+          "std": 0.12615301555386352
+        },
+        "style_mlp_accuracy": {
+          "mean": 0.3416666666666666,
+          "std": 0.1504437879519568
+        },
+        "style_rbf_accuracy": {
+          "mean": 0.325,
+          "std": 0.14117807903495502
+        }
+      },
+      "n_seeds": 3
+    },
+    "fcswae": {
+      "base_competent_seeds": 3,
+      "frozen_all_check_passing_seeds": 0,
+      "global_mmd_domain_tests_holm": {
+        "adjusted_p_values": [
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616,
+          0.011976047904191616
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936,
+          0.001996007984031936
+        ],
+        "reject": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "label_hsic_domain_tests_holm": {
+        "adjusted_p_values": [
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716,
+          0.029850746268656716
+        ],
+        "alpha": 0.05,
+        "method": "Holm step-down family-wise error control",
+        "n_tests": 6,
+        "raw_p_values": [
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453,
+          0.004975124378109453
+        ],
+        "reject": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "metrics": {
+        "conditional_minus_global_mmd2_u": {
+          "mean": 0.028935948014259336,
+          "std": 0.0010675598903137386
+        },
+        "conditional_mmd2_u": {
+          "mean": 0.032261668642361956,
+          "std": 0.0011973088818758675
+        },
+        "content_logistic_accuracy": {
+          "mean": 0.9941666666666666,
+          "std": 0.0014433756729740977
+        },
+        "global_mmd2_u": {
+          "mean": 0.0033257206281026206,
+          "std": 0.0001401941580730059
+        },
+        "label_hsic": {
+          "mean": 0.003401779647295674,
+          "std": 8.440163409537604e-05
+        },
+        "prior_style_content_retention": {
+          "mean": 0.12366666666666666,
+          "std": 0.011856784274554943
+        },
+        "reconstruction_l1": {
+          "mean": 0.015095772412358497,
+          "std": 0.000361807776692275
+        },
+        "style_logistic_accuracy": {
+          "mean": 0.9191666666666668,
+          "std": 0.02428133714055572
+        },
+        "style_mlp_accuracy": {
+          "mean": 0.9266666666666667,
+          "std": 0.011273124382057216
+        },
+        "style_rbf_accuracy": {
+          "mean": 0.9666666666666667,
+          "std": 0.009464847243000509
+        }
+      },
+      "n_seeds": 3
+    }
+  },
+  "manifest": {
+    "competence_policy": "Base competence is reported separately from the frozen all-check gate; the frozen gate and its original retention threshold are preserved.",
+    "created_at_utc": "2026-08-12T10:23:41.907137+00:00",
+    "derived_only_no_source_artifacts_mutated": true,
+    "p_value_policy": "No arithmetic mean p-value is used for inference; raw domain tests and within-family Holm correction are reported.",
+    "schema_version": "native-cross-model-paper-summary-1.0.0",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "source_artifacts": [
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_0/audit.json",
+        "sha256": "a6e60eb75c136d77adbf4d4d959aa435f01f5bb3fcbb088bfcf4d2b244e1d787"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_1/audit.json",
+        "sha256": "a4bfeacb9d99765068a4e03fa665f3b65e8c452b52033c53a7ecbd3da1d75b5b"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_2/audit.json",
+        "sha256": "91db345d3b1ba966d692a874da216d25c7f972f279d7e24331455ca42d25ab9d"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_0/audit.json",
+        "sha256": "bbc3c42b528b6b400a0d2c5e44e7ee05bf2cb774e06b7d648b5fb2915e80b1db"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_1/audit.json",
+        "sha256": "78eb0f56e6a7b4e51d9f76546221cfdb12779ed396a069ad4f2e94ad0462d589"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_2/audit.json",
+        "sha256": "0f8559a770144b147ef94252ccb511a180be8420bd85fc45c2fff7225a6f912a"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_0/audit.json",
+        "sha256": "e9fa5cc3fbda991d9ed73fdcffa351e75d651c6da833661955362c73dd29e310"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_1/audit.json",
+        "sha256": "f8e5b913e059dad2650cf9c0edb1dbee6b6a4090f59c1434c73dc3ed9ccad0be"
+      },
+      {
+        "path": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_2/audit.json",
+        "sha256": "a98c1db809ca43ab8fb364ea14920129c6749215791e96cc0a7f82904d28a0dd"
+      }
+    ],
+    "source_protocol": "native-cross-model-1.0.0"
+  },
+  "rows": [
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "fcswae",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 9.866879322712077,
+        "conditional_minus_global_mmd2_u": 0.029144108295440674,
+        "conditional_mmd2_u": 0.03243088722229004,
+        "content_logistic_accuracy": 0.9924999999999999,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.0032867789268493652,
+        "label_hsic": 0.0033675485756248236,
+        "prior_style_content_retention": 0.1255,
+        "reconstruction_l1": 0.014694726204385562,
+        "style_logistic_accuracy": 0.94,
+        "style_mlp_accuracy": 0.9375,
+        "style_rbf_accuracy": 0.9775
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.1255
+      },
+      "seed": 0,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_0/audit.json",
+      "source_audit_sha256": "a6e60eb75c136d77adbf4d4d959aa435f01f5bb3fcbb088bfcf4d2b244e1d787"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "fcswae",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 9.663068720793799,
+        "conditional_minus_global_mmd2_u": 0.02777963876724243,
+        "conditional_mmd2_u": 0.030988752841949463,
+        "content_logistic_accuracy": 0.995,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.0032091140747070312,
+        "label_hsic": 0.0033398710656911135,
+        "prior_style_content_retention": 0.111,
+        "reconstruction_l1": 0.01539766770966199,
+        "style_logistic_accuracy": 0.925,
+        "style_mlp_accuracy": 0.915,
+        "style_rbf_accuracy": 0.9624999999999999
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.111
+      },
+      "seed": 1,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_1/audit.json",
+      "source_audit_sha256": "a4bfeacb9d99765068a4e03fa665f3b65e8c452b52033c53a7ecbd3da1d75b5b"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "fcswae",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 9.634833370101132,
+        "conditional_minus_global_mmd2_u": 0.02988409698009491,
+        "conditional_mmd2_u": 0.03336536586284637,
+        "content_logistic_accuracy": 0.995,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.003481268882751465,
+        "label_hsic": 0.003497919300571084,
+        "prior_style_content_retention": 0.1345,
+        "reconstruction_l1": 0.01519492332302794,
+        "style_logistic_accuracy": 0.8925000000000001,
+        "style_mlp_accuracy": 0.9275,
+        "style_rbf_accuracy": 0.96
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.1345
+      },
+      "seed": 2,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/fcswae/seed_2/audit.json",
+      "source_audit_sha256": "91db345d3b1ba966d692a874da216d25c7f972f279d7e24331455ca42d25ab9d"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "drit",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 1.0525953308706686,
+        "conditional_minus_global_mmd2_u": 0.013464713096618647,
+        "conditional_mmd2_u": 0.27247908115386965,
+        "content_logistic_accuracy": 0.875,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.259014368057251,
+        "label_hsic": 0.0012699268409051,
+        "prior_style_content_retention": 0.098,
+        "reconstruction_l1": 0.04165026995600486,
+        "style_logistic_accuracy": 0.25,
+        "style_mlp_accuracy": 0.245,
+        "style_rbf_accuracy": 0.255
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.098
+      },
+      "seed": 0,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_0/audit.json",
+      "source_audit_sha256": "bbc3c42b528b6b400a0d2c5e44e7ee05bf2cb774e06b7d648b5fb2915e80b1db"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "drit",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 1.0510601302588933,
+        "conditional_minus_global_mmd2_u": 0.013074958324432395,
+        "conditional_mmd2_u": 0.2743618130683899,
+        "content_logistic_accuracy": 0.9,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.2612868547439575,
+        "label_hsic": 0.0009347168088424951,
+        "prior_style_content_retention": 0.1,
+        "reconstruction_l1": 0.04158471991091359,
+        "style_logistic_accuracy": 0.29500000000000004,
+        "style_mlp_accuracy": 0.265,
+        "style_rbf_accuracy": 0.23249999999999998
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.1
+      },
+      "seed": 1,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_1/audit.json",
+      "source_audit_sha256": "78eb0f56e6a7b4e51d9f76546221cfdb12779ed396a069ad4f2e94ad0462d589"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.001996007984031936,
+          "label_hsic_p_value": 0.004975124378109453
+        }
+      ],
+      "family": "drit",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": false,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": false
+      },
+      "metrics": {
+        "conditional_global_ratio": 1.1019933999959035,
+        "conditional_minus_global_mmd2_u": 0.02500445842742921,
+        "conditional_mmd2_u": 0.27048654556274415,
+        "content_logistic_accuracy": 0.8725,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 0.24548208713531494,
+        "label_hsic": 0.0023580860579386353,
+        "prior_style_content_retention": 0.098,
+        "reconstruction_l1": 0.045274810168207905,
+        "style_logistic_accuracy": 0.4875,
+        "style_mlp_accuracy": 0.515,
+        "style_rbf_accuracy": 0.48750000000000004
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": false,
+        "prior_style_content_retention": 0.098
+      },
+      "seed": 2,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/drit/seed_2/audit.json",
+      "source_audit_sha256": "0f8559a770144b147ef94252ccb511a180be8420bd85fc45c2fff7225a6f912a"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.7485029940119761,
+          "label_hsic_p_value": 0.07462686567164178
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.14770459081836326,
+          "label_hsic_p_value": 0.03980099502487562
+        }
+      ],
+      "family": "diva",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": true,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": true
+      },
+      "metrics": {
+        "conditional_global_ratio": 4.9378923766816145,
+        "conditional_minus_global_mmd2_u": 0.00025858581066131594,
+        "conditional_mmd2_u": 0.00026818215847015383,
+        "content_logistic_accuracy": 0.96,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": 9.59634780883789e-06,
+        "label_hsic": 0.0005371845327317715,
+        "prior_style_content_retention": 0.9025000000000001,
+        "reconstruction_l1": 0.0344468994140625,
+        "style_logistic_accuracy": 0.11499999999999999,
+        "style_mlp_accuracy": 0.1,
+        "style_rbf_accuracy": 0.125
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": true,
+        "prior_style_content_retention": 0.9025000000000001
+      },
+      "seed": 0,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_0/audit.json",
+      "source_audit_sha256": "e9fa5cc3fbda991d9ed73fdcffa351e75d651c6da833661955362c73dd29e310"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.8023952095808383,
+          "label_hsic_p_value": 0.26865671641791045
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.8483033932135728,
+          "label_hsic_p_value": 0.024875621890547265
+        }
+      ],
+      "family": "diva",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": true,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": true
+      },
+      "metrics": {
+        "conditional_global_ratio": null,
+        "conditional_minus_global_mmd2_u": 7.393360137939452e-05,
+        "conditional_mmd2_u": 2.875328063964844e-05,
+        "content_logistic_accuracy": 0.975,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": -4.5180320739746094e-05,
+        "label_hsic": 0.0005317808827385306,
+        "prior_style_content_retention": 0.895,
+        "reconstruction_l1": 0.03442461504255022,
+        "style_logistic_accuracy": 0.11,
+        "style_mlp_accuracy": 0.0875,
+        "style_rbf_accuracy": 0.11249999999999999
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": true,
+        "prior_style_content_retention": 0.895
+      },
+      "seed": 1,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_1/audit.json",
+      "source_audit_sha256": "f8e5b913e059dad2650cf9c0edb1dbee6b6a4090f59c1434c73dc3ed9ccad0be"
+    },
+    {
+      "base_competence_checks": {
+        "content_probe": true,
+        "external_evaluator": true,
+        "reconstruction": true
+      },
+      "domain_tests": [
+        {
+          "domain": 0,
+          "global_mmd_p_value": 0.716566866267465,
+          "label_hsic_p_value": 0.11940298507462686
+        },
+        {
+          "domain": 1,
+          "global_mmd_p_value": 0.4870259481037924,
+          "label_hsic_p_value": 0.7263681592039801
+        }
+      ],
+      "family": "diva",
+      "frozen_all_check_gate": {
+        "checks": {
+          "content_probe": true,
+          "content_retention": true,
+          "external_evaluator": true,
+          "reconstruction": true
+        },
+        "passes": true
+      },
+      "metrics": {
+        "conditional_global_ratio": null,
+        "conditional_minus_global_mmd2_u": 0.0002488613128662109,
+        "conditional_mmd2_u": 0.0002307415008544922,
+        "content_logistic_accuracy": 0.965,
+        "external_real_test_accuracy": 0.9605,
+        "global_mmd2_u": -1.811981201171875e-05,
+        "label_hsic": 0.000526381452800706,
+        "prior_style_content_retention": 0.886,
+        "reconstruction_l1": 0.03459332446662747,
+        "style_logistic_accuracy": 0.095,
+        "style_mlp_accuracy": 0.1,
+        "style_rbf_accuracy": 0.11750000000000001
+      },
+      "passes_base_competence": true,
+      "sampling_outcome": {
+        "passes_frozen_retention_threshold": true,
+        "prior_style_content_retention": 0.886
+      },
+      "seed": 2,
+      "source_audit": "/home/bachdx2/CS-WAE/runs_cross_model/native_v1/diva/seed_2/audit.json",
+      "source_audit_sha256": "a98c1db809ca43ab8fb364ea14920129c6749215791e96cc0a7f82904d28a0dd"
+    }
+  ]
+}

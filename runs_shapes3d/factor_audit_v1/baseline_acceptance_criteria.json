@@ -1,0 +1,65 @@
+{
+  "competence_thresholds": {
+    "content_shape_logistic_accuracy_min": 0.8,
+    "reconstruction_l1_max": 0.12,
+    "reconstruction_shape_accuracy_min": 0.8,
+    "reconstruction_style_factor_accuracy_mean_min": 0.7
+  },
+  "evaluation": {
+    "audit_per_shape": 1024,
+    "hsic_permutations": 200,
+    "hsic_samples": 1024,
+    "mmd_permutations": 500,
+    "mmd_samples": 2048,
+    "multiple_testing": "Holm separately within each latent view",
+    "primary_view": "stochastic posterior sample"
+  },
+  "model_dimensions": {
+    "content": 64,
+    "style": 64
+  },
+  "models": [
+    "conditional_vae",
+    "content_style_vae"
+  ],
+  "pilot_seed": 0,
+  "promotion_rule": "replicate seeds 1-2 based on base competence only, never leakage direction",
+  "protocol_version": "shapes3d-factorized-baselines-1.0.0",
+  "schema_version": "shapes3d-factorized-baseline-acceptance-1.0.0",
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "source": {
+    "images": {
+      "dtype": "uint8",
+      "shape": [
+        480000,
+        64,
+        64,
+        3
+      ]
+    },
+    "labels": {
+      "dtype": "float64",
+      "shape": [
+        480000,
+        6
+      ]
+    },
+    "path": "/media/drive-2t/CS-WAE-bachdx2/data/shapes3d/3dshapes.h5",
+    "sha256": "0a0f6ed98baff276a50f3a081a7434d788da63cb135a98189b2a5b5769be1785",
+    "size_bytes": 267573662,
+    "source_url": "https://storage.googleapis.com/3d-shapes/3dshapes.h5"
+  },
+  "training": {
+    "batch_size": 64,
+    "content_style_classifier_weight": 0.1,
+    "epochs": 100,
+    "fixed_final_epoch": true,
+    "kl_final_per_coordinate": 0.01,
+    "kl_warmup_epochs": 20,
+    "no_audit_based_checkpoint_selection": true
+  }
+}
