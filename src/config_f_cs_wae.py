@@ -31,6 +31,8 @@ class FCSWAEConfig:
     lr_scheduler_gamma: float = 0.5
     grad_clip: float = 1.0
     num_workers: int = 4
+    # Debug/smoke-only cap. None always consumes the full loader.
+    max_train_batches: int | None = None
 
     # --- Phase boundaries (epoch numbers where each phase ends) ---
     # Phase A [0,  50): reconstruction only
@@ -41,6 +43,9 @@ class FCSWAEConfig:
     phase_b_end: int = 100
     phase_c_end: int = 200
     phase_d_end: int = 300
+    # Optional zero-indexed epoch at which scheduled objective weights stop
+    # increasing. Training and FACT dual updates continue normally.
+    phase_weight_freeze_epoch: int | None = None
 
     # --- Reconstruction loss weights ---
     l1_weight: float = 1.0
@@ -51,6 +56,44 @@ class FCSWAEConfig:
     beta_final: float = 5.0    # L_agg:   global aggregated semantic MMD weight
     gamma_final: float = 1.0   # L_style: global style prior MMD weight
     delta_final: float = 1.0   # L_style_cls: per-class style MMD weight (enforces z_s ⊥ y)
+    joint_contract_final: float = 0.0  # Joint q(z_c,z_s|y) vs factorized prior MMD
+    # FACT: clause-aligned, null-calibrated factorized-contract training.
+    # Disabled by default so historical runs remain bit-for-bit compatible.
+    fact_enabled: bool = False
+    fact_start_epoch: int = 100
+    fact_style_only_dependence: bool = True
+    fact_dual_lr: float = 0.1
+    fact_dual_init: float = 1.0
+    fact_dual_max: float = 10.0
+    # Number of independent matched-null estimates averaged per minibatch
+    # class. One preserves the historical FACT estimator exactly.
+    fact_null_draws: int = 1
+    # Raw MMD and HSIC violations live on very different numerical scales.
+    # Dual ascent divides by these fixed positive reference magnitudes before
+    # updating its multipliers. Defaults of one preserve historical updates.
+    fact_dual_reference_style: float = 1.0
+    fact_dual_reference_content: float = 1.0
+    fact_dual_reference_dependence: float = 1.0
+    # Optional cap on the absolute multiplier change from one epoch. None
+    # preserves historical dual ascent. Useful when normalized violations are
+    # large during the first active epoch.
+    fact_dual_step_max: float | None = None
+    # Fixed weight for a matched-null RBF/delta HSIC between sampled style and
+    # the categorical condition. Zero preserves the repaired FACT objective.
+    fact_label_hsic_weight: float = 0.0
+    # Alternating nonlinear label adversary on sampled style. The adversary is
+    # trained to predict y, while the encoder minimizes KL(U || q_adv(y|z_s)).
+    # Zero disables the branch and preserves historical training exactly.
+    fact_label_adversary_weight: float = 0.0
+    fact_label_adversary_lr: float = 1e-3
+    fact_label_adversary_steps: int = 1
+    fact_label_adversary_weight_decay: float = 1e-4
+    # Audit-aligned classwise HSIC between posterior means (mu_c, mu_s).
+    # Content is stop-gradient; zero preserves all previous objectives.
+    fact_mean_hsic_weight: float = 0.0
+    fact_style_tolerance: float = 0.0
+    fact_content_tolerance: float = 0.0
+    fact_dependence_tolerance: float = 0.0
     eta_init: float = 0.1      # L_cls:   auxiliary CE weight at phase B start
     eta_final: float = 0.3     # L_cls:   auxiliary CE weight at phase D end
     lambda_var: float = 0.0    # diversity reg disabled: StyleMMD already handles z_s diversity

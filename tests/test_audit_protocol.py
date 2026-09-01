@@ -15,7 +15,10 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src.metrics.audit_protocol import (
     AUDIT_PROTOCOL_VERSION,
+    classwise_conditional_distance_correlation_permutation_test,
     conditional_mmd_to_standard_normal,
+    energy_distance_permutation_test,
+    energy_distance_unbiased,
     fit_logistic_probe,
     hsic_permutation_test,
     mmd2_unbiased,
@@ -57,8 +60,8 @@ class _ToyFactorizedModel(nn.Module):
 
 
 class AuditProtocolTests(unittest.TestCase):
-    def test_protocol_version_is_bumped_for_entropy_contract(self):
-        self.assertEqual(AUDIT_PROTOCOL_VERSION, "stage0-1.2.0")
+    def test_protocol_version_is_bumped_for_kernel_robustness(self):
+        self.assertEqual(AUDIT_PROTOCOL_VERSION, "stage0-1.3.0")
 
     def test_unified_style_sampler_is_seeded_and_applies_variance_floor(self):
         mu = torch.zeros((3, 4))
@@ -158,6 +161,41 @@ class AuditProtocolTests(unittest.TestCase):
         self.assertEqual(calibrated["n_per_group"], 96)
         self.assertEqual(len(calibrated["null_values"]), 49)
         self.assertAlmostEqual(calibrated["statistic"], mmd2_unbiased(x, y), places=5)
+
+    def test_energy_permutation_calibration_detects_large_shift(self):
+        generator = torch.Generator().manual_seed(23)
+        x = torch.randn((96, 4), generator=generator)
+        y = torch.randn((96, 4), generator=generator) + 2.5
+        calibrated = energy_distance_permutation_test(
+            x, y, seed=23, n_permutations=49
+        )
+        self.assertLessEqual(calibrated["p_value"], 0.05)
+        self.assertEqual(calibrated["n_per_group"], 96)
+        self.assertEqual(len(calibrated["null_values"]), 49)
+        self.assertAlmostEqual(
+            calibrated["statistic"], energy_distance_unbiased(x, y), places=5
+        )
+
+    def test_conditional_distance_correlation_detects_within_class_dependence(self):
+        generator = torch.Generator().manual_seed(37)
+        labels = torch.arange(3).repeat_interleave(48)
+        content = F.normalize(
+            torch.randn((labels.numel(), 5), generator=generator), dim=1
+        )
+        style = content[:, :3] + 0.05 * torch.randn(
+            (labels.numel(), 3), generator=generator
+        )
+        calibrated = classwise_conditional_distance_correlation_permutation_test(
+            content,
+            style,
+            labels,
+            n_classes=3,
+            seed=37,
+            n_permutations=49,
+        )
+        self.assertLessEqual(calibrated["p_value"], 0.05)
+        self.assertGreater(calibrated["statistic"], calibrated["null_mean"])
+        self.assertEqual(len(calibrated["per_class_statistic"]), 3)
 
     def test_multiscale_hsic_permutation_detects_dependence(self):
         generator = torch.Generator().manual_seed(5)

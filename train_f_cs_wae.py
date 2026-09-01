@@ -10,6 +10,11 @@ Usage examples:
 
     # MNIST with CNN-style settings (override dims)
     python train_f_cs_wae.py --dataset mnist --seed 0 --device cuda:0
+
+    # FACT smoke test (two batches per epoch; never use the cap for real runs)
+    python train_f_cs_wae.py --dataset mnist --device cuda:0 --epochs 2 \
+        --phase-a-end 0 --phase-b-end 1 --phase-c-end 2 --phase-d-end 3 \
+        --fact --max-train-batches 2 --skip-eval
 """
 
 import argparse
@@ -49,6 +54,48 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--delta-final", type=float, default=None,
                    help="Per-class style MMD weight (0=disabled, default: cfg.delta_final=1.0). "
                         "Set 0 to reproduce baseline without the proposed fix.")
+    p.add_argument("--joint-contract-final", type=float, default=None,
+                   help="Weight lambda_J for per-class product-kernel joint contract MMD "
+                        "(default: 0, disabled).")
+    p.add_argument("--fact", action="store_true",
+                   help="Enable null-calibrated clause-aligned FACT training.")
+    p.add_argument("--fact-start-epoch", type=int, default=None,
+                   help="Zero-indexed epoch where FACT replaces legacy class/per-class-style "
+                        "penalties (default: phase B end).")
+    p.add_argument("--fact-dual-lr", type=float, default=None,
+                   help="Projected dual-ascent learning rate (default: 0.1).")
+    p.add_argument("--fact-dual-init", type=float, default=None,
+                   help="Initial multiplier for each FACT constraint (default: 1.0).")
+    p.add_argument("--fact-dual-max", type=float, default=None,
+                   help="Maximum FACT multiplier (default: 10.0).")
+    p.add_argument("--fact-null-draws", type=int, default=None,
+                   help="Independent matched-null estimates averaged per class.")
+    p.add_argument("--fact-dual-reference-style", type=float, default=None,
+                   help="Positive reference magnitude for normalized style dual updates.")
+    p.add_argument("--fact-dual-reference-content", type=float, default=None,
+                   help="Positive reference magnitude for normalized content dual updates.")
+    p.add_argument("--fact-dual-reference-dependence", type=float, default=None,
+                   help="Positive reference magnitude for normalized dependence dual updates.")
+    p.add_argument("--fact-dual-step-max", type=float, default=None,
+                   help="Optional positive cap on each epoch's dual multiplier update.")
+    p.add_argument("--fact-label-hsic-weight", type=float, default=None,
+                   help="Fixed non-negative weight for matched-null style-label HSIC.")
+    p.add_argument("--fact-label-adversary-weight", type=float, default=None,
+                   help="Non-negative encoder weight for nonlinear style-label confusion.")
+    p.add_argument("--fact-label-adversary-lr", type=float, default=None,
+                   help="Positive learning rate for the alternating label adversary.")
+    p.add_argument("--fact-label-adversary-steps", type=int, default=None,
+                   help="Positive adversary updates per encoder minibatch.")
+    p.add_argument("--fact-label-adversary-weight-decay", type=float, default=None,
+                   help="Non-negative adversary Adam weight decay.")
+    p.add_argument("--fact-mean-hsic-weight", type=float, default=None,
+                   help="Fixed non-negative weight for audit-aligned mean conditional HSIC.")
+    p.add_argument("--fact-style-tolerance", type=float, default=None)
+    p.add_argument("--fact-content-tolerance", type=float, default=None)
+    p.add_argument("--fact-dependence-tolerance", type=float, default=None)
+    p.add_argument("--fact-update-content-from-hsic", action="store_true",
+                   help="Allow conditional HSIC gradients into content. By default FACT "
+                        "detaches content and repairs dependence through style only.")
     p.add_argument("--dc",          type=int,   default=None,
                    help="Override semantic_dim d_c (default: cfg.semantic_dim=64)")
     p.add_argument("--ds",          type=int,   default=None,
@@ -57,6 +104,21 @@ def parse_args() -> argparse.Namespace:
                    help="Override cfg.phase_a_end (default 50). Set 0 to skip the "
                         "reconstruction-only warmup and start style/class regularization "
                         "from epoch 0.")
+    p.add_argument("--phase-b-end", type=int, default=None,
+                   help="Override cfg.phase_b_end (default 100).")
+    p.add_argument("--phase-c-end", type=int, default=None,
+                   help="Override cfg.phase_c_end (default 200).")
+    p.add_argument("--phase-d-end", type=int, default=None,
+                   help="Override cfg.phase_d_end (default 300).")
+    p.add_argument(
+        "--phase-weight-freeze-epoch",
+        type=int,
+        default=None,
+        help=(
+            "Zero-indexed epoch whose scheduled alpha/beta/gamma/delta/eta "
+            "weights are reused for all later epochs; FACT remains active."
+        ),
+    )
     p.add_argument("--style-sigma-floor", type=float, default=None,
                    help="Lower bound on posterior style standard deviation. The "
                         "effective variance is exp(clamp(logvar,-10,10)) + floor^2.")
@@ -70,6 +132,11 @@ def parse_args() -> argparse.Namespace:
                    help="Resume from <output-dir>/training_checkpoint.pt when it exists")
     p.add_argument("--checkpoint-every", type=int, default=5,
                    help="Save crash-safe state every N completed epochs (default: 5)")
+    p.add_argument("--batch-size", type=int, default=None,
+                   help="Override training/evaluation batch size. FACT pilots should use "
+                        "a larger batch (e.g. 320 on MNIST) for more samples per class.")
+    p.add_argument("--max-train-batches", type=int, default=None,
+                   help="Debug/smoke-only cap on batches per epoch. Omit for real runs.")
     return p.parse_args()
 
 
@@ -91,12 +158,134 @@ def main() -> None:
     n_centers = args.n_centers or cfg.n_centers
     if args.delta_final is not None:
         cfg.delta_final = args.delta_final
+    if args.joint_contract_final is not None:
+        if args.joint_contract_final < 0.0:
+            raise ValueError("--joint-contract-final must be non-negative")
+        cfg.joint_contract_final = args.joint_contract_final
+    cfg.fact_enabled = bool(args.fact)
     cfg.semantic_dim = args.dc if args.dc is not None else cfg.semantic_dim
     cfg.style_dim    = args.ds if args.ds is not None else cfg.style_dim
     if args.phase_a_end is not None:
         cfg.phase_a_end = args.phase_a_end
-        assert cfg.phase_a_end < cfg.phase_b_end, \
-            f"--phase-a-end ({cfg.phase_a_end}) must be < phase_b_end ({cfg.phase_b_end})"
+    if args.phase_b_end is not None:
+        cfg.phase_b_end = args.phase_b_end
+    if args.phase_c_end is not None:
+        cfg.phase_c_end = args.phase_c_end
+    if args.phase_d_end is not None:
+        cfg.phase_d_end = args.phase_d_end
+    if args.phase_weight_freeze_epoch is not None:
+        cfg.phase_weight_freeze_epoch = args.phase_weight_freeze_epoch
+    if not (0 <= cfg.phase_a_end < cfg.phase_b_end < cfg.phase_c_end < cfg.phase_d_end):
+        raise ValueError(
+            "phase boundaries must satisfy 0 <= A < B < C < D; got "
+            f"{cfg.phase_a_end}, {cfg.phase_b_end}, {cfg.phase_c_end}, {cfg.phase_d_end}"
+        )
+    if epochs > cfg.phase_d_end:
+        raise ValueError(
+            f"epochs ({epochs}) cannot exceed phase_d_end ({cfg.phase_d_end})"
+        )
+    if cfg.phase_weight_freeze_epoch is not None and not (
+        cfg.phase_c_end <= cfg.phase_weight_freeze_epoch < epochs
+    ):
+        raise ValueError(
+            "phase weight freeze must satisfy phase_c_end <= freeze < epochs; "
+            f"got freeze={cfg.phase_weight_freeze_epoch}, "
+            f"phase_c_end={cfg.phase_c_end}, epochs={epochs}"
+        )
+    if cfg.fact_enabled and cfg.joint_contract_final > 0.0:
+        raise ValueError(
+            "--fact and --joint-contract-final > 0 are mutually exclusive; "
+            "the direct joint MMD is an evaluation metric in FACT runs"
+        )
+    if args.fact_start_epoch is not None and not cfg.fact_enabled:
+        raise ValueError("--fact-start-epoch requires --fact")
+    if cfg.fact_enabled:
+        cfg.fact_start_epoch = (
+            args.fact_start_epoch
+            if args.fact_start_epoch is not None
+            else cfg.phase_b_end
+        )
+        if not (0 <= cfg.fact_start_epoch < epochs):
+            raise ValueError(
+                "FACT start must satisfy 0 <= start < epochs; got "
+                f"{cfg.fact_start_epoch} for {epochs} epochs"
+            )
+    cfg.fact_style_only_dependence = not args.fact_update_content_from_hsic
+    fact_overrides = {
+        "fact_dual_lr": args.fact_dual_lr,
+        "fact_dual_init": args.fact_dual_init,
+        "fact_dual_max": args.fact_dual_max,
+        "fact_style_tolerance": args.fact_style_tolerance,
+        "fact_content_tolerance": args.fact_content_tolerance,
+        "fact_dependence_tolerance": args.fact_dependence_tolerance,
+    }
+    for name, value in fact_overrides.items():
+        if value is not None:
+            if value < 0.0:
+                raise ValueError(f"--{name.replace('_', '-')} must be non-negative")
+            setattr(cfg, name, value)
+    if args.fact_null_draws is not None:
+        if args.fact_null_draws < 1:
+            raise ValueError("--fact-null-draws must be positive")
+        cfg.fact_null_draws = args.fact_null_draws
+    fact_reference_overrides = {
+        "fact_dual_reference_style": args.fact_dual_reference_style,
+        "fact_dual_reference_content": args.fact_dual_reference_content,
+        "fact_dual_reference_dependence": args.fact_dual_reference_dependence,
+    }
+    for name, value in fact_reference_overrides.items():
+        if value is not None:
+            if value <= 0.0:
+                raise ValueError(f"--{name.replace('_', '-')} must be positive")
+            setattr(cfg, name, value)
+    if args.fact_dual_step_max is not None:
+        if args.fact_dual_step_max <= 0.0:
+            raise ValueError("--fact-dual-step-max must be positive")
+        cfg.fact_dual_step_max = args.fact_dual_step_max
+    if args.fact_label_hsic_weight is not None:
+        if args.fact_label_hsic_weight < 0.0:
+            raise ValueError("--fact-label-hsic-weight must be non-negative")
+        cfg.fact_label_hsic_weight = args.fact_label_hsic_weight
+    if args.fact_label_adversary_weight is not None:
+        if args.fact_label_adversary_weight < 0.0:
+            raise ValueError("--fact-label-adversary-weight must be non-negative")
+        cfg.fact_label_adversary_weight = args.fact_label_adversary_weight
+    if args.fact_label_adversary_lr is not None:
+        if args.fact_label_adversary_lr <= 0.0:
+            raise ValueError("--fact-label-adversary-lr must be positive")
+        cfg.fact_label_adversary_lr = args.fact_label_adversary_lr
+    if args.fact_label_adversary_steps is not None:
+        if args.fact_label_adversary_steps < 1:
+            raise ValueError("--fact-label-adversary-steps must be positive")
+        cfg.fact_label_adversary_steps = args.fact_label_adversary_steps
+    if args.fact_label_adversary_weight_decay is not None:
+        if args.fact_label_adversary_weight_decay < 0.0:
+            raise ValueError(
+                "--fact-label-adversary-weight-decay must be non-negative"
+            )
+        cfg.fact_label_adversary_weight_decay = (
+            args.fact_label_adversary_weight_decay
+        )
+    if args.fact_mean_hsic_weight is not None:
+        if args.fact_mean_hsic_weight < 0.0:
+            raise ValueError("--fact-mean-hsic-weight must be non-negative")
+        cfg.fact_mean_hsic_weight = args.fact_mean_hsic_weight
+    if not cfg.fact_enabled and (
+        cfg.fact_label_hsic_weight > 0.0
+        or cfg.fact_label_adversary_weight > 0.0
+        or cfg.fact_mean_hsic_weight > 0.0
+    ):
+        raise ValueError("label HSIC/adversary penalties require --fact")
+    if cfg.fact_dual_max < cfg.fact_dual_init:
+        raise ValueError("--fact-dual-max must be at least --fact-dual-init")
+    if args.batch_size is not None:
+        if args.batch_size < 2:
+            raise ValueError("--batch-size must be at least 2")
+        cfg.batch_size = args.batch_size
+    if args.max_train_batches is not None:
+        if args.max_train_batches < 1:
+            raise ValueError("--max-train-batches must be positive")
+        cfg.max_train_batches = args.max_train_batches
     if args.style_sigma_floor is not None:
         if args.style_sigma_floor < 0.0:
             raise ValueError("--style-sigma-floor must be non-negative")
@@ -113,9 +302,45 @@ def main() -> None:
     print(f"  Epochs     : {epochs}")
     print(f"  n_centers  : {n_centers}")
     print(f"  delta_final: {cfg.delta_final}  (per-class style MMD; 0=disabled)")
+    print(f"  joint_contract_final: {cfg.joint_contract_final}")
+    print(f"  FACT       : {'enabled' if cfg.fact_enabled else 'disabled'}")
+    if cfg.fact_enabled:
+        print(
+            "  FACT config: "
+            f"start={cfg.fact_start_epoch} dual_lr={cfg.fact_dual_lr} "
+            f"dual_init={cfg.fact_dual_init} dual_max={cfg.fact_dual_max} "
+            f"style_only_dependence={cfg.fact_style_only_dependence} "
+            f"null_draws={cfg.fact_null_draws}"
+        )
+        print(
+            "  FACT dual references (style/content/dependence): "
+            f"{cfg.fact_dual_reference_style}/{cfg.fact_dual_reference_content}/"
+            f"{cfg.fact_dual_reference_dependence}; step_max={cfg.fact_dual_step_max}"
+        )
+        print(f"  FACT style-label HSIC weight: {cfg.fact_label_hsic_weight}")
+        print(
+            "  FACT nonlinear label adversary (weight/lr/steps/wd): "
+            f"{cfg.fact_label_adversary_weight}/"
+            f"{cfg.fact_label_adversary_lr}/"
+            f"{cfg.fact_label_adversary_steps}/"
+            f"{cfg.fact_label_adversary_weight_decay}"
+        )
+        print(f"  FACT audit-aligned mean HSIC weight: {cfg.fact_mean_hsic_weight}")
+        print(
+            "  FACT tolerances (style/content/dependence): "
+            f"{cfg.fact_style_tolerance}/{cfg.fact_content_tolerance}/"
+            f"{cfg.fact_dependence_tolerance}"
+        )
+    print(f"  batch_size : {cfg.batch_size}")
+    if cfg.max_train_batches is not None:
+        print(f"  max batches: {cfg.max_train_batches} (debug/smoke only)")
     print(f"  Output     : {save_dir}")
     print(f"  semantic_dim: {cfg.semantic_dim}  style_dim: {cfg.style_dim}")
-    print(f"  phase_a_end: {cfg.phase_a_end}  (0 = skip reconstruction-only warmup)")
+    print(
+        "  phase boundaries: "
+        f"A={cfg.phase_a_end} B={cfg.phase_b_end} C={cfg.phase_c_end} D={cfg.phase_d_end}"
+    )
+    print(f"  phase weight freeze: {cfg.phase_weight_freeze_epoch}")
     print(f"  style sigma floor: {cfg.style_sigma_floor}")
 
     # Save run metadata
@@ -129,9 +354,37 @@ def main() -> None:
         "semantic_dim": cfg.semantic_dim,
         "style_dim": cfg.style_dim,
         "delta_final": cfg.delta_final,
+        "joint_contract_final": cfg.joint_contract_final,
+        "fact_enabled": cfg.fact_enabled,
+        "fact_start_epoch": cfg.fact_start_epoch,
+        "fact_style_only_dependence": cfg.fact_style_only_dependence,
+        "fact_dual_lr": cfg.fact_dual_lr,
+        "fact_dual_init": cfg.fact_dual_init,
+        "fact_dual_max": cfg.fact_dual_max,
+        "fact_null_draws": cfg.fact_null_draws,
+        "fact_dual_reference_style": cfg.fact_dual_reference_style,
+        "fact_dual_reference_content": cfg.fact_dual_reference_content,
+        "fact_dual_reference_dependence": cfg.fact_dual_reference_dependence,
+        "fact_dual_step_max": cfg.fact_dual_step_max,
+        "fact_label_hsic_weight": cfg.fact_label_hsic_weight,
+        "fact_label_adversary_weight": cfg.fact_label_adversary_weight,
+        "fact_label_adversary_lr": cfg.fact_label_adversary_lr,
+        "fact_label_adversary_steps": cfg.fact_label_adversary_steps,
+        "fact_label_adversary_weight_decay": (
+            cfg.fact_label_adversary_weight_decay
+        ),
+        "fact_mean_hsic_weight": cfg.fact_mean_hsic_weight,
+        "fact_style_tolerance": cfg.fact_style_tolerance,
+        "fact_content_tolerance": cfg.fact_content_tolerance,
+        "fact_dependence_tolerance": cfg.fact_dependence_tolerance,
+        "batch_size": cfg.batch_size,
+        "max_train_batches": cfg.max_train_batches,
         "style_sigma_floor": cfg.style_sigma_floor,
         "phase_a_end": cfg.phase_a_end,
         "phase_b_end": cfg.phase_b_end,
+        "phase_c_end": cfg.phase_c_end,
+        "phase_d_end": cfg.phase_d_end,
+        "phase_weight_freeze_epoch": cfg.phase_weight_freeze_epoch,
         "audit_protocol_version": AUDIT_PROTOCOL_VERSION,
         "checkpoint_every": args.checkpoint_every,
     })

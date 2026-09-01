@@ -206,20 +206,48 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Weight / checkpoints
+# Model weights / checkpoints
 *.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+*.hdf5
+**/checkpoint/
+**/checkpoints/
+**/weight/
+**/weights/
 
 # Data
 data/
 
 # ── CS-WAE experiment outputs (large — do not commit) ──
 runs/
+/runs_*/
 logs/
 results_cs_wae/
 ablation_results/
 baseline_results/
 exp/
 .venv-test/
+
+# Paper, reports, and generated manuscript assets. Keep executable build code.
+/fcswae/**
+!/fcswae/*.py
+!/fcswae/*.sh
+/docs/
+/figures/
+
+# LaTeX build products outside the paper directory
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex
+*.synctex.gz
 
 # Paper figure outputs (regenerate with scripts/plot_paper_figures.py)
 paper_outputs/figures/

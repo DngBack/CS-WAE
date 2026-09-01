@@ -32,7 +32,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
 
-AUDIT_PROTOCOL_VERSION = "stage0-1.2.0"
+AUDIT_PROTOCOL_VERSION = "stage0-1.3.0"
 DEFAULT_EVAL_SAMPLES = 2048
 DEFAULT_HSIC_SAMPLES = 1024
 DEFAULT_HSIC_PERMUTATIONS = 200
@@ -180,6 +180,122 @@ def mmd2_permutation_test(
         "n_permutations": int(n_permutations),
         "sigmas": [float(value) for value in sigmas],
         "estimator": "unbiased MMD^2 U-statistic with balanced pooled-label permutation null",
+        "interpretation_warning": (
+            "This tests exact distributional equality; failure to reject is not proof of equivalence."
+        ),
+    }
+
+
+def _balanced_energy_values_from_distances(
+    distances: torch.Tensor,
+    n: int,
+    *,
+    seed: int,
+    n_permutations: int,
+) -> torch.Tensor:
+    """Observed plus balanced-label energy statistics from a pooled distance matrix."""
+
+    if distances.shape != (2 * n, 2 * n):
+        raise ValueError("distance matrix shape does not match two equal sample banks")
+    if n < 2:
+        raise ValueError("energy distance requires at least two samples per bank")
+    distances = distances.clone()
+    distances.fill_diagonal_(0.0)
+    total_off_diagonal = distances.sum()
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    signs = [
+        torch.cat(
+            [
+                torch.ones(n, dtype=distances.dtype),
+                -torch.ones(n, dtype=distances.dtype),
+            ]
+        )
+    ]
+    for _ in range(n_permutations):
+        permutation = torch.randperm(2 * n, generator=generator)
+        sign = -torch.ones(2 * n, dtype=distances.dtype)
+        sign[permutation[:n]] = 1.0
+        signs.append(sign)
+    assignments = torch.stack(signs, dim=1).to(distances.device)
+    quadratic = (assignments * (distances @ assignments)).sum(dim=0)
+    within_ordered = (total_off_diagonal + quadratic) / 2.0
+    cross_ordered = (total_off_diagonal - quadratic) / 2.0
+    # cross_ordered contains both X->Y and Y->X distances.  This expression
+    # is therefore 2 E||X-Y|| minus the two unbiased within-bank terms.
+    return (
+        cross_ordered / float(n * n)
+        - within_ordered / float(n * (n - 1))
+    )
+
+
+def energy_distance_unbiased(x: torch.Tensor, y: torch.Tensor) -> float:
+    """Unbiased finite-sample energy-distance statistic.
+
+    Like an unbiased MMD estimate, this can be slightly negative under the
+    equality null.  Inputs are assumed to already use a scientifically
+    meaningful common coordinate scale.
+    """
+
+    if x.ndim != 2 or y.ndim != 2:
+        raise ValueError("energy-distance inputs must be rank-2 tensors")
+    if x.shape[1] != y.shape[1]:
+        raise ValueError("energy-distance inputs must have the same feature dimension")
+    if x.shape[0] < 2 or y.shape[0] < 2:
+        raise ValueError("energy distance requires at least two samples per bank")
+    cross = 2.0 * torch.cdist(x, y, p=2).mean()
+    distance_x = torch.cdist(x, x, p=2)
+    distance_y = torch.cdist(y, y, p=2)
+    m, n = x.shape[0], y.shape[0]
+    within_x = distance_x.sum() / float(m * (m - 1))
+    within_y = distance_y.sum() / float(n * (n - 1))
+    return float((cross - within_x - within_y).item())
+
+
+def energy_distance_permutation_test(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    seed: int = 0,
+    n_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
+) -> dict:
+    """Balanced pooled-label permutation test using Euclidean energy distance."""
+
+    if x.ndim != 2 or y.ndim != 2:
+        raise ValueError("energy-distance inputs must be rank-2 tensors")
+    if x.shape != y.shape:
+        raise ValueError("permutation calibration requires equal-size, equal-dimension inputs")
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be positive")
+    n = x.shape[0]
+    pooled = torch.cat([x, y], dim=0)
+    values = _balanced_energy_values_from_distances(
+        torch.cdist(pooled, pooled, p=2),
+        n,
+        seed=seed,
+        n_permutations=n_permutations,
+    )
+    observed = float(values[0].item())
+    null = values[1:].detach().cpu().numpy().astype(np.float64)
+    exceedances = int(np.count_nonzero(null >= observed))
+    null_std = float(null.std(ddof=1)) if null.size > 1 else None
+    standardized_excess = None
+    if null_std is not None and null_std > 0.0:
+        standardized_excess = float((observed - null.mean()) / null_std)
+    return {
+        "statistic": observed,
+        "p_value": float((exceedances + 1) / (n_permutations + 1)),
+        "null_mean": float(null.mean()),
+        "null_std": null_std,
+        "standardized_excess": standardized_excess,
+        "null_quantiles": {
+            "q05": float(np.quantile(null, 0.05)),
+            "q50": float(np.quantile(null, 0.50)),
+            "q95": float(np.quantile(null, 0.95)),
+            "q99": float(np.quantile(null, 0.99)),
+        },
+        "null_values": null.tolist(),
+        "n_per_group": int(n),
+        "n_permutations": int(n_permutations),
+        "estimator": "unbiased energy distance with balanced pooled-label permutation null",
         "interpretation_warning": (
             "This tests exact distributional equality; failure to reject is not proof of equivalence."
         ),
@@ -671,4 +787,130 @@ def classwise_conditional_hsic_permutation_test(
         },
         "n_permutations": int(n_permutations),
         "estimator": "mean classwise centered HSIC; within-class permutation calibration",
+    }
+
+
+def _double_center_distances(values: torch.Tensor) -> torch.Tensor:
+    if values.ndim != 2 or values.shape[0] < 4:
+        raise ValueError("distance correlation requires a rank-2 tensor with four samples")
+    distances = torch.cdist(values, values, p=2)
+    return (
+        distances
+        - distances.mean(dim=0, keepdim=True)
+        - distances.mean(dim=1, keepdim=True)
+        + distances.mean()
+    )
+
+
+def _distance_correlation_from_centered(
+    centered_x: torch.Tensor,
+    centered_y: torch.Tensor,
+) -> torch.Tensor:
+    covariance_squared = (centered_x * centered_y).mean()
+    variance_x_squared = centered_x.square().mean()
+    variance_y_squared = centered_y.square().mean()
+    denominator = torch.sqrt(variance_x_squared * variance_y_squared).clamp_min(1e-12)
+    return covariance_squared / denominator
+
+
+def distance_correlation_statistic(x: torch.Tensor, y: torch.Tensor) -> float:
+    """Biased sample distance correlation for two multivariate variables."""
+
+    if x.shape[0] != y.shape[0]:
+        raise ValueError("distance-correlation inputs must contain the same number of samples")
+    statistic = _distance_correlation_from_centered(
+        _double_center_distances(x),
+        _double_center_distances(y),
+    )
+    return float(statistic.item())
+
+
+def classwise_conditional_distance_correlation_permutation_test(
+    mu_c: torch.Tensor,
+    mu_s: torch.Tensor,
+    labels: torch.Tensor,
+    n_classes: int,
+    seed: int = 0,
+    n_permutations: int = DEFAULT_HSIC_PERMUTATIONS,
+) -> dict:
+    """Kernel-free within-class test of content/style dependence.
+
+    Content is projected to the unit sphere and style dimensions are
+    standardized within class before Euclidean distances are computed.  The
+    unweighted class mean mirrors the conditional-HSIC estimand, while the
+    null independently permutes style observations inside every class.
+    """
+
+    if mu_c.shape[0] != mu_s.shape[0] or mu_c.shape[0] != labels.shape[0]:
+        raise ValueError("content, style, and labels must contain the same samples")
+    if n_permutations < 1:
+        raise ValueError("n_permutations must be positive")
+    blocks = []
+    per_class = {}
+    for class_index in range(n_classes):
+        mask = labels == class_index
+        if int(mask.sum()) < 4:
+            continue
+        zc = F.normalize(mu_c[mask], p=2, dim=1)
+        zs = mu_s[mask]
+        zs = (zs - zs.mean(0, keepdim=True)) / zs.std(
+            0, keepdim=True, unbiased=False
+        ).clamp_min(1e-6)
+        centered_content = _double_center_distances(zc)
+        centered_style = _double_center_distances(zs)
+        statistic = float(
+            _distance_correlation_from_centered(
+                centered_content, centered_style
+            ).item()
+        )
+        blocks.append((centered_content, centered_style))
+        per_class[str(class_index)] = statistic
+    if not blocks:
+        raise ValueError("conditional distance correlation requires a class with four samples")
+
+    observed = float(np.mean(list(per_class.values())))
+    generator = torch.Generator(device="cpu").manual_seed(seed)
+    null_values = []
+    for _ in range(n_permutations):
+        class_null = []
+        for centered_content, centered_style in blocks:
+            permutation = torch.randperm(
+                centered_content.shape[0], generator=generator
+            ).to(centered_content.device)
+            permuted_style = centered_style[permutation][:, permutation]
+            class_null.append(
+                float(
+                    _distance_correlation_from_centered(
+                        centered_content, permuted_style
+                    ).item()
+                )
+            )
+        null_values.append(float(np.mean(class_null)))
+    null = np.asarray(null_values, dtype=np.float64)
+    exceedances = int(np.count_nonzero(null >= observed))
+    null_std = float(null.std(ddof=1)) if null.size > 1 else None
+    standardized_excess = None
+    if null_std is not None and null_std > 0.0:
+        standardized_excess = float((observed - null.mean()) / null_std)
+    return {
+        "statistic": observed,
+        "per_class_statistic": per_class,
+        "p_value": float((exceedances + 1) / (n_permutations + 1)),
+        "null_mean": float(null.mean()),
+        "null_std": null_std,
+        "standardized_excess": standardized_excess,
+        "null_quantiles": {
+            "q90": float(np.quantile(null, 0.90)),
+            "q95": float(np.quantile(null, 0.95)),
+            "q99": float(np.quantile(null, 0.99)),
+        },
+        "null_values": null.tolist(),
+        "n_permutations": int(n_permutations),
+        "estimator": (
+            "mean classwise biased distance correlation; within-class permutation calibration"
+        ),
+        "geometry": (
+            "chordal distance on unit-normalized content; Euclidean distance on "
+            "within-class standardized style"
+        ),
     }

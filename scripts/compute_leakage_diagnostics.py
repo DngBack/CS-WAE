@@ -620,7 +620,11 @@ def load_fcswae_checkpoint(
     from src.utils.dataset_config import apply_dataset_config
 
     apply_dataset_config(cfg, dataset, backbone="resnet18")
-    ckpt = torch.load(checkpoint_path, map_location=device)
+    # Audit inputs are trusted local training artifacts.  PyTorch 2.6 changed
+    # ``torch.load`` to default to ``weights_only=True``; crash-safe training
+    # checkpoints also contain NumPy/DataLoader RNG state and therefore need
+    # the full checkpoint loader.
+    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     state = ckpt.get("model_state_dict", ckpt)
     if style_sigma_floor is None:
         run_config_path = Path(checkpoint_path).parent / "run_config.json"

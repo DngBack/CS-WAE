@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from src.trainers.trainer_f_cs_wae import FCSWAETrainer
+from src.trainers.trainer_f_cs_wae import FCSWAETrainer, StyleLabelAdversary
 
 
 RUN_CONFIG = {
@@ -23,9 +23,33 @@ RUN_CONFIG = {
     "semantic_dim": 3,
     "style_dim": 4,
     "delta_final": 0.0,
+    "joint_contract_final": 0.0,
+    "fact_enabled": True,
+    "fact_start_epoch": 4,
+    "fact_style_only_dependence": True,
+    "fact_dual_lr": 0.1,
+    "fact_dual_init": 1.0,
+    "fact_dual_max": 10.0,
+    "fact_null_draws": 4,
+    "fact_dual_reference_style": 0.002,
+    "fact_dual_reference_content": 0.0015,
+    "fact_dual_reference_dependence": 0.000025,
+    "fact_dual_step_max": 0.25,
+    "fact_label_hsic_weight": 30.0,
+    "fact_label_adversary_weight": 0.1,
+    "fact_label_adversary_lr": 1e-3,
+    "fact_label_adversary_steps": 1,
+    "fact_label_adversary_weight_decay": 1e-4,
+    "fact_mean_hsic_weight": 30.0,
+    "fact_style_tolerance": 0.0,
+    "fact_content_tolerance": 0.0,
+    "fact_dependence_tolerance": 0.0,
     "style_sigma_floor": 0.15,
     "phase_a_end": 2,
     "phase_b_end": 4,
+    "phase_c_end": 7,
+    "phase_d_end": 10,
+    "phase_weight_freeze_epoch": None,
 }
 
 
@@ -42,6 +66,15 @@ def make_minimal_trainer(
     )
     loader_generator = torch.Generator().manual_seed(seed)
     trainer.train_loader = SimpleNamespace(generator=loader_generator)
+    trainer.fact_dual_weights = {
+        "style": 1.25,
+        "content": 2.5,
+        "dependence": 3.75,
+    }
+    trainer.label_adversary = StyleLabelAdversary(4, 10).to(trainer.device)
+    trainer.label_adversary_optimizer = torch.optim.Adam(
+        trainer.label_adversary.parameters(), lr=1e-3, weight_decay=1e-4
+    )
     return trainer
 
 
@@ -74,9 +107,18 @@ class TrainingResumeTests(unittest.TestCase):
         loss.backward()
         trainer.optimizer.step()
         trainer.scheduler.step()
+        adversary_loss = trainer.label_adversary(
+            torch.randn(8, 4, device=trainer.device)
+        ).square().mean()
+        adversary_loss.backward()
+        trainer.label_adversary_optimizer.step()
         saved_weights = {
             key: value.detach().clone()
             for key, value in trainer.model.state_dict().items()
+        }
+        saved_adversary_weights = {
+            key: value.detach().clone()
+            for key, value in trainer.label_adversary.state_dict().items()
         }
 
         with tempfile.TemporaryDirectory() as directory:
@@ -109,8 +151,14 @@ class TrainingResumeTests(unittest.TestCase):
             self.assertEqual(completed, 3)
             self.assertEqual(len(history), 3)
             self.assertEqual(resumed.scheduler.last_epoch, trainer.scheduler.last_epoch)
+            self.assertEqual(resumed.fact_dual_weights, trainer.fact_dual_weights)
             for key, expected in saved_weights.items():
                 self.assertTrue(torch.equal(resumed.model.state_dict()[key], expected))
+            for key, expected in saved_adversary_weights.items():
+                self.assertTrue(
+                    torch.equal(resumed.label_adversary.state_dict()[key], expected)
+                )
+            self.assertTrue(resumed.label_adversary_optimizer.state_dict()["state"])
             self.assertEqual(random.random(), expected_python)
             self.assertEqual(float(np.random.rand()), expected_numpy)
             self.assertTrue(torch.equal(torch.rand(4), expected_torch))
@@ -132,6 +180,74 @@ class TrainingResumeTests(unittest.TestCase):
                 run_config=RUN_CONFIG,
             )
             changed = dict(RUN_CONFIG, style_sigma_floor=0.35)
+            with self.assertRaisesRegex(ValueError, "Resume configuration mismatch"):
+                trainer.load_training_checkpoint(
+                    checkpoint_path,
+                    expected_run_config=changed,
+                )
+
+    def test_checkpoint_rejects_changed_fact_configuration(self):
+        trainer = make_minimal_trainer(seed=3)
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "training_checkpoint.pt"
+            trainer.save_training_checkpoint(
+                checkpoint_path,
+                completed_epochs=0,
+                history=[],
+                run_config=RUN_CONFIG,
+            )
+            changed = dict(RUN_CONFIG, fact_style_only_dependence=False)
+            with self.assertRaisesRegex(ValueError, "Resume configuration mismatch"):
+                trainer.load_training_checkpoint(
+                    checkpoint_path,
+                    expected_run_config=changed,
+                )
+
+    def test_checkpoint_rejects_changed_fact_estimator_configuration(self):
+        trainer = make_minimal_trainer(seed=3)
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "training_checkpoint.pt"
+            trainer.save_training_checkpoint(
+                checkpoint_path,
+                completed_epochs=0,
+                history=[],
+                run_config=RUN_CONFIG,
+            )
+            changed = dict(RUN_CONFIG, fact_null_draws=2)
+            with self.assertRaisesRegex(ValueError, "Resume configuration mismatch"):
+                trainer.load_training_checkpoint(
+                    checkpoint_path,
+                    expected_run_config=changed,
+                )
+
+    def test_checkpoint_rejects_changed_label_adversary_configuration(self):
+        trainer = make_minimal_trainer(seed=3)
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "training_checkpoint.pt"
+            trainer.save_training_checkpoint(
+                checkpoint_path,
+                completed_epochs=0,
+                history=[],
+                run_config=RUN_CONFIG,
+            )
+            changed = dict(RUN_CONFIG, fact_label_adversary_weight=0.3)
+            with self.assertRaisesRegex(ValueError, "Resume configuration mismatch"):
+                trainer.load_training_checkpoint(
+                    checkpoint_path,
+                    expected_run_config=changed,
+                )
+
+    def test_checkpoint_rejects_changed_phase_weight_freeze(self):
+        trainer = make_minimal_trainer(seed=3)
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint_path = Path(directory) / "training_checkpoint.pt"
+            trainer.save_training_checkpoint(
+                checkpoint_path,
+                completed_epochs=0,
+                history=[],
+                run_config=RUN_CONFIG,
+            )
+            changed = dict(RUN_CONFIG, phase_weight_freeze_epoch=8)
             with self.assertRaisesRegex(ValueError, "Resume configuration mismatch"):
                 trainer.load_training_checkpoint(
                     checkpoint_path,
