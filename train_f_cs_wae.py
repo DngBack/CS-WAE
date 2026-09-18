@@ -135,6 +135,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch-size", type=int, default=None,
                    help="Override training/evaluation batch size. FACT pilots should use "
                         "a larger batch (e.g. 320 on MNIST) for more samples per class.")
+    p.add_argument("--data-dir", default="./data",
+                   help="Dataset root. Face datasets are never downloaded automatically.")
+    p.add_argument("--image-size", type=int, choices=(64, 128, 256), default=None,
+                   help="Face training resolution (default: dataset metadata, currently 128).")
+    p.add_argument("--metadata-csv", default=None,
+                   help="CelebA-HQ image/identity/attribute mapping CSV.")
+    p.add_argument("--condition-column", default="Smiling",
+                   help="CelebA-HQ metadata column used as the declared condition.")
     p.add_argument("--max-train-batches", type=int, default=None,
                    help="Debug/smoke-only cap on batches per epoch. Omit for real runs.")
     return p.parse_args()
@@ -147,6 +155,14 @@ def main() -> None:
 
     # Sync global config with dataset
     dataset_info = apply_dataset_config(args.dataset, get_dataset_info, backbone="resnet18")
+    if args.image_size is not None:
+        if args.dataset not in {"celebahq", "utkface"}:
+            raise ValueError("--image-size is currently reserved for face datasets")
+        dataset_info["image_size"] = args.image_size
+        dataset_info["input_shape"] = (3, args.image_size, args.image_size)
+        cfg.image_size = args.image_size
+    if args.metadata_csv is not None and args.dataset != "celebahq":
+        raise ValueError("--metadata-csv applies only to --dataset celebahq")
 
     # Resolve output directory
     runs_root = f"runs_f/{args.dataset}"
@@ -387,16 +403,30 @@ def main() -> None:
         "phase_weight_freeze_epoch": cfg.phase_weight_freeze_epoch,
         "audit_protocol_version": AUDIT_PROTOCOL_VERSION,
         "checkpoint_every": args.checkpoint_every,
+        "data_dir": args.data_dir,
+        "image_size": dataset_info.get("image_size"),
+        "metadata_csv": args.metadata_csv,
+        "condition_column": args.condition_column if args.dataset == "celebahq" else None,
     })
     save_run_metadata(save_dir, run_meta, args.seed, extra=run_meta)
 
     # Data
     print("Loading dataset ...")
+    face_loader_options = {}
+    if args.dataset in {"celebahq", "utkface"}:
+        face_loader_options["image_size"] = dataset_info["image_size"]
+    if args.dataset == "celebahq":
+        face_loader_options.update(
+            metadata_csv=args.metadata_csv,
+            condition_column=args.condition_column,
+        )
     train_loader, test_loader = get_loaders(
         dataset=args.dataset,
+        data_dir=args.data_dir,
         seed=args.seed,
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
+        **face_loader_options,
     )
 
     # Model

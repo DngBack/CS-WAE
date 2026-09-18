@@ -5,6 +5,12 @@ from torchvision import datasets, transforms
 from .cifar10 import get_cifar10_loaders, get_data_info as get_cifar10_info
 from .emnist_letters import get_emnist_letters_loaders, get_data_info as get_emnist_letters_info
 from .fashion_mnist import get_fashion_mnist_loaders, get_data_info as get_fashion_mnist_info
+from .face_conditions import (
+    get_celebahq_info,
+    get_celebahq_loaders,
+    get_utkface_info,
+    get_utkface_loaders,
+)
 from .kmnist import get_kmnist_loaders, get_data_info as get_kmnist_info
 from .mnist import get_mnist_loaders, get_data_info as get_mnist_info
 from .svhn import get_svhn_loaders, get_data_info as get_svhn_info
@@ -16,6 +22,8 @@ SUPPORTED_DATASETS = (
     "emnist_letters",
     "cifar10",
     "svhn",
+    "celebahq",
+    "utkface",
 )
 
 
@@ -32,6 +40,10 @@ def get_loaders(dataset: str = "mnist", data_dir: str = "./data", seed: int | No
         return get_cifar10_loaders(data_dir=data_dir, seed=seed, **kwargs)
     if dataset == "svhn":
         return get_svhn_loaders(data_dir=data_dir, seed=seed, **kwargs)
+    if dataset == "celebahq":
+        return get_celebahq_loaders(data_dir=data_dir, seed=seed, **kwargs)
+    if dataset == "utkface":
+        return get_utkface_loaders(data_dir=data_dir, seed=seed, **kwargs)
     raise ValueError(f"Unsupported dataset: {dataset}. Choose from {SUPPORTED_DATASETS}")
 
 
@@ -53,6 +65,10 @@ def get_dataset_info(dataset: str = "mnist") -> dict:
         return get_cifar10_info()
     if dataset == "svhn":
         return get_svhn_info()
+    if dataset == "celebahq":
+        return get_celebahq_info()
+    if dataset == "utkface":
+        return get_utkface_info()
     raise ValueError(f"Unsupported dataset: {dataset}")
 
 
@@ -99,4 +115,6 @@ def build_test_dataset(dataset: str = "mnist", data_dir: str = "./data"):
         return datasets.SVHN(
             data_dir, split="test", download=True, transform=transform
         )
+    if dataset in {"celebahq", "utkface"}:
+        return get_loaders(dataset=dataset, data_dir=data_dir, num_workers=0)[1].dataset
     raise ValueError(f"Unsupported dataset: {dataset}")

@@ -10,6 +10,12 @@ from .shapes3d import (
     Shapes3DDataset,
     build_shapes3d_loaders,
 )
+from .face_conditions import (
+    DEFAULT_AGE_BIN_EDGES,
+    FaceConditionDataset,
+    load_celebahq_populations,
+    load_utkface_populations,
+)
 
 __all__ = [
     "DomainSubset",
@@ -19,4 +25,8 @@ __all__ = [
     "FACTOR_NAMES",
     "Shapes3DDataset",
     "build_shapes3d_loaders",
+    "DEFAULT_AGE_BIN_EDGES",
+    "FaceConditionDataset",
+    "load_celebahq_populations",
+    "load_utkface_populations",
 ]

@@ -1,0 +1,796 @@
+\documentclass{article}
+
+% Unmodified official ICLR 2027 style.  The strict build gate checks that the
+% matching style and bibliography files are present before invoking LaTeX.
+\usepackage{iclr2027_conference,times}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{float}
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\hypersetup{hidelinks}
+
+\graphicspath{{figures/}}
+\setcounter{secnumdepth}{2}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{proposition}{Proposition}
+
+\newcommand{\ours}{F-CS-WAE}
+\newcommand{\zc}{z_{\mathrm{c}}}
+\newcommand{\zs}{z_{\mathrm{s}}}
+\newcommand{\muc}{\mu_{\mathrm{c}}}
+\newcommand{\mus}{\mu_{\mathrm{s}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\MMD}{\mathrm{MMD}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\HSIC}{\mathrm{HSIC}}
+\newcommand{\Dinter}{\Delta_{\mathrm{inter}}}
+\newcommand{\FACT}{\textsc{Fact}}
+
+\title{From Marginal Matching to\\
+Sampler Compatibility: Auditing\\
+Independent Latent Recombination}
+
+% Keep the source anonymous as well as the rendered submission.  The ICLR
+% style hides authors while \iclrfinalcopy remains commented out.
+\author{Anonymous Authors}
+
+% \iclrfinalcopy  % Uncomment only for a camera-ready version.
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+During training, split-latent generators often reconstruct an observation from
+content and style codes encoded from that same observation; at generation,
+their decoder inputs may instead be sampled independently.  We formalize this
+train--generation shift as
+\emph{sampler compatibility} between the encoded conditional joint
+$Q_y=q(\zc,\zs\mid y)$ and the declared sampling law
+$P_y=p(\zc\mid y)p(\zs)$.  An exact expected-conditional KL identity decomposes incompatibility into
+style-prior mismatch, condition information in style, content-prior mismatch,
+and within-condition code dependence.  We pair a direct joint test with
+clause-specific diagnostics, decoder interventions, and task metrics, thereby
+separating latent compatibility, decoded transport, and generation competence.
+An exact-marginal counterexample and controlled audits on image and known-factor
+data show that aggregate matching can coexist with strong leakage and decoded
+style-donor control.  In three fully traceable matched MNIST pairs, a
+\emph{factorized-contract training} (\FACT{}) intervention reduces the selected
+joint-MMD diagnostic by $38.9\!\pm\!3.6\%$ and style-probe accuracy from
+$76.9\%$ to $11.1\%$, but lowers generation accuracy by
+$9.9\!\pm\!2.8$ points; a post-specified energy distance does not improve in
+every pair.  Thus aggregate matching is only one clause of independent
+recombination, and improving a chosen compatibility diagnostic need not improve
+generation competence.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Many split-latent generators are trained and sampled in different ways.  During
+reconstruction, content and style codes come from the same observation.  During
+generation, the two codes are drawn or recombined independently.  If the
+decoder has learned dependencies that occur only in paired codes, generation
+queries it under a latent distribution it did not observe during reconstruction.
+
+Let $Q_y=q(\zc,\zs\mid y)$ denote the encoded pair conditional on the requested
+condition $y$, and let $P_y=p(\zc\mid y)p(\zs)$ denote the independently sampled
+decoder-input law.  We call $Q_y=P_y$ \emph{sampler compatibility}.  Throughout,
+``content'' means the code intended to carry the requested condition and
+``style'' means the designated residual code; these are operational roles, not
+universal perceptual definitions.  The contract applies only when a model uses
+independent recombination.  A generator that models and samples $Q_y$ directly
+makes no such distributional substitution.
+
+Aggregate prior matching checks only one projection of this joint claim.  It
+may make $q(\zs)$ close to a Gaussian without ensuring that style is invariant
+to $y$, that encoded content follows its sampling prior, or that the two codes
+are independent within each condition.  Good reconstruction and a small global
+prior discrepancy can therefore coexist with $Q_y\ne P_y$.
+
+A failure of sampler compatibility is not, by itself, a quality verdict.  A decoder can be insensitive to the
+mismatched directions, while matched latent laws do not guarantee realistic or
+task-correct outputs.  We consequently distinguish three questions: latent
+\emph{compatibility} ($Q_y=P_y$), \emph{transport compatibility}
+($G_\#Q_y=G_\#P_y$), and \emph{generation competence} relative to the real
+conditional data law and intended task.  MNIST swaps show a mismatch that the
+decoder actively uses; a separate SCFlow boundary case shows why endpoint and
+task evidence must still be interpreted in the native model space.
+
+\begin{figure}[t]
+\centering
+\resizebox{.90\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  node distance=3.5mm,
+  box/.style={draw,rounded corners=1.5pt,inner sep=4pt,align=center,minimum height=8mm},
+  train/.style={box,fill=blue!8,draw=blue!55!black},
+  sample/.style={box,fill=orange!12,draw=orange!70!black},
+  test/.style={box,fill=red!7,draw=red!55!black},
+  outbox/.style={box,fill=violet!8,draw=violet!55!black},
+  arr/.style={-{Latex[length=2mm]},thick}
+]
+\node[train,text width=.25\textwidth] (q) {\textbf{Paired training law}\\
+$x,y\xrightarrow{E}(\zc,\zs)$ paired\\[-1pt] $Q_y=q(\zc,\zs\mid y)$};
+\node[test,text width=.23\textwidth,right=7mm of q] (compat)
+{\textbf{Latent compatibility}\\$Q_y\stackrel{?}{=}P_y$};
+\node[sample,text width=.27\textwidth,right=7mm of compat] (p) {\textbf{Independent generation law}\\
+$\zc\sim p(\zc\mid y),\;\zs\sim p(\zs)$\\[-1pt] independently: $P_y$};
+% Both laws enter the comparison from opposite sides, outside every text box.
+\draw[arr,blue!60!black] (q.east) -- (compat.west);
+\draw[arr,orange!80!black] (p.west) -- (compat.east);
+\node[test,text width=.70\textwidth,below=3mm of compat] (terms)
+{\textbf{Localize a rejection:} (1) style prior \quad (2) condition in style\\
+(3) content prior \quad (4) within-condition dependence};
+\node[outbox,text width=.46\textwidth,below=3mm of terms] (transport)
+{\textbf{Decoded transport}\\$G_\#Q_y\stackrel{?}{=}G_\#P_y$\\[-1pt]
+\footnotesize guaranteed only when $Q_y=P_y$};
+\node[outbox,text width=.46\textwidth,below=3mm of transport] (task)
+{\textbf{Generation competence}\\$G_\#P_y$ versus real $R_y$\\[-1pt]
+\footnotesize fidelity, diversity, condition retention};
+\draw[arr,red!55!black] (compat) -- (terms);
+\draw[arr,dashed] (terms) -- (transport);
+\draw[arr,dashed] (transport) -- (task);
+\end{tikzpicture}
+}
+\caption{The audit starts from the model's actual training and generation laws.
+Latent equality implies decoded equality for a fixed decoder; neither implies
+agreement with real data, so transport and competence require separate evidence.}
+\label{fig:contract-schematic}
+\end{figure}
+
+Our technical contribution is not a new KL rule: it is the sampler-specific
+reference joint and the resulting audit target.  The decomposition turns
+familiar marginal diagnostics into necessary but individually insufficient
+clauses, adds content-prior and conditional block-dependence requirements, and
+separates latent failure from decoded consequence.  We ask whether aggregate
+matching can conceal incompatibility, whether the decoder uses that mismatch,
+and what changes when the diagnosed clauses are optimized directly.
+
+Our contributions are:
+\begin{enumerate}
+    \item We formulate the declared generation law as a falsifiable joint
+    contract, derive an exact four-term KL decomposition, and distinguish latent
+    compatibility, decoded transport, and task competence.
+    \item We operationalize a direct joint equality test followed by clause-specific
+    attribution and decoder/task interventions; the diagnostics test zero-sets
+    rather than claim to estimate the four KL magnitudes.
+    \item Across exact constructions, controlled image models, Shapes3D, and a
+    released-checkpoint boundary case, we show that the audit distinguishes
+    null-like and consequential failures.  A fully traceable matched intervention
+    then exposes both diagnostic gains and their generation cost.
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Aggregate matching and latent decomposition.}
+Aggregate-prior metrics examine one marginal; leakage probes examine whether
+a designated representation predicts a condition; factor scores describe
+selected cross-loadings.  Each is useful, but none alone tests the conditional
+joint substituted at generation.  This distinction connects several familiar
+objectives.  VAEs~\citep{kingma2013autoencoding} penalize per-example KL,
+whereas WAEs~\citep{tolstikhin2017wasserstein} match aggregated posteriors with
+objectives such as MMD~\citep{gretton2012kernel}.  The averaged VAE KL separates
+information capacity from aggregate-prior mismatch~\citep{hoffman2016elbo};
+$\beta$-VAE, $\beta$-TCVAE, FactorVAE, and DIP-VAE further target capacity,
+unconditional total correlation, or aggregate moments
+\citep{higgins2017beta,chen2018isolating,kim2018disentangling,kumar2018dipvae}.
+Our reference is instead the conditional product law induced by the declared
+sampler, which additionally requires a content prior and block independence
+given $y$.  Aggregate matching is therefore not incorrect; it certifies one
+marginal of a larger joint claim.
+
+\paragraph{Learning content--style invariance and preventing leakage.}
+Split-latent models use grouped observations, labels, paired supervision, or
+latent optimization to separate specified and residual variation
+\citep{mathieu2016disentangling,bouchacourt2018multilevel,jha2018cycle,ilse2020diva,gabbay2020lord}.
+Leakage filtering directly probes class information in style before
+recombination~\citep{ridgeway2018leakage}; fair representation, adversarial,
+Fader, and information-based objectives suppress designated nuisance signals
+\citep{louizos2015variational,ganin2015unsupervised,lample2017fader,moyer2018invariant}.
+Recent diffusion and autoregressive systems explicitly suppress visual-prompt
+or style-code content leakage, including StyleKeeper and CSD-VAR
+\citep{jeong2025stylekeeper,nguyen2025csdvar}, as well as feature masking and
+variance-invariance approaches~\citep{zhu2025less,wu2025variance}.  These
+methods target leakage or synthesis quality.  Here condition information in
+style is one possible source of $Q_y\ne P_y$; it can vanish while content-prior
+mismatch or conditional code dependence remains.  More broadly, unsupervised
+factor identification requires assumptions on the model or
+data~\citep{locatello2019challenging}.
+
+\paragraph{Disentanglement versus editability.}
+Recent theory formalizes information-theoretic content--style separation and
+editability as complementary properties, and gives identifiability and
+finite-sample results for diffusion models under structural assumptions
+\citep{wang2025candiffusion}.  We do not prove factor identifiability or the
+existence of an editable decoder.  Instead, for a fixed trained encoder,
+decoder, and declared sampler, we test whether the paired decoder-input law is
+the law used for independent recombination.  Our transport check is therefore
+sampler- and decoder-specific rather than an alternative definition of
+editability.
+
+\paragraph{Recombination and its audit.}
+MUNIT and DRIT combine content with sampled style
+\citep{huang2018munit,lee2018drit}; recent methods use variance patterns or
+invertible merging to obtain content--style structure
+\citep{wu2025variance,ma2025scflow}.  These methods evaluate decoded quality and
+diversity under recombination.  Our complementary question is whether the
+encoded conditional joint equals the particular input law used by that
+recombination, which clauses differ if it does not, and whether the difference
+survives decoding.
+
+\paragraph{Known-factor evaluation.}
+Class labels are only one semantic partition.  Controlled datasets such as
+Shapes3D expose shape, color, scale, and orientation factors and have been
+used to evaluate whether representation coordinates track known generative
+variables~\citep{higgins2017beta,locatello2019challenging,deepmind2018shapes3d}.
+We use them differently: a designated content/style split is tested in both
+directions, with family-wise corrected dependence tests and pixel-space swap
+evaluation.
+
+\section{Factorized Sampling and Sampler Compatibility}
+\label{sec:theory}
+
+We now formalize the distributional replacement performed by factorized
+sampling and derive the conditions under which it disappears.
+
+Let $q(y)$ denote the empirical distribution of an externally specified
+condition and let an encoder induce $q(\zc,\zs\mid y)$.  We condition on the
+requested $y$ throughout; matching a separate sampling law $p(y)$ is outside
+this contract and would add $\KL(q(y)\|p(y))$ to a full-joint comparison.  A
+factorized class-conditional sampler draws
+\begin{equation}
+    \zc\sim p(\zc\mid y),\qquad \zs\sim p(\zs),
+    \label{eq:sampler}
+\end{equation}
+independently.  In our case $p(\zs)=\mathcal N(0,I)$.  Many aggregate
+objectives constrain only
+\begin{equation}
+    \mathcal L_{\mathrm{style}}=D\!\left(q(\zs),p(\zs)\right),
+    \quad q(\zs)=\sum_y q(y)q(\zs\mid y),
+    \label{eq:global-style}
+\end{equation}
+
+For the remainder, write
+\begin{equation}
+Q_y:=q(\zc,\zs\mid y),\qquad
+P_y:=p(\zc\mid y)p(\zs),\qquad
+\boxed{\text{sampler compatibility: }Q_y=P_y\quad q(y)\text{-a.e.}}
+\label{eq:compatibility}
+\end{equation}
+
+Equation~\ref{eq:sampler} covers generators that draw both codes from learned
+priors.  Translation systems that deliberately retain content from an input
+instantiate the same analysis with that encoded-content law in place of
+$p(\zc\mid y)$; term 3 is therefore sampler-specific rather than silently
+assumed.  Our direct term-3 experiment concerns F-CS-WAE, whose stated sampler
+does draw $p(\zc\mid y)$.
+
+\subsection{Compatibility, transport, and competence}
+
+The relevant object is not either marginal in isolation, but the discrepancy
+between $Q_y$ and $P_y$.  For a possibly stochastic decoder Markov kernel
+$G(dx\mid\zc,\zs)$, \emph{transport compatibility} is
+$G_\#Q_y=G_\#P_y$.  Let $R_y=p_{\rm data}(x\mid y)$ denote the real conditional
+data law.  \emph{Generation competence} asks whether $G_\#P_y$ agrees with
+$R_y$ under task-relevant fidelity, diversity, and condition-retention metrics.
+We test the latent equality first, then transport and competence separately.
+
+\begin{theorem}[Factorized-sampling contract decomposition]
+\label{thm:decomp}
+Assume the displayed regular conditional distributions exist.  Define the
+following extended non-negative quantity:
+\begin{equation}
+M_{\mathrm{fact}}:=\mathbb E_{q(y)}\!\left[
+\KL\!\left(q(\zc,\zs\mid y)\,\|\,p(\zc\mid y)p(\zs)\right)\right].
+\end{equation}
+Then the following identity holds in $[0,\infty]$:
+\begin{align}
+M_{\mathrm{fact}}={}&
+\underbrace{\KL(q(\zs)\|p(\zs))}_{\text{(1) style-prior mismatch}}
++\underbrace{I_q(\zs;y)}_{\text{(2) condition leakage}}\nonumber\\
+&+\underbrace{\mathbb E_{q(y)}\KL(q(\zc\mid y)\|p(\zc\mid y))}_{\text{(3) content-prior mismatch}}
++\underbrace{I_q(\zc;\zs\mid y)}_{\text{(4) within-condition code dependence}}.
+\label{eq:decomp}
+\end{align}
+All four terms are non-negative.  If $M_{\mathrm{fact}}<\infty$, then all four
+terms are finite and Eq.~\ref{eq:decomp} is an ordinary real-valued equality.
+\end{theorem}
+
+The decomposition is an identity in KL, whereas our audit tests the zero-set
+of each term rather than estimating its numerical magnitude.  The theorem
+allows discrete or continuous $y$; our class-stratified MMD and within-class
+HSIC implementation targets categorical conditions with repeated samples.
+
+\begin{corollary}[Sampler compatibility implies transport compatibility]
+\label{cor:valid}
+$M_{\mathrm{fact}}=0$ iff
+$q(\zc,\zs\mid y)=p(\zc\mid y)p(\zs)$ for $q(y)$-almost every $y$.
+Moreover, for any fixed decoder Markov kernel $G$,
+\begin{equation}
+M_{\mathrm{dec}}:=\mathbb E_{q(y)}\KL\!\left(G_\#q(\cdot\mid y)\,\|\,
+G_\#[p(\zc\mid y)p(\zs)]\right)\le M_{\mathrm{fact}}.
+\end{equation}
+\end{corollary}
+
+The implication is one-way.  A decoder can discard mismatched latent
+directions, so $M_{\mathrm{fact}}=0$ is sufficient but not necessary for
+$M_{\mathrm{dec}}=0$.  Moreover, neither latent nor decoder transport
+compatibility establishes agreement with real data.  Competence metrics are
+therefore complementary to the latent decomposition and decoder interventions.
+
+Exact equality is a falsifiable reference null, not by itself a practical
+severity threshold.  For a pre-declared distribution-separating discrepancy
+$d$ on the relevant representation space, define
+\begin{equation}
+\Delta_d:=\mathbb E_{q(y)}d(Q_y,P_y),\qquad
+(d,\epsilon)\text{-compatibility: }\Delta_d\leq\epsilon .
+\label{eq:epsilon-compatibility}
+\end{equation}
+The tolerance is necessarily metric-, scale-, and task-specific; we do not
+claim a universal $\epsilon$.  Equality tests establish whether the zero anchor
+is tenable, while raw statistics, null calibration, relative effects, and
+decoder/task evidence assess practical magnitude.  For paired interventions we
+report $R_d=1-\widehat\Delta_d^{\rm int}/\widehat\Delta_d^{\rm ctrl}$ when the
+control estimate is positive, alongside competence rather than treating
+rejection alone as an operational certificate.
+
+Equation~\ref{eq:global-style} constrains only term 1.  Terms 2--4 concern how
+aggregate mass is partitioned by the condition, whether content follows its
+requested conditional prior, and whether the codes remain coupled within a
+condition.  They are non-negative but not interchangeable: removing term 2
+still permits the decoder to exploit term-4 dependence.  Table~\ref{tab:audit-map}
+maps these clauses to held-out evidence; a direct test then checks the complete
+joint equality without attributing its failure to one component.
+
+\begin{table}[ht]
+\caption{The four latent requirements and their held-out evidence.  These
+kernel statistics are calibrated proxies for distinct equalities, not
+additive estimates of the four KL terms.}
+\label{tab:audit-map}
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{clll}
+\toprule
+Term & Failure source & Required equality & Evidence used here \\
+\midrule
+1 & Style-prior mismatch & $q(\zs)=p(\zs)$ & global MMD \\
+2 & Condition leakage & $q(\zs\mid y)=q(\zs)$ & probe, HSIC, $\Dinter$ \\
+3 & Content-prior mismatch & $q(\zc\mid y)=p(\zc\mid y)$ & conditional content MMD \\
+4 & Within-condition dependence & $q(\zc,\zs\mid y)=q(\zc\mid y)q(\zs\mid y)$
+& within-class permutation HSIC \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Why one clause cannot certify the contract}
+
+The following minimal counterexample isolates why exact satisfaction of term
+1 leaves term 2---and therefore the joint contract---unconstrained.
+
+\begin{proposition}[No clause-1 certificate for clause 2]
+\label{prop:nocert}
+Let $\zs\sim\mathcal N(0,I)$ and let $\{A_k\}_{k=1}^K$ be a measurable
+partition with $P(\zs\in A_k)=1/K$.  Define $y=k$ iff $\zs\in A_k$.  Then
+$q(\zs)=\mathcal N(0,I)$ exactly for every marginal divergence $D$, while
+$I(\zs;y)=H(y)=\log K$.
+\end{proposition}
+
+The construction is intentionally extremal, but the issue is not restricted
+to discontinuous partitions.  Let $z\sim\mathcal N(0,1)$ and
+$P(y=1\mid z)=\sigma(az)$.  Symmetry leaves the marginal of $z$ exactly
+Gaussian, while $q(z\mid y=1)=2\phi(z)\sigma(az)$ and
+$q(z\mid y=0)=2\phi(z)\sigma(-az)$ are smooth, full-support, and increasingly
+distinguishable as $a$ grows.  Section~\ref{sec:synthetic} instantiates this
+construction only to establish clause-wise insufficiency; the trained-model
+experiments instead evaluate whether the complete audit distinguishes model
+regimes.  Proofs are in Appendix~\ref{app:proofs}.
+
+\section{Term-Aligned Audit and Case Study}
+\label{sec:protocol}
+
+\subsection{Contract-first, term-aligned diagnostics}
+
+The audit follows diagnosis order: first test $Q_y=P_y$; only after rejection
+localize the source.
+
+The audit has two latent stages.  First, independently sampled encoded and
+prior banks test the complete replacement without attribution:
+\begin{equation}
+T_{\mathrm{joint}}=\sum_{k\in\mathcal K}\omega_k
+\MMD^2\!\left(q(\zc,\zs\mid k),p(\zc\mid k)p(\zs)\right),
+\label{eq:direct-joint}
+\end{equation}
+using a product content--style kernel and within-class pooled-label
+permutations.  This diagnostic was specified after the original checkpoint
+audit and is applied to frozen checkpoints and test populations, without
+retraining or model selection.  If it rejects,
+the tests in Table~\ref{tab:audit-map} localize the difference: global MMD for
+term 1; held-out probes and label-permutation HSIC for term 2; classwise
+content-prior MMD for term 3; and within-class permutation HSIC for term 4.
+Sampling-contract tests use stochastic posterior draws, while deterministic
+representation probes use means.  Holm correction covers classwise families.
+These statistics test the corresponding equality; they do not estimate the
+numerical KL or mutual-information term.  Kernel coordinates, bandwidths,
+weighting, and null construction are in Appendix~\ref{app:protocol}.
+
+We also report classwise style-to-prior MMD,
+$\MMD^2(q(\zs\mid y=k),p(\zs))$, as a sensitive \emph{composite} conditional
+diagnostic.  It can reflect term 1, term 2, or both; global MMD separates the
+aggregate-prior clause, while label-HSIC and probes specifically localize
+condition information in style.  We do not identify this conditional MMD with
+the numerical KL value of term 2.
+
+The fixed audit uses 2,048 test examples and a stratified 60/20/20
+probe-train/validation/test split; standardization is fit on probe training
+data only.  Probe models, kernels, permutation counts, RNG separation, and
+per-seed values are specified in Appendix~\ref{app:protocol}.
+
+\subsection{Controlled stress-test instrument}
+
+We use \ours{} as a fully instrumented stress-test model, not as a proposed
+state-of-the-art generator.  Its declared sampler exposes all four contract
+clauses; cross-family and known-factor experiments test whether the diagnostics
+distinguish behavior beyond this instrument.  Its modified
+ResNet-18 encoder produces hyperspherical content
+$\zc\in\mathbb S^{63}$ and Gaussian style $\zs\in\R^{128}$ for a residual
+decoder.  Class-specific Spherical Cauchy priors shape content; global MMD
+matches sampled style to $\mathcal N(0,I)$.  Reconstruction, supervised
+content-prior matching, aggregate content matching, and a content classifier
+complete the phased 300-epoch objective.  Appendix~\ref{app:model} specifies
+the sampler, architecture, coefficients, and schedule.
+
+The historical per-class loss
+$K^{-1}\sum_k\MMD^2(q(\zs\mid k),\mathcal N(0,I))$ targets conditional style
+matching but leaves term 4 outside the intervention.  Its observed instability
+motivates the clause-aligned intervention evaluated only after the diagnostic
+and decoder evidence in Section~\ref{sec:fact-results}.
+
+\section{Experiments}
+\label{sec:experiments}
+
+
+\paragraph{Reporting rules.}
+The image audits cover MNIST, Fashion-MNIST, CIFAR-10,
+paired $-30^\circ/+30^\circ$ Rotated-MNIST, and Shapes3D.  All headline
+sampling-contract diagnostics use stochastic posterior samples and held-out
+splits.
+
+Unbiased $\MMD^2$ estimates may be negative under the null and are never
+clipped.  Non-rejection is interpreted at the available test power.  HSIC uses
+plus-one permutation calibration, with domain-level decisions rather than
+averaged $p$-values.  Shapes3D applies Holm correction separately within the
+six content tests and six style tests.  Final epochs and audit populations are
+fixed without selecting checkpoints on leakage metrics.
+
+\subsection{Can aggregate matching hide joint incompatibility?}
+\label{sec:synthetic}
+
+The decomposition makes aggregate matching a clause rather than a certificate.
+We first isolate that logical point by instantiating the smooth construction from
+Proposition~\ref{prop:nocert} in 128 dimensions:
+\begin{equation}
+z\sim\mathcal N(0,I),\qquad
+p(y=1\mid z)=\sigma(2\kappa z_1).
+\end{equation}
+The latent is sampled before the label, so $q_\kappa(z)=\mathcal N(0,I)$
+exactly for every $\kappa$: term 1 is zero by the data-generating process, not
+because a test fails to reject.  We use 50 replications of 2,048 samples, 499
+MMD and HSIC permutations, and the same stratified 60/20/20 linear-probe
+protocol as the checkpoint audit.
+
+Probe accuracy rises from $49.58\!\pm\!1.86\%$ at $\kappa=0$ to
+$92.30\!\pm\!1.51\%$ at $\kappa=16$.  HSIC rejects in $100\%$ of replications
+for every $\kappa>0$, while its null rejection rate is $2\%$.  Mean
+conditional MMD rises from $6.16\times10^{-6}$ to
+$4.78\times10^{-4}$.  These results support the intended existential claim:
+exact marginal equality can coexist with more than $90\%$ recoverable label
+information.  The complete acceptance audit and sample-size sensitivity are
+reported in Appendix~\ref{app:synthetic}.  This is an exact-marginal
+counterexample, not a trained-model result.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=.98\textwidth]{exact_marginal_vs_leakage.png}
+\caption{\textbf{Exact marginal matching does not certify condition
+independence.}  By construction the same Gaussian latent sample is reused as
+$\kappa$ changes, so global MMD remains at its null while recoverable label
+information and conditional mismatch increase.  Points and bars show mean
+$\pm$ one sample standard deviation over 50 replications.}
+\label{fig:exact-main}
+\end{figure}
+
+A sweep over $n=512$--$4096$ preserves $92.0$--$92.5\%$ probe accuracy and
+$5$--$6\%$ global-MMD rejection (Table~\ref{tab:synthetic-n}).  This is the
+expected pattern: at fixed $\kappa$, more observations stabilize rather than
+strengthen the population predictive relation, while a valid level-.05 test
+should remain near nominal size because the marginal null is exactly true.
+\FloatBarrier
+
+\subsection{Does the complete contract fail in trained models?}
+\label{sec:complete-contract-main}
+
+Both the direct joint test and the content-prior test reject in all six
+seed--domain audits.  The direct test localizes rejection in all 60 class-level
+cases, while the content-prior diagnostic rejects in 56/60.  These
+post-specified tests use frozen checkpoints and populations; multiplicity and
+independent-bank details are given in
+Appendix~\ref{app:complete-contract}.
+
+\begin{table}[H]
+\caption{Complete-contract results on six F-CS-WAE seed--domain audits.
+Statistics are mean $\pm$ sample standard deviation.  Aggregate rejections
+remain $6/6$ for each diagnostic after correction over all 12 aggregate tests.
+The two MMD statistics use different kernels and are not magnitude-comparable.}
+\label{tab:complete-contract-main}
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{lrrr}
+\toprule
+Diagnostic & Mean statistic & Aggregate rejects & Localized rejects \\
+\midrule
+Content-prior (term 3) & $.00807\pm.00347$ & $6/6$ & $56/60$ \\
+Sampler-compatibility test & $.01943\pm.00239$ & $6/6$ & $60/60$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The direct result establishes failure of the full F-CS-WAE latent replacement;
+the term-aligned diagnostics show that content-prior mismatch contributes
+alongside condition leakage and within-condition dependence.
+\FloatBarrier
+
+\subsection{Does the audit distinguish model-family regimes?}
+\label{sec:cross-model}
+
+We next ask whether diagnostics shared across model families report leakage
+indiscriminately or separate practically different regimes.  We train
+native-family, common-backbone adaptations of F-CS-WAE,
+DRIT~\citep{lee2018drit}, and DIVA~\citep{ilse2020diva} for 100 epochs on the
+same two-domain Rotated-MNIST population.  The audited style variables are
+F-CS-WAE $z_s$, DRIT's domain-specific attribute code, and DIVA's residual
+$z_x$.  DRIT domains are audited separately because their attribute spaces
+are domain-specific.
+
+\begin{table}[H]
+\caption{Cross-model audit on a common Rotated-MNIST backbone, mean $\pm$
+sample standard deviation over three seeds.  Accuracies and retention are
+percentages.  Raw MMD values describe the fixed audit geometry, not a
+model-quality ranking; an unbiased estimate may be negative under its null.}
+\label{tab:cross-model}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+Family & Global MMD & Style--prior MMD & Style$\to$label & Content acc. & Rec. L1 & Prior retain \\
+\midrule
+F-CS-WAE & $.003326\!\pm\!.000140$ & $.032262\!\pm\!.001197$ & $91.92\!\pm\!2.43$ & $99.42\!\pm\!.14$ & $.01510\!\pm\!.00036$ & $12.37\!\pm\!1.19$ \\
+DRIT & $.255261\!\pm\!.008545$ & $.272442\!\pm\!.001938$ & $34.42\!\pm\!12.62$ & $88.25\!\pm\!1.52$ & $.04284\!\pm\!.00211$ & $9.87\!\pm\!.12$ \\
+DIVA & $-.0000179\!\pm\!.0000274$ & $.000176\!\pm\!.000129$ & $10.67\!\pm\!1.04$ & $96.67\!\pm\!.76$ & $.03449\!\pm\!.00009$ & $89.45\!\pm\!.83$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+The cross-family subset separates three qualitatively different outcomes.
+F-CS-WAE has a
+larger conditional than global discrepancy and high, seed-stable label
+recovery.  DRIT's global discrepancy is already large, so its label-bearing
+attribute code is a broad prior-sampler mismatch rather than a
+matched-marginal paradox.  DIVA has near-null global discrepancy, chance-level
+probes, and competent prior-style retention.  HSIC rejects in all six
+seed-domain tests for F-CS-WAE and DRIT ($p=1/201$).  Two of six raw DIVA tests
+fall below .05, but none survives Holm correction within the DIVA family and
+the probe pattern does not repeat.  DIVA therefore provides a near-null regime
+at the available power.
+
+All three adaptations pass the pre-specified content-representation gate,
+making a trivial collapse of the content code unlikely to explain the contrast.
+These common-backbone adaptations test audit discrimination under shared conditions; their full
+probe suite, frozen competence gates, and relation to each family's native
+generation law are documented in Appendix~\ref{app:cross-model}.
+\FloatBarrier
+
+\subsection{Does the mismatch survive decoding?}
+\label{sec:entropy}
+
+\paragraph{Decoded semantics.}
+The data-processing inequality leaves open whether a latent mismatch affects
+outputs.  We therefore pair the fixed MNIST, Fashion-MNIST, and CIFAR-10 audit
+with prior-sampling and donor-swap interventions.  Conditional MMD is .0160 on
+MNIST and .010 on Fashion-MNIST, and all seedwise HSIC tests attain $p=1/201$.
+Replacing global Gaussian style by post-hoc class styles raises MNIST Gen-ACC
+from 10.47\% to 100\%; deterministic mean swaps similarly make decoded
+identity follow the style donor in 99.28\% of MNIST and 63.92\% of CIFAR-10
+cases.  An archived per-class intervention lowers donor following to 23.37\%
+and 35.92\%, respectively, while within-class HSIC continues to reject,
+consistent with suppressing term 2 but not term 4.
+
+The variance head of F-CS-WAE often reaches its numerical floor, but a
+three-seed variance-floor intervention does not fully explain the effect:
+increasing posterior noise improves independent generation while substantial
+MNIST label recovery remains.  The complete intervention, CIFAR-10 contrast,
+legacy classwise-style result, qualitative grids, and per-level statistics are
+reported in Appendices~\ref{app:entropy} and~\ref{app:full-results}.  Section
+\ref{sec:fact-results} next tests whether directly optimizing the diagnosed
+clauses changes both latent statistics and decoder attribution.
+
+\subsection{Does the audit recover known generative factors?}
+\label{sec:shapes3d}
+
+On an IID Shapes3D split, every model passes reconstruction/content gates, but
+F-CS-WAE style predicts shape at 99.0\% and content predicts nuisance factors
+at 87.0\% on average.  The Holm-corrected pattern repeats over three seeds:
+F-CS-WAE rejects all six factor tests in both views, while a learned
+content--style VAE rejects only the expected complementary factors and
+preserves shape at 99.7\%/99.8\% under prior/swap decoding, versus
+89.0\%/88.0\% for F-CS-WAE.  Appendix~\ref{app:shapes3d} reports the second
+near-null control, oracle scope, and per-factor results.
+
+\paragraph{Released-checkpoint boundary.}
+Appendix~\ref{app:scflow} separately audits SCFlow's released synthetic
+CLIP-space checkpoint~\citep{ma2025scflow}.  Its endpoint law differs from the
+four-term encoder--prior setting, so we use it only to illustrate that improved
+forward retrieval can coexist with endpoint/inverse-transport failure, not as
+a natural-image validation of Theorem~\ref{thm:decomp}.
+
+\section{Clause-Aligned Intervention}
+\label{sec:fact-results}
+
+We treat factorized-contract training (\FACT{}) as a mechanism probe, not a
+standalone optimizer or end-to-end generation method.
+
+\paragraph{Intervention.}
+After warm-up, \FACT{} replaces legacy classwise penalties with positive
+null-excess constraints for conditional style MMD, conditional content MMD,
+and within-class sampled-code HSIC, calibrated against matched prior--prior
+banks or within-class permutations.  Sampled-style label HSIC, an adversarial
+classifier, and posterior-mean HSIC target the remaining nonlinear information.
+Content is stop-gradient for dependence terms, and direct joint MMD remains a
+held-out outcome.  Appendix~\ref{app:fact} gives the exact objective,
+optimization, calibration, and development history.  Raw/null calibration and
+component construction use seed 0; the setting and seven gates are then fixed
+before seeds 1--2, with training seeds separated from audit RNGs.
+
+\paragraph{Fully traceable matched result.}
+We report every retained control/\FACT{} pair for training seeds 0--2; seed 0
+is the development pair and seeds 1--2 were run after the setting was fixed.
+Joint MMD falls from $.002368\!\pm\!.000160$ to
+$.001449\!\pm\!.000166$, a $38.89\!\pm\!3.65\%$ paired reduction; classwise
+style--prior MMD falls from $.002567\!\pm\!.000153$ to
+$.001902\!\pm\!.000148$.  Nevertheless, all three controls and all three
+\FACT{} models reject joint equality ($p=.005$ in every aggregate test).
+Style-probe accuracy falls from $76.91\%$ to $11.14\%$.  Decoder attribution
+moves in the intended direction in every pair: content-donor following rises by
+$25.41\!\pm\!8.05$ points and style-donor following falls by
+$29.09\!\pm\!5.32$ points.  These gains carry a cost: global Gen-ACC falls by
+$9.93\!\pm\!2.84$ points and reconstruction MAE worsens by
+$6.52\!\pm\!5.57\%$.
+
+\begin{table}[H]
+\caption{Matched MNIST \FACT{}--control effects over seeds 0--2 (mean $\pm$
+sample SD; all seeds retained).}
+\label{tab:fact-main}
+\centering
+\small
+\setlength{\tabcolsep}{5.2pt}
+\begin{tabular}{lrrr}
+\toprule
+Outcome & Mean $\pm$ SD & Direction & Seeds agreeing \\
+\midrule
+Joint MMD reduction (\%) & $38.89\pm3.65$ & lower & $3/3$ \\
+Content-donor following (points) & $+25.41\pm8.05$ & higher & $3/3$ \\
+Style-donor following (points) & $-29.09\pm5.32$ & lower & $3/3$ \\
+Global Gen-ACC (points) & $-9.93\pm2.84$ & \textbf{worse} & $3/3$ \\
+Reconstruction MAE (relative \%) & $+6.52\pm5.57$ & \textbf{worse} & $3/3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{v26_fact_tradeoff.pdf}
+\caption{\textbf{Selected-diagnostic gains do not imply competence gains.}
+Matched posterior-swap attribution and paired effects (mean $\pm$ sample SD);
+green favors the intended target and red marks competence costs.}
+\label{fig:fact-tradeoff}
+\end{figure}
+
+\paragraph{Metric robustness and scope.}
+MMD and a post-specified energy check agree on $98.99\%$ of equality decisions,
+and distance correlation falls in every pair.  Yet joint energy improves in
+only two pairs and worsens sharply in seed 0.  Thus the selected-MMD reduction
+and swap change neither establish metric-independent progress nor make the
+exact joint null tenable; Appendix~\ref{app:fact} gives all outcomes.
+
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+\paragraph{How to use the audit.}
+The declared sampler determines the reference law.  Test $Q_y=P_y$ jointly,
+localize rejection with the four clauses, then measure decoder/task effects.
+The clauses point to the aggregate prior, style leakage, content sampler, and
+residual dependence.  Decoder-insensitive mismatch may need no change; useful
+label-bearing style may instead call for changing the sampler.
+
+\paragraph{Equality versus practical compatibility.}
+Equality rejection localizes failure; it is not a quality verdict.  Deployment
+claims should pre-declare $(d,\epsilon)$ and report $\Delta_d$ with transport
+and competence.  SCFlow's retrieval gain despite endpoint mismatch and
+\FACT{}'s opposing MMD and Gen-ACC changes rule out a universal threshold;
+cross-architecture tolerance calibration remains open.
+
+\paragraph{Intervention scope.}
+The three pairs support a stable direction for the chosen MNIST MMD and swap
+metrics, not a general optimizer.  Kernel-free magnitude and competence do not
+improve uniformly, so diagnostics require explicit transport and task constraints.
+
+\paragraph{Limitations.}
+Shapes3D is IID, DRIT/DIVA are adapted, and SCFlow is a CLIP-space boundary
+rather than a four-term natural-image audit.  Decoded natural-image and
+continuous-condition evidence remains open.  \FACT{} is sequentially built on
+MNIST from only three traceable pairs and needs factorial confirmation.
+
+\section{Conclusion}
+Factorized generation replaces the paired reconstruction law by an independent
+latent law, while aggregate matching verifies only one of four requirements.
+Mismatch can alter decoding, yet optimizing selected diagnostics can harm
+generation; compatibility, transport, and competence must be evaluated separately.
+
+\clearpage
+\section*{Reproducibility Statement}
+
+Section~\ref{sec:protocol} specifies the latent views, preprocessing, tests,
+permutation calibration, and split discipline.  Sections~\ref{sec:synthetic}--
+\ref{sec:fact-results} state setting-specific populations, seeds, analysis
+status, and fixed reporting rules.  The appendix contains complete proofs,
+architectures, per-seed results, multiplicity rules, competence gates, and
+limitations for each external audit.  The anonymous supplementary package ties
+unrounded headline rows, figures, split/protocol metadata, and critical source
+files to a content manifest; checkpoint hashes are retained without claiming
+that the large checkpoint files are packaged.  Appendix~\ref{app:evidence}
+collects the evidence roots and boundaries.
+
+\section*{Ethics Statement}
+
+This work uses standard public computer-vision benchmarks and existing model
+checkpoints, collects no new data, and involves no human subjects or sensitive
+personal information.  Its purpose is to identify and measure a failure mode
+in factorized generative models.  Generated examples are low-resolution
+benchmark images; nevertheless, the broader recommendation---auditing whether
+a decoder uses unintended latent information---may also help identify
+representation leakage in higher-stakes applications.
+
+\section*{AI Use Statement}
+
+Generative AI tools assisted with feedback on methodology and experiment
+design; implementation, debugging, and review of loss, audit, and orchestration
+code; interpretation of results; identification and summarization of related
+literature; and drafting, restructuring, and editing the manuscript.  They
+were not used to generate datasets or fabricate experimental measurements.
+The authors manually inspected the cited primary literature, verified every
+mathematical claim, executed tests and experiments, checked source and artifact
+hashes and every reported numerical value, and reviewed all AI-assisted code
+and text.  The authors take responsibility for the final content, claims,
+code, and artifacts.
+
+\clearpage
+\bibliographystyle{iclr2027_conference}
+\bibliography{references}
+
+\appendix
+\input{appendix}
+
+\end{document}

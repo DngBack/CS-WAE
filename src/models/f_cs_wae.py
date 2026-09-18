@@ -6,7 +6,7 @@ Latent space is split into:
   z_s in R^{d_s}    — style latent in Euclidean space
 
 Encoder: shared ResNet-18 backbone → semantic head (mu_c, rho_c) + style head (mu_s, logvar_s)
-Decoder: concat(z_c, z_s) → native ResBlock decoder (4×4 → 32×32 or 64×64)
+Decoder: concat(z_c, z_s) → native ResBlock decoder (4×4 → 32--256 px)
 Priors:  z_c ~ SphericalCauchy(m_k, rho_p) per class k (EMA centers, no gradient)
          z_s ~ N(0, I)
 """
@@ -140,6 +140,8 @@ class ResBlockDecoder(nn.Module):
         ResBlockUp 256 → 128   (8 → 16)
         ResBlockUp 128 → 64    (16 → 32)
         optional ResBlockUp 64 → 32 (32 → 64)
+        optional ResBlockUp 32 → 16 (64 → 128)
+        optional ResBlockUp 16 → 16 (128 → 256)
         GN + SiLU → Conv2d → in_channels → Sigmoid
     """
 
@@ -151,8 +153,10 @@ class ResBlockDecoder(nn.Module):
         image_size: int = 32,
     ):
         super().__init__()
-        if image_size not in (28, 32, 64):
-            raise ValueError("F-CS-WAE decoder supports image_size in {28,32,64}")
+        if image_size not in (28, 32, 64, 128, 256):
+            raise ValueError(
+                "F-CS-WAE decoder supports image_size in {28,32,64,128,256}"
+            )
         self.image_size = image_size
         latent_dim = semantic_dim + style_dim
 
@@ -166,6 +170,18 @@ class ResBlockDecoder(nn.Module):
         if image_size == 64:
             up_blocks.append(ResBlockUp(64, 32))
             output_channels = 32
+        elif image_size == 128:
+            up_blocks.extend([ResBlockUp(64, 32), ResBlockUp(32, 16)])
+            output_channels = 16
+        elif image_size == 256:
+            up_blocks.extend(
+                [
+                    ResBlockUp(64, 32),
+                    ResBlockUp(32, 16),
+                    ResBlockUp(16, 16),
+                ]
+            )
+            output_channels = 16
         self.ups = nn.Sequential(*up_blocks)
         self.out = nn.Sequential(
             nn.GroupNorm(8, output_channels),
@@ -392,6 +408,69 @@ class FCSWAE(nn.Module):
         """Convenience: sample prior and decode to images."""
         z_c, z_s = self.sample_from_class_prior(class_idx, n_samples, device)
         return self.decoder(torch.cat([z_c, z_s], dim=1))
+
+    def sample_from_continuous_prior(
+        self,
+        conditions: torch.Tensor,
+        knots: torch.Tensor,
+        *,
+        generator: torch.Generator | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Sample a declared continuous conditional prior by center interpolation.
+
+        ``knots[k]`` is the real-valued condition represented by EMA class
+        center ``k``.  Adjacent centers are linearly interpolated and projected
+        back to the unit sphere (normalized linear interpolation).  This makes
+        the continuous sampler explicit and reproducible while retaining the
+        age-bin centers used by the current trainer.  Multiple centers per bin
+        are intentionally rejected because their cross-bin correspondence is
+        not identified.
+        """
+
+        if self.n_centers != 1:
+            raise ValueError(
+                "continuous prior interpolation requires exactly one center per knot"
+            )
+        values = conditions.flatten().to(self.ema_centers)
+        knots = knots.flatten().to(self.ema_centers)
+        if knots.numel() != self.n_classes:
+            raise ValueError("one strictly ordered knot is required per class center")
+        if knots.numel() < 2 or not bool(torch.all(knots[1:] > knots[:-1])):
+            raise ValueError("continuous-prior knots must be strictly increasing")
+        clipped = values.clamp(float(knots[0]), float(knots[-1]))
+        upper = torch.searchsorted(knots, clipped, right=True).clamp(1, knots.numel() - 1)
+        lower = upper - 1
+        denominator = (knots[upper] - knots[lower]).clamp_min(1e-8)
+        weight = ((clipped - knots[lower]) / denominator).unsqueeze(1)
+        centers = self.ema_centers[:, 0]
+        interpolated = F.normalize(
+            (1.0 - weight) * centers[lower] + weight * centers[upper],
+            p=2,
+            dim=1,
+        )
+        generator_device = (
+            torch.device(getattr(generator, "device", "cpu"))
+            if generator is not None
+            else interpolated.device
+        )
+        noise = torch.randn(
+            interpolated.shape,
+            device=generator_device,
+            dtype=interpolated.dtype,
+            generator=generator,
+        ).to(interpolated.device)
+        epsilon = F.normalize(noise, p=2, dim=1)
+        rho = torch.full(
+            (values.numel(),), self.rho_p, device=interpolated.device, dtype=interpolated.dtype
+        )
+        content = mobius_reparam(epsilon, interpolated, rho)
+        style = torch.randn(
+            (values.numel(), self.style_dim),
+            device=generator_device,
+            dtype=interpolated.dtype,
+            generator=generator,
+        ).to(interpolated.device)
+        return content, style
 
     # ------------------------------------------------------------------
     # EMA center update (called by trainer, no gradient needed)

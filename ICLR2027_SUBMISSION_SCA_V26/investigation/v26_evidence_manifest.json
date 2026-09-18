@@ -1,0 +1,192 @@
+{
+  "critical_source_snapshot": [
+    {
+      "bytes": 4296,
+      "path": "scripts/build_v26_evidence_manifest.py",
+      "sha256": "a8109ddbd014c89171cee5c3e50d9cf06a919adb4194375684ddd5393f6d7bf7"
+    },
+    {
+      "bytes": 6085,
+      "path": "scripts/build_v26_supplement.py",
+      "sha256": "21bc6227622fb0f138c705bac31f66478959c17653cc95f9bb6535aac2199ab2"
+    },
+    {
+      "bytes": 12161,
+      "path": "scripts/audit_v26_anonymity.py",
+      "sha256": "0a2127d873c92d12ed09ade929c58012e68e869c193cb3cf4784a0a64c25870d"
+    },
+    {
+      "bytes": 4360,
+      "path": "scripts/plot_v26_fact_tradeoff.py",
+      "sha256": "d46733d3ebee8b2e99db1bc81396e917df0b5fb6f50919c3099f9b47028b6203"
+    },
+    {
+      "bytes": 40146,
+      "path": "fcswae/sca_v26_iclr2027.tex",
+      "sha256": "80675f1b2a00b399f5c8f9ff752bae504cf94dd838fb8c8761347bd90f8e70a3"
+    },
+    {
+      "bytes": 63860,
+      "path": "fcswae/appendix_v26_iclr2027.tex",
+      "sha256": "51dd5f33ccb8048b122a919cf8019d80a6c132fad074a235b8589cf47d5c392a"
+    },
+    {
+      "bytes": 3062,
+      "path": "fcswae/build_sca_v26_submission.sh",
+      "sha256": "d3c7bcf70bd2689ef34a3b1871840522f88a7636dc86854a90d0b609c63dbf38"
+    },
+    {
+      "bytes": 1745,
+      "path": "fcswae/README_V26_SUPPLEMENT.md",
+      "sha256": "34d92be51851eeb3bcca990561227c075c9cf52bb4cc7146651786a5eda1c30a"
+    },
+    {
+      "bytes": 15405,
+      "path": "fcswae/references.bib",
+      "sha256": "0761b89e5273c82a85b013b9448acdd13e05fde5a2ce8e66211f02752dc690de"
+    },
+    {
+      "bytes": 7429,
+      "path": "fcswae/figures/FIGURE_SOURCES.md",
+      "sha256": "e0977bba6a94447c72527ced73c664585a3ba1f0e67f7fb364cb2221f297da90"
+    },
+    {
+      "bytes": 16546,
+      "path": "scripts/audit_mnist_joint_contract.py",
+      "sha256": "bd43bfb7d8b8c84536b6c2f63384806db0b008a60777a63fb2d92bb6ac79e779"
+    },
+    {
+      "bytes": 5819,
+      "path": "scripts/summarize_kernel_robustness.py",
+      "sha256": "c1ed8fde83379adb5190c10d0b372e152296c972f1aa0f630e968924bf25478f"
+    },
+    {
+      "bytes": 4006,
+      "path": "scripts/scflow_feasibility_gate.py",
+      "sha256": "c3d2b99944a5b2357999432005adea200704638fa92033d3170dfcae84392da9"
+    },
+    {
+      "bytes": 16045,
+      "path": "scripts/run_scflow_contract_audit.py",
+      "sha256": "d5ccda83e115e61ee6e98ab5c1c6d266c2af2f6990f7105d646dd84e4a265030"
+    },
+    {
+      "bytes": 6789,
+      "path": "scripts/summarize_scflow_audit.py",
+      "sha256": "aa156e7e3e3c3dc77a92854ea38f46bd2b1ae6168e854100d9a54d4993f88f17"
+    },
+    {
+      "bytes": 36026,
+      "path": "src/metrics/audit_protocol.py",
+      "sha256": "90ab1c8df8a5a844b2415552dc7c1fdb827518626c6d1337bdce9ace4d3edc8f"
+    },
+    {
+      "bytes": 5653,
+      "path": "src/metrics/deadiff_adapter.py",
+      "sha256": "3568327d60e1ea8b27d7ac8f6deee73e874748d19f1c7d319d70ca4a67ba0db2"
+    },
+    {
+      "bytes": 31998,
+      "path": "src/trainers/trainer_f_cs_wae.py",
+      "sha256": "6491afe2ac142f88050e1cd6578c6cbc11deb33a60407e6c0c02699dc2710233"
+    },
+    {
+      "bytes": 26166,
+      "path": "src/utils/loss_f_cs_wae.py",
+      "sha256": "97c4047c0beaef9b29dbd9f91dbfe4e516744d80863c298e87ba9e51db67e009"
+    },
+    {
+      "bytes": 12898,
+      "path": "tests/test_audit_protocol.py",
+      "sha256": "7e8a7b7cfbe2d59e93d46af0efc17b1aebd06520d6408f2dee42e5b5dbe303bc"
+    },
+    {
+      "bytes": 2966,
+      "path": "tests/test_deadiff_adapter.py",
+      "sha256": "0fd7c309e58c0d1e731ec081b393ea730f77a826e9807d121f01fb0c6f3ece3f"
+    }
+  ],
+  "headline_artifacts": [
+    {
+      "bytes": 5724,
+      "path": "fcswae/reported_followup_aggregates_v16.json",
+      "sha256": "83e4c9038f9447828b442829065f06cdd6b904d30de86151760aa665ca1d63d4"
+    },
+    {
+      "bytes": 8091,
+      "path": "runs_diag/kernel_robustness/summary.json",
+      "sha256": "11d2e5358023fa1447793e9432f9d5c5afb6aa051c8ea7127937c699159fca4f"
+    },
+    {
+      "bytes": 17003,
+      "path": "runs_diag/fact/mean_hsic_mnist_40e/submission_followup_v1/summary.json",
+      "sha256": "6b1e693862820af9cc53854646d91a8cf1d0013d7ddb87650653633f73d0cb44"
+    },
+    {
+      "bytes": 2681,
+      "path": "runs_diag/fact/mean_hsic_mnist_40e/submission_followup_v1/manifest.json",
+      "sha256": "f5eea2651fc76aadaecd91c7c5e6cf97c76380b2a1dde0ef6576f7a1d5556b77"
+    },
+    {
+      "bytes": 71743,
+      "path": "runs_diag/complete_contract_diagnostics/results.json",
+      "sha256": "aacbfd1456b02539f852eebc7ec0883a54b9ba263c0388ba880d5dbf3c229838"
+    },
+    {
+      "bytes": 16425,
+      "path": "fcswae/figures/v26_fact_tradeoff.pdf",
+      "sha256": "6c649b3d9df739cc1e48f9d2885db5b4faa39c957217a4a27f5103092eb5d879"
+    }
+  ],
+  "identity_free_paths": true,
+  "protocol_versions": [
+    "stage0-1.1.0",
+    "stage0-1.2.0",
+    "stage0-1.3.0",
+    "mnist-joint-contract-1.1.0",
+    "scflow-contract-audit-1.1.0",
+    "scflow-contract-summary-1.0.0"
+  ],
+  "provenance": {
+    "external_repositories": {
+      "DEADiff": "eaffe5f717620c824ccbd71a6d100eae0a1929e6",
+      "SCFlow": "7c21af7dc3b3cfaff49876337b77b3aae6cfcdf5"
+    },
+    "note": "Historical artifacts retain their original dirty-worktree flags; this manifest binds the exact critical source files shipped with v26.",
+    "repository_head": "e592b143fed70f93eb9f3d76110701dd10a0d274",
+    "tracked_worktree_clean": false
+  },
+  "schema": "iclr2027-v26-evidence-manifest-1.0.0",
+  "secondary_or_externally_reported_artifacts": [
+    {
+      "bytes": 3001,
+      "path": "runs_modern/deadiff_feasibility/gate.json",
+      "sha256": "718843ab19c0f6d62de559f6fcb8e419a4f9a8c57cff0007e7093e6edec35f17"
+    },
+    {
+      "bytes": 2143,
+      "path": "runs_modern/scflow_feasibility/gate.json",
+      "sha256": "0876ee7cc7317bac4a26f9a2cc9ae283c9f40731bef2a705adfef4527e9e20c8"
+    },
+    {
+      "bytes": 10631,
+      "path": "runs_modern/scflow_audit/main_seed2027.json",
+      "sha256": "e323b7b93dd39a03027c1ba47a3756130b11c12f642dd6dfda6175c5a69325ff"
+    },
+    {
+      "bytes": 10632,
+      "path": "runs_modern/scflow_audit/main_seed2028.json",
+      "sha256": "9ba174828f84f9be61e83af6383e9d9ad4bea1bfc79bdc92dc1c8c831189115b"
+    },
+    {
+      "bytes": 10626,
+      "path": "runs_modern/scflow_audit/main_seed2029.json",
+      "sha256": "1b9af5865fb5a75fd1ea1feb754fcbcdb0b5a9540b47734ca287a26aa2f7fe09"
+    },
+    {
+      "bytes": 4711,
+      "path": "runs_modern/scflow_audit/summary.json",
+      "sha256": "afc6330fc69d82c143c4cda1d2e69abdf76ff637715dc70bf4e3be60e02cbe41"
+    }
+  ]
+}

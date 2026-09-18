@@ -1,0 +1,39 @@
+{
+  "copied_v26_anonymity_audit_status": "pass",
+  "created_utc": "2026-09-03T01:45:06.667001+00:00",
+  "investigation_archive": {
+    "entries": 248,
+    "excluded_untraceable_aggregates": [
+      "external five-pair",
+      "FACT-Lite"
+    ],
+    "identity_findings": [],
+    "internal_manifest_verified": true,
+    "rejected_face_direction_absent": true,
+    "safe_paths_and_unique_names": true
+  },
+  "pdf": {
+    "ai_use_statement_present": true,
+    "author_metadata_blank": true,
+    "pages": 30,
+    "reproducibility_statement_page": 10,
+    "title_metadata_blank": true
+  },
+  "schema": "iclr2027-submission-folder-audit-1.0.0",
+  "sidecar_hashes_verified": {
+    "anonymity_report": true,
+    "evidence_manifest": true,
+    "evidence_zip": true
+  },
+  "source_archive": {
+    "anonymous_author_source": true,
+    "entries": 21,
+    "finalcopy_disabled": true,
+    "identity_findings": [],
+    "missing_graphics": [],
+    "official_2027_style_present": true,
+    "rejected_face_direction_absent": true,
+    "safe_paths_and_unique_names": true
+  },
+  "status": "pass"
+}

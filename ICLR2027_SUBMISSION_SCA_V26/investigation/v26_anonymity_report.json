@@ -1,0 +1,25 @@
+{
+  "audited_target_count": 40,
+  "boundary": "The audit covers v26 manuscript sources, included figures, the submission README/figure-source index, every source/artifact listed in the v26 evidence manifest, and every entry of the generated supplementary ZIP. Git object metadata is not packaged.",
+  "checks": [
+    "runtime username, home directory, and hostname",
+    "POSIX/macOS/Windows user directories",
+    "file URIs and email addresses",
+    "submission PDF title, subject, keywords, and author metadata"
+  ],
+  "findings": [],
+  "pdf_metadata": {
+    "author": "",
+    "creator": "LaTeX with hyperref",
+    "keywords": "",
+    "producer": "pdfTeX-1.40.22",
+    "subject": "",
+    "title": ""
+  },
+  "schema": "iclr2027-v26-anonymity-audit-1.0.0",
+  "status": "pass",
+  "supplementary_archive": {
+    "entries": 248,
+    "manifest_verified": true
+  }
+}
